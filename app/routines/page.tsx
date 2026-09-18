@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Flame, Plus, Check, Trophy, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { haptics } from "@/lib/haptics";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -40,6 +41,7 @@ export default function RoutinesPage() {
   }, []);
 
   const handleToggleCompletion = async (routineId: string, date?: string) => {
+    haptics.success();
     try {
       await fetch(`/api/routines/${routineId}`, {
         method: "PATCH",
@@ -53,6 +55,7 @@ export default function RoutinesPage() {
   };
 
   const handleDeleteRoutine = async (routineId: string) => {
+    haptics.warning();
     try {
       await fetch(`/api/routines/${routineId}`, { method: "DELETE" });
       setRoutines((prev) => prev.filter((r) => r.id !== routineId));

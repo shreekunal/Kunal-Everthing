@@ -18,6 +18,7 @@ import {
   Edit2,
   MessageCircle,
 } from "lucide-react";
+import { haptics } from "@/lib/haptics";
 
 export default function RelationshipPage() {
   const [data, setData] = useState<any>(null);
@@ -28,9 +29,9 @@ export default function RelationshipPage() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [partnerName, setPartnerName] = useState("");
   const [partnerNickname, setPartnerNickname] = useState("");
-  const [partnerPhone, setPartnerPhone] = useState("");
   const [partnerBirthday, setPartnerBirthday] = useState("");
   const [partnerAnniversary, setPartnerAnniversary] = useState("");
+  const [partnerPhone, setPartnerPhone] = useState("");
   const [partnerPreferences, setPartnerPreferences] = useState("");
   const [partnerNotes, setPartnerNotes] = useState("");
 
@@ -46,15 +47,15 @@ export default function RelationshipPage() {
         if (json.partner) {
           setPartnerName(json.partner.name || "");
           setPartnerNickname(json.partner.nickname || "");
-          setPartnerPhone(json.partner.phone || "");
           setPartnerBirthday(json.partner.birthday || "");
           setPartnerAnniversary(json.partner.anniversary || "");
+          setPartnerPhone(json.partner.phone || "");
           setPartnerPreferences(json.partner.preferences || "");
           setPartnerNotes(json.partner.notes || "");
         }
       }
     } catch (err) {
-      console.error("Fetch relationship error:", err);
+      console.error("Failed to load relationship data:", err);
     } finally {
       setLoading(false);
     }
@@ -64,24 +65,28 @@ export default function RelationshipPage() {
     fetchRelationshipData();
   }, []);
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSavePartner = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch("/api/relationship", {
+      const res = await fetch("/api/relationship", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "UPSERT_PARTNER",
           name: partnerName,
           nickname: partnerNickname,
+          birthday: partnerBirthday || null,
+          anniversary: partnerAnniversary || null,
           phone: partnerPhone,
-          birthday: partnerBirthday,
-          anniversary: partnerAnniversary,
           preferences: partnerPreferences,
           notes: partnerNotes,
         }),
       });
-      setIsEditProfileOpen(false);
-      fetchRelationshipData();
+      if (res.ok) {
+        haptics.success();
+        setIsEditProfileOpen(false);
+        fetchRelationshipData();
+      }
     } catch (err) {
       console.error("Save partner error:", err);
     }
@@ -89,6 +94,7 @@ export default function RelationshipPage() {
 
   const handleSendWhatsApp = (text: string) => {
     if (!text) return;
+    haptics.impactMedium();
     const phone = data?.partner?.phone || "";
     const cleanPhone = phone.replace(/[^0-9]/g, "");
     const encoded = encodeURIComponent(text);
@@ -99,6 +105,7 @@ export default function RelationshipPage() {
   };
 
   const handleCopyText = (id: string, text: string) => {
+    haptics.impactLight();
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -148,10 +155,22 @@ export default function RelationshipPage() {
                   <span className="text-xs text-zinc-400 font-mono">({partner.name})</span>
                 )}
               </div>
-              <p className="text-xs text-zinc-300 font-mono mt-0.5 flex items-center gap-1.5">
-                <Phone className="w-3 h-3 text-brand-red" />
-                {partner?.phone || "No phone number configured"}
-              </p>
+              <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+                <p className="text-xs text-zinc-300 font-mono flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-brand-red" />
+                  {partner?.phone || "No phone number configured"}
+                </p>
+                {partner?.phone && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendWhatsApp("Hello baby ❤️")}
+                    className="px-2 py-0.5 rounded-lg bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/30 text-[10px] font-mono text-brand-red transition-all flex items-center gap-1 active:scale-95"
+                  >
+                    <span>Direct Chat</span>
+                    <Send className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

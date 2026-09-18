@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDisciplineSummary, awardPoints, deductPoints } from "@/lib/rewards";
+import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 5. Redeem reward perk from store
+    // 5. Evening Monk Bedtime Reflection Check-in
+    if (action === "EVENING_CHECKIN") {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const existing = await prisma.rewardLog.findFirst({
+        where: {
+          userId: user.id,
+          type: "REWARD_DAILY_CHECKIN",
+          createdAt: {
+            gte: todayStart,
+          },
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json(
+          { error: "You have already completed today's evening reflection!" },
+          { status: 400 }
+        );
+      }
+
+      const log = await awardPoints({
+        userId: user.id,
+        points: 50,
+        type: "REWARD_DAILY_CHECKIN",
+        title: "Evening Monk Reflection Completed",
+        reason: notes || "Preserved monk purity and clean nutrition throughout the day.",
+        category: "DISCIPLINE",
+      });
+
+      return NextResponse.json({ success: true, log });
+    }
+
+    // 6. Redeem reward perk from store
     if (action === "REDEEM_REWARD") {
       if (!itemId) {
         return NextResponse.json({ error: "Item ID is required" }, { status: 400 });

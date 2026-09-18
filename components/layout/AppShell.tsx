@@ -13,12 +13,30 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddInitialTab, setQuickAddInitialTab] = useState<any>("task");
+
+  // Deep-link / App Shortcut listener (?action=quickadd&tab=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "quickadd") {
+      const tab = params.get("tab");
+      if (tab) {
+        setQuickAddInitialTab(tab);
+      }
+      setIsQuickAddOpen(true);
+      // Clean query params from URL bar cleanly
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+  }, []);
 
   // Global Ctrl+N / Cmd+N listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
+        setQuickAddInitialTab("task");
         setIsQuickAddOpen(true);
       }
     };
@@ -47,6 +65,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Global Quick Add Modal */}
       <QuickAddModal
         isOpen={isQuickAddOpen}
+        initialTab={quickAddInitialTab}
         onClose={() => setIsQuickAddOpen(false)}
         onItemAdded={() => {
           window.dispatchEvent(new CustomEvent("kunal-os-refresh"));

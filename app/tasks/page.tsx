@@ -20,6 +20,7 @@ import {
   Check,
 } from "lucide-react";
 import { format, addHours, setHours, setMinutes, addDays } from "date-fns";
+import { haptics } from "@/lib/haptics";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -82,6 +83,11 @@ export default function TasksPage() {
 
   const handleToggleTask = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
+    if (newStatus === "DONE") {
+      haptics.success();
+    } else {
+      haptics.impactLight();
+    }
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -95,6 +101,7 @@ export default function TasksPage() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
+    haptics.warning();
     try {
       await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       setTasks((prev) => prev.filter((t) => t.id !== taskId));

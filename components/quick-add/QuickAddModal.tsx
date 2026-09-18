@@ -18,17 +18,19 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
+import { haptics } from "@/lib/haptics";
 
 interface QuickAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   onItemAdded?: () => void;
+  initialTab?: TabType;
 }
 
 type TabType = "task" | "routine" | "session" | "date" | "message" | "discipline";
 
-export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("task");
+export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: QuickAddModalProps) {
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab || "task");
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -60,6 +62,24 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
   const [disciplinePoints, setDisciplinePoints] = useState("50");
   const [disciplineTitle, setDisciplineTitle] = useState("");
   const [disciplineNotes, setDisciplineNotes] = useState("");
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    fetch("/api/relationship")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.partner?.phone) {
+          setPartnerPhone(data.partner.phone);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
 
   const calculateRemindAt = (preset: string, customVal: string): string | null => {
@@ -116,6 +136,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
         }),
       });
       if (res.ok) {
+        haptics.success();
         setSuccessMessage("Task created successfully!");
         setTimeout(() => {
           resetForms();
@@ -143,7 +164,8 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
         }),
       });
       if (res.ok) {
-        setSuccessMessage("Routine created!");
+        haptics.success();
+        setSuccessMessage("Routine created successfully!");
         setTimeout(() => {
           resetForms();
           onClose();
@@ -155,7 +177,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
     }
   };
 
-  const handleCreateSession = async (e: React.FormEvent) => {
+  const handleLogSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sessionProject) return;
     setLoading(true);
@@ -165,12 +187,12 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: sessionProject,
-          durationMinutes: parseInt(sessionDuration) || 30,
           type: sessionType,
-          date: new Date().toISOString().split("T")[0],
+          durationMinutes: Number(sessionDuration) || 30,
         }),
       });
       if (res.ok) {
+        haptics.success();
         setSuccessMessage("Activity logged!");
         setTimeout(() => {
           resetForms();
@@ -198,6 +220,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
         }),
       });
       if (res.ok) {
+        haptics.success();
         setSuccessMessage("Date saved!");
         setTimeout(() => {
           resetForms();
@@ -212,6 +235,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
 
   const handleSendWhatsApp = () => {
     if (!messageText) return;
+    haptics.impactMedium();
     const cleanPhone = partnerPhone.replace(/[^0-9]/g, "");
     const encoded = encodeURIComponent(messageText);
     const url = cleanPhone
@@ -253,6 +277,11 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
       });
 
       if (res.ok) {
+        if (disciplineAction === "CUSTOM_REWARD") {
+          haptics.success();
+        } else {
+          haptics.warning();
+        }
         setSuccessMessage("⚡ Discipline record updated!");
         setDisciplineNotes("");
         setDisciplineTitle("");
@@ -290,6 +319,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
             <button
               key={tab.id}
               onClick={() => {
+                haptics.selection();
                 setActiveTab(tab.id as TabType);
                 setSuccessMessage("");
               }}
@@ -622,7 +652,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setMessageText(tmpl.content)}
+                    onClick={() => {
+                      haptics.impactLight();
+                      setMessageText(tmpl.content);
+                    }}
                     className={`text-left p-3 rounded-2xl border transition-all ${
                       isSelected
                         ? "bg-brand-red/15 border-brand-red text-white shadow-glow-red-subtle"

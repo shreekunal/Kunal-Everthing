@@ -4,4 +4,12 @@
     <string name="title_activity_main">Everything</string>
     <string name="package_name">com.kunal.os</string>
     <string name="custom_url_scheme">com.kunal.os</string>
+    <string name="shortcut_new_task_short">New Task</string>
+    <string name="shortcut_new_task_long">Create Priority Task</string>
+    <string name="shortcut_love_short">Love Golu</string>
+    <string name="shortcut_love_long">Send Love to Golu</string>
+    <string name="shortcut_vault_short">Secret Vault</string>
+    <string name="shortcut_vault_long">Open Zero-Knowledge Vault</string>
+    <string name="shortcut_karma_short">Monk Karma</string>
+    <string name="shortcut_karma_long">Discipline &amp; Rewards Hub</string>
 </resources>

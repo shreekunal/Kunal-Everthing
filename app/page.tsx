@@ -24,11 +24,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-
+import { haptics } from "@/lib/haptics";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [cacheTime, setCacheTime] = useState<string | null>(null);
+  const [isEveningCheckinOpen, setIsEveningCheckinOpen] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -36,9 +41,32 @@ export default function DashboardPage() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        setIsOffline(false);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "everything_dashboard_cache",
+            JSON.stringify({
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              data: json,
+            })
+          );
+        }
+      } else {
+        throw new Error("Failed to fetch dashboard data");
       }
     } catch (err) {
-      console.error("Failed to load dashboard data:", err);
+      console.warn("Using offline dashboard cache if available:", err);
+      if (typeof window !== "undefined") {
+        const cached = localStorage.getItem("everything_dashboard_cache");
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setData(parsed.data);
+            setCacheTime(parsed.timestamp);
+            setIsOffline(true);
+          } catch {}
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -46,12 +74,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    const handleOnline = () => fetchDashboardData();
+    const handleOffline = () => setIsOffline(true);
     window.addEventListener("kunal-os-refresh", fetchDashboardData);
-    return () => window.removeEventListener("kunal-os-refresh", fetchDashboardData);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("kunal-os-refresh", fetchDashboardData);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const handleToggleTask = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
+    if (newStatus === "DONE") {
+      haptics.success();
+    } else {
+      haptics.impactLight();
+    }
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -65,6 +106,7 @@ export default function DashboardPage() {
   };
 
   const handleToggleRoutine = async (routineId: string) => {
+    haptics.success();
     try {
       await fetch(`/api/routines/${routineId}`, {
         method: "PATCH",
@@ -85,6 +127,7 @@ export default function DashboardPage() {
 
     if (!confirm(confirmMsg)) return;
 
+    haptics.warning();
     try {
       await fetch("/api/rewards", {
         method: "POST",
@@ -104,24 +147,41 @@ export default function DashboardPage() {
     data || {};
 
   return (
-    <div className="space-y-6">
-      {/* Dashboard Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <LayoutDashboard className="w-5 h-5 text-brand-red" />
-            Dashboard & Daily Briefing
-          </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            Real-time glance at your tasks, routines, deep work focus, and financial standing
-          </p>
-        </div>
+    <PullToRefresh onRefresh={fetchDashboardData}>
+      <div className="space-y-6">
+        {/* Offline Status Alert */}
+        {isOffline && (
+          <div className="px-3.5 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs font-mono text-amber-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span>Offline Mode • Loaded cache from {cacheTime || "previous session"}</span>
+            </div>
+            <button
+              onClick={() => fetchDashboardData()}
+              className="text-[10px] px-2.5 py-1 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 font-bold transition-colors"
+            >
+              Retry Sync
+            </button>
+          </div>
+        )}
 
-        <div className="flex items-center gap-2 font-mono text-xs text-zinc-300 bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-xl self-start sm:self-auto">
-          <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
-          <span>{format(new Date(), "EEEE, MMM d, yyyy")}</span>
+        {/* Dashboard Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+              <LayoutDashboard className="w-5 h-5 text-brand-red" />
+              Dashboard & Daily Briefing
+            </h2>
+            <p className="text-xs text-zinc-400 font-mono mt-1">
+              Real-time glance at your tasks, routines, deep work focus, and financial standing
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 font-mono text-xs text-zinc-300 bg-white/[0.03] border border-white/10 px-3.5 py-1.5 rounded-xl self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
+            <span>{format(new Date(), "EEEE, MMM d, yyyy")}</span>
+          </div>
         </div>
-      </div>
 
       {/* 4 Hero Glass Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -234,13 +294,26 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <Link
-              href="/rewards"
-              className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-red-500/40 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center gap-1.5 group"
-            >
-              <span>Rewards Hub</span>
-              <ArrowRight className="w-3.5 h-3.5 text-brand-red group-hover:translate-x-0.5 transition-transform" />
-            </Link>
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.impactMedium();
+                  setIsEveningCheckinOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/40 text-xs font-mono text-white transition-all flex items-center gap-1.5 shadow-glow-red-subtle active:scale-95"
+              >
+                <span>🌙 Bedtime Check-in</span>
+              </button>
+
+              <Link
+                href="/rewards"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-red-500/40 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center gap-1.5 group"
+              >
+                <span>Rewards Hub</span>
+                <ArrowRight className="w-3.5 h-3.5 text-brand-red group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
           </div>
 
           {/* Middle Row: Dual Streaks & Quick Action Deduction Pills */}
@@ -523,6 +596,16 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Daily Evening Bedtime Monk Reflection Modal */}
+      <EveningCheckinModal
+        isOpen={isEveningCheckinOpen}
+        onClose={() => setIsEveningCheckinOpen(false)}
+        onCompleted={fetchDashboardData}
+        todayEarned={discipline?.todayEarned || 0}
+        todayDeducted={discipline?.todayDeducted || 0}
+      />
     </div>
+    </PullToRefresh>
   );
 }

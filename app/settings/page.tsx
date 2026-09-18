@@ -19,9 +19,17 @@ import {
   Fingerprint,
   Trash2,
   AlertCircle,
+  Bell,
+  Clock,
 } from "lucide-react";
 import { generateEmergencyRecoveryKey } from "@/lib/crypto/vault";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
+import { haptics } from "@/lib/haptics";
+import {
+  scheduleCoreDailyNotifications,
+  cancelCoreNotifications,
+  sendTestNotification,
+} from "@/lib/notifications";
 
 export default function SettingsPage() {
   const [seeding, setSeeding] = useState(false);
@@ -29,6 +37,11 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState("");
+
+  // Notification states
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
   const handleClearAllData = async () => {
     if (!confirm("⚠️ Are you sure you want to completely purge and clear ALL data inside Everything? This will wipe all tasks, habits, cards, accounts, and discipline logs for a fresh start.")) {
@@ -76,12 +89,55 @@ export default function SettingsPage() {
           const data = await res.json();
           setHasBiometrics(!!data.hasBiometrics);
         }
+
+        if (typeof window !== "undefined") {
+          setNotificationsEnabled(
+            localStorage.getItem("everything_notifications_enabled") === "true"
+          );
+        }
       } catch {
         // Silently handle
       }
     }
     loadSecurityStatus();
   }, []);
+
+  const handleToggleNotifications = async () => {
+    setNotifLoading(true);
+    setNotifMessage(null);
+    try {
+      if (!notificationsEnabled) {
+        const success = await scheduleCoreDailyNotifications();
+        if (success) {
+          setNotificationsEnabled(true);
+          setNotifMessage("Scheduled: 8:00 AM Morning Briefing & 9:00 PM Streak Defender");
+          haptics.success();
+        } else {
+          setNotifMessage("Notification permission was denied or not supported on this device.");
+          haptics.warning();
+        }
+      } else {
+        await cancelCoreNotifications();
+        setNotificationsEnabled(false);
+        setNotifMessage("Daily device alarms disabled.");
+        haptics.impactLight();
+      }
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    haptics.impactLight();
+    const sent = await sendTestNotification();
+    if (sent) {
+      setNotifMessage("Test alert scheduled! Check your notification tray in 3 seconds.");
+      haptics.success();
+    } else {
+      setNotifMessage("Test notification failed. Ensure notification permissions are granted.");
+      haptics.warning();
+    }
+  };
 
   const handleUpdatePin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,6 +387,83 @@ export default function SettingsPage() {
               <Lock className="w-3.5 h-3.5" />
               <span>Lock Everything Now</span>
             </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Smart Device Alarms & Notifications */}
+      <Card glow="red">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-brand-red" />
+            <CardTitle>Smart Device Alarms &amp; Notifications</CardTitle>
+          </div>
+          <Badge variant={notificationsEnabled ? "red" : "outline"} size="sm">
+            {notificationsEnabled ? "Scheduled & Active" : "Disabled"}
+          </Badge>
+        </CardHeader>
+
+        <div className="space-y-4 text-xs">
+          <p className="text-zinc-400 font-mono">
+            Autonomous native Android alarms running directly on your phone hardware with zero cloud delay.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Morning Briefing */}
+            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red flex-shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-white font-mono block">Morning Briefing (8:00 AM)</span>
+                <p className="text-zinc-400 text-[11px] mt-0.5">
+                  Daily focus call: review tasks, pending routines, and daily objectives.
+                </p>
+              </div>
+            </div>
+
+            {/* Streak Defender */}
+            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-white font-mono block">Streak Defender (9:00 PM)</span>
+                <p className="text-zinc-400 text-[11px] mt-0.5">
+                  Monk integrity alert: ensures clean diet and purity streaks stay intact.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {notifMessage && (
+            <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
+              <span>{notifMessage}</span>
+            </div>
+          )}
+
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
+            <span className="text-zinc-400">Manage device alarms:</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={handleTestNotification}
+                className="text-xs"
+              >
+                <span>Send Test Alert (3s)</span>
+              </Button>
+              <Button
+                variant={notificationsEnabled ? "glass" : "red"}
+                size="sm"
+                onClick={handleToggleNotifications}
+                isLoading={notifLoading}
+                className="text-xs"
+              >
+                <span>{notificationsEnabled ? "Disable Alarms" : "Enable Daily Alarms"}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </Card>

@@ -20,6 +20,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { haptics } from "@/lib/haptics";
 
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
@@ -86,38 +87,44 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-1">
-          {drawerNav.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            const isVault = item.href === "/vault";
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setIsDrawerOpen(false)}
-                className={clsx(
-                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium transition-colors",
-                  isActive
-                    ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
-                    : isVault
-                    ? "bg-white/[0.04] text-white hover:bg-white/[0.08] border border-brand-red/30"
-                    : "text-zinc-300 hover:text-white hover:bg-white/[0.05]"
-                )}
-              >
-                <Icon className={clsx("w-4 h-4", isActive ? "text-white" : "text-brand-red")} />
-                <span>{item.name}</span>
-                {isVault && (
-                  <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-brand-red/20 text-brand-red border border-brand-red/30 font-bold uppercase">
-                    Encrypted
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          <div className="space-y-1">
+            {drawerNav.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => {
+                    haptics.selection();
+                    setIsDrawerOpen(false);
+                  }}
+                  className={clsx(
+                    "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium transition-colors",
+                    isActive
+                      ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
+                      : "text-zinc-300 hover:text-white hover:bg-white/[0.04]"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 text-zinc-400" />
+                    <span>{item.name}</span>
+                  </div>
+                  {item.href === "/vault" && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                      Encrypted
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
 
           <button
-            onClick={handleLockPortal}
+            onClick={() => {
+              haptics.warning();
+              handleLockPortal();
+            }}
             className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-1 border-t border-white/5 pt-3"
           >
             <Lock className="w-4 h-4 text-red-400" />
@@ -131,6 +138,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         {/* 1. Home */}
         <Link
           href="/"
+          onClick={() => haptics.selection()}
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
             pathname === "/" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
@@ -143,6 +151,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         {/* 2. Tasks */}
         <Link
           href="/tasks"
+          onClick={() => haptics.selection()}
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
             pathname === "/tasks" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
@@ -155,7 +164,10 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         {/* 3. Floating Quick Add Button */}
         <div className="flex-1 flex justify-center -mt-6">
           <button
-            onClick={onOpenQuickAdd}
+            onClick={() => {
+              haptics.impactMedium();
+              onOpenQuickAdd();
+            }}
             className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-95 transition-transform"
             aria-label="Quick Add"
           >
@@ -166,6 +178,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         {/* 4. Relationship Hub */}
         <Link
           href="/relationship"
+          onClick={() => haptics.selection()}
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
             pathname === "/relationship" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
@@ -177,7 +190,10 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
 
         {/* 5. More Drawer */}
         <button
-          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+          onClick={() => {
+            haptics.impactLight();
+            setIsDrawerOpen(!isDrawerOpen);
+          }}
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
             isDrawerOpen ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
