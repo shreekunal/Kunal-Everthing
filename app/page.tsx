@@ -204,77 +204,108 @@ export default function DashboardPage() {
 
       {/* Discipline Karma & Streaks Live Bar */}
       {discipline && (
-        <Card glow="red" className="relative overflow-hidden bg-black/90">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Rank and XP */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-brand-red/15 border border-brand-red/40 flex items-center justify-center text-brand-red shadow-glow-red flex-shrink-0">
-                <Trophy className="w-6 h-6" />
+        <Card glow="red" className="relative overflow-hidden bg-black/90 border border-brand-red/30 shadow-glow-red-subtle p-4 sm:p-5">
+          {/* Header Row: Title, Level, XP & Rewards Link */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-brand-red/15 border border-brand-red/40 flex items-center justify-center text-brand-red shadow-glow-red flex-shrink-0">
+                <Trophy className="w-5 h-5 text-brand-red" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-white tracking-tight">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-black text-white tracking-tight">
                     {discipline.title}
-                  </h4>
-                  <Badge variant="red" size="sm">
-                    Lvl {discipline.level}
-                  </Badge>
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-brand-red text-white shadow-glow-red-subtle">
+                    Level {discipline.level}
+                  </span>
                 </div>
-                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                  <strong className="text-white font-bold">{discipline.totalXP} XP</strong> Total Karma •{" "}
-                  <span className="text-emerald-400">+{discipline.todayEarned} today</span> •{" "}
-                  <span className="text-brand-red">-{discipline.todayDeducted} lost</span>
-                </p>
+                <div className="flex items-center gap-2 mt-0.5 text-xs font-mono text-zinc-400">
+                  <span className="text-white font-bold">{discipline.totalXP} XP Karma</span>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-emerald-400">+{discipline.todayEarned} today</span>
+                  {discipline.todayDeducted > 0 && (
+                    <>
+                      <span className="text-zinc-600">•</span>
+                      <span className="text-brand-red">-{discipline.todayDeducted} penalty</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Clean Streaks & Quick Deduct */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {/* Purity Streak Pill */}
-              <div className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-xs font-mono">
-                <ShieldCheck className="w-4 h-4 text-brand-red" />
-                <span className="text-zinc-400">Purity:</span>
-                <span className="text-white font-bold">{discipline.streaks?.purity?.currentStreak || 0}d</span>
+            <Link
+              href="/rewards"
+              className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-red-500/40 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center gap-1.5 group"
+            >
+              <span>Rewards Hub</span>
+              <ArrowRight className="w-3.5 h-3.5 text-brand-red group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          {/* Middle Row: Dual Streaks & Quick Action Deduction Pills */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5">
+            {/* Streaks Display */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Purity Streak */}
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider truncate">Purity</p>
+                  <p className="text-sm font-black text-white font-mono">
+                    {discipline.streaks?.purity?.currentStreak || 0} <span className="text-[10px] font-normal text-zinc-400">Days</span>
+                  </p>
+                </div>
               </div>
 
-              {/* Diet Streak Pill */}
-              <div className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-xs font-mono">
-                <UtensilsCrossed className="w-4 h-4 text-emerald-400" />
-                <span className="text-zinc-400">Diet:</span>
-                <span className="text-white font-bold">{discipline.streaks?.diet?.currentStreak || 0}d</span>
+              {/* Diet Streak */}
+              <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                  <UtensilsCrossed className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider truncate">Diet</p>
+                  <p className="text-sm font-black text-white font-mono">
+                    {discipline.streaks?.diet?.currentStreak || 0} <span className="text-[10px] font-normal text-zinc-400">Days</span>
+                  </p>
+                </div>
               </div>
+            </div>
 
-              {/* Fast Infraction Buttons */}
+            {/* Quick Deduction Buttons */}
+            <div className="grid grid-cols-2 gap-2">
               <button
+                type="button"
                 onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-                title="Ate Junk Food (-50 XP)"
-                className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-xs font-mono text-zinc-300 hover:text-red-400 transition-colors flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center justify-center gap-2 group active:scale-[0.98]"
               >
-                <span>🍔 -50</span>
+                <span>🍔 Ate Junk</span>
+                <span className="text-[10px] font-bold text-brand-red bg-brand-red/10 px-1.5 py-0.5 rounded border border-brand-red/30">-50</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleQuickDeduct("FAP")}
-                title="Relapse / Fap (-100 XP)"
-                className="px-2.5 py-1.5 rounded-xl bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/40 text-xs font-mono text-white transition-colors flex items-center gap-1.5 shadow-glow-red-subtle"
+                className="px-3 py-2 rounded-xl bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/40 hover:border-brand-red text-xs font-mono text-white transition-all flex items-center justify-center gap-2 shadow-glow-red-subtle active:scale-[0.98]"
               >
                 <Zap className="w-3.5 h-3.5 text-brand-red" />
-                <span>-100</span>
+                <span>Relapse</span>
+                <span className="text-[10px] font-bold text-white bg-brand-red px-1.5 py-0.5 rounded shadow-glow-red-subtle">-100</span>
               </button>
-
-              <Link
-                href="/rewards"
-                className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-mono text-white transition-colors flex items-center gap-1"
-              >
-                <span>Hub</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
             </div>
           </div>
 
-          {/* XP Progress Bar */}
-          <div className="mt-3.5 pt-3 border-t border-white/5">
-            <div className="w-full h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden">
+          {/* Level XP Progress Bar & Telemetry */}
+          <div className="mt-3.5 pt-3 border-t border-white/5 space-y-1.5">
+            <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
+              <span className="text-zinc-300">Level Progression</span>
+              <span>
+                <strong className="text-white">{discipline.currentLevelXP || discipline.totalXP}</strong> / {discipline.nextLevelXP} XP ({discipline.progressPercent}%)
+              </span>
+            </div>
+            <div className="w-full h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden p-[1px]">
               <div
                 className="h-full bg-gradient-to-r from-red-600 to-brand-red rounded-full transition-all duration-500 shadow-glow-red"
                 style={{ width: `${Math.max(5, discipline.progressPercent)}%` }}

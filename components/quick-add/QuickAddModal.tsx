@@ -597,11 +597,11 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={loading}>
+            <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
               Save Date
             </Button>
           </div>
@@ -785,15 +785,16 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
             />
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
             <Button
-              variant={disciplineAction === "CUSTOM_REWARD" ? "secondary" : "primary"}
+              variant={disciplineAction === "CUSTOM_REWARD" ? "glass" : "red"}
               size="sm"
               type="submit"
               disabled={loading}
+              className={`order-1 sm:order-2 py-2.5 font-bold ${disciplineAction === "CUSTOM_REWARD" ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "shadow-glow-red"}`}
             >
               {disciplineAction === "CUSTOM_REWARD" ? "+ Award XP" : "⚡ Apply Discipline"}
             </Button>
