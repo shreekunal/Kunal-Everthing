@@ -8,6 +8,8 @@ services:
     startCommand: npm run start
     autoDeploy: true
     envVars:
+      - key: NODE_VERSION
+        value: 20.16.0
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
