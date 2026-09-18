@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
+
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    const today = new Date();
+    const todayStr = format(today, "yyyy-MM-dd");
+
+    const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const weekEnd = format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+
+    const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
+    const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
+
+    // All sessions this month
+    const monthSessions = await prisma.workSession.findMany({
+      where: {
+        userId: user.id,
+        date: { gte: monthStart, lte: monthEnd },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const todaySessions = monthSessions.filter((s) => s.date === todayStr);
+    const weekSessions = monthSessions.filter((s) => s.date >= weekStart && s.date <= weekEnd);
+
+    // Grouping by type for Today
+    const todayWorkMins = todaySessions
+      .filter((s) => s.type === "WORK")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+    const todayStudyMins = todaySessions
+      .filter((s) => s.type === "STUDY")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+    const todayPersonalMins = todaySessions
+      .filter((s) => s.type === "PERSONAL")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+
+    // Grouping for This Week
+    const weekWorkMins = weekSessions
+      .filter((s) => s.type === "WORK")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+    const weekStudyMins = weekSessions
+      .filter((s) => s.type === "STUDY")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+    const weekPersonalMins = weekSessions
+      .filter((s) => s.type === "PERSONAL")
+      .reduce((a, b) => a + b.durationMinutes, 0);
+
+    // Daily breakdown for last 7 days chart
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const dStr = format(subDays(today, 6 - i), "yyyy-MM-dd");
+      const dayLabel = format(subDays(today, 6 - i), "EEE");
+      const dSessions = monthSessions.filter((s) => s.date === dStr);
+      const work = dSessions
+        .filter((s) => s.type === "WORK")
+        .reduce((a, b) => a + b.durationMinutes, 0);
+      const study = dSessions
+        .filter((s) => s.type === "STUDY")
+        .reduce((a, b) => a + b.durationMinutes, 0);
+      const personal = dSessions
+        .filter((s) => s.type === "PERSONAL")
+        .reduce((a, b) => a + b.durationMinutes, 0);
+
+      return {
+        date: dStr,
+        day: dayLabel,
+        workHours: Number((work / 60).toFixed(1)),
+        studyHours: Number((study / 60).toFixed(1)),
+        personalHours: Number((personal / 60).toFixed(1)),
+        totalMinutes: work + study + personal,
+      };
+    });
+
+    return NextResponse.json({
+      today: {
+        workMinutes: todayWorkMins,
+        studyMinutes: todayStudyMins,
+        personalMinutes: todayPersonalMins,
+        sessions: todaySessions,
+      },
+      thisWeek: {
+        workMinutes: weekWorkMins,
+        studyMinutes: weekStudyMins,
+        personalMinutes: weekPersonalMins,
+        totalMinutes: weekWorkMins + weekStudyMins + weekPersonalMins,
+      },
+      last7Days,
+      recentSessions: monthSessions.slice(0, 10),
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    const body = await request.json();
+    const { project, durationMinutes, type, date, notes } = body;
+
+    if (!project || !durationMinutes) {
+      return NextResponse.json(
+        { error: "Project and duration are required" },
+        { status: 400 }
+      );
+    }
+
+    const session = await prisma.workSession.create({
+      data: {
+        userId: user.id,
+        project,
+        durationMinutes: parseInt(durationMinutes, 10),
+        type: type || "WORK",
+        date: date || format(new Date(), "yyyy-MM-dd"),
+        notes: notes || null,
+      },
+    });
+
+    return NextResponse.json({ session }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

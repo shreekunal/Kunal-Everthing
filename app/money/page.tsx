@@ -1,0 +1,622 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { formatINR } from "@/lib/formatters";
+import {
+  Wallet,
+  CreditCard as CardIcon,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Landmark,
+  PiggyBank,
+  Trash2,
+  Calendar,
+} from "lucide-react";
+import { INDIAN_CARD_PRESETS } from "@/lib/presets";
+
+export default function MoneyPage() {
+  const [data, setData] = useState<any>(null);
+  const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modals
+  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [isAddCardOpen, setIsAddCardOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedCardForPayment, setSelectedCardForPayment] = useState<any>(null);
+
+  // Form states - Account
+  const [accountName, setAccountName] = useState("");
+  const [accountType, setAccountType] = useState("ASSET");
+  const [accountCategory, setAccountCategory] = useState("BANK");
+  const [accountBalance, setAccountBalance] = useState("");
+
+  // Form states - Card
+  const [cardName, setCardName] = useState("");
+  const [cardBank, setCardBank] = useState("HDFC Bank");
+  const [cardNetwork, setCardNetwork] = useState("VISA");
+  const [cardLast4, setCardLast4] = useState("");
+  const [cardLimit, setCardLimit] = useState("150000");
+  const [cardStatementDate, setCardStatementDate] = useState("12");
+  const [cardDueDate, setCardDueDate] = useState("30");
+  const [cardOutstanding, setCardOutstanding] = useState("0");
+
+  // Form states - Payment
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentSourceId, setPaymentSourceId] = useState("");
+
+  const fetchFinancials = async () => {
+    try {
+      const [resMoney, resCards] = await Promise.all([
+        fetch("/api/money"),
+        fetch("/api/cards"),
+      ]);
+      if (resMoney.ok) {
+        const json = await resMoney.json();
+        setData(json);
+      }
+      if (resCards.ok) {
+        const json = await resCards.json();
+        setCards(json.cards || []);
+      }
+    } catch (err) {
+      console.error("Money fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinancials();
+  }, []);
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountName) return;
+
+    try {
+      await fetch("/api/money", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: accountName,
+          type: accountType,
+          category: accountCategory,
+          balance: Number(accountBalance) || 0,
+        }),
+      });
+      setAccountName("");
+      setAccountBalance("");
+      setIsAddAccountOpen(false);
+      fetchFinancials();
+    } catch (err) {
+      console.error("Create account error:", err);
+    }
+  };
+
+  const handleCreateCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardName) return;
+
+    try {
+      await fetch("/api/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cardName,
+          bank: cardBank || "Bank",
+          statementDate: Number(cardStatementDate) || 12,
+          dueDate: Number(cardDueDate) || 30,
+        }),
+      });
+      setCardName("");
+      setCardBank("");
+      setIsAddCardOpen(false);
+      fetchFinancials();
+    } catch (err) {
+      console.error("Create card error:", err);
+    }
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    try {
+      await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
+      setCards((prev) => prev.filter((c) => c.id !== cardId));
+      fetchFinancials();
+    } catch (err) {
+      console.error("Delete card error:", err);
+    }
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCardForPayment || !paymentAmount) return;
+
+    try {
+      await fetch(`/api/cards/${selectedCardForPayment.id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(paymentAmount),
+          sourceAccountId: paymentSourceId || null,
+        }),
+      });
+      setIsPaymentModalOpen(false);
+      setPaymentAmount("");
+      setSelectedCardForPayment(null);
+      fetchFinancials();
+    } catch (err) {
+      console.error("Payment error:", err);
+    }
+  };
+
+  const handleApplyCardPreset = (preset: typeof INDIAN_CARD_PRESETS[0]) => {
+    setCardName(preset.name);
+    setCardBank(preset.bank);
+    setCardNetwork(preset.network);
+    setCardLimit(preset.typicalLimit.toString());
+    setCardStatementDate(preset.statementDate.toString());
+    setCardDueDate(preset.dueDate.toString());
+  };
+
+  const { netWorth, totalAssets, totalLiabilities, totalCardOutstanding, accounts } =
+    data || {};
+
+  const assetAccounts = accounts?.filter((a: any) => a.type === "ASSET") || [];
+  const liabilityAccounts = accounts?.filter((a: any) => a.type === "LIABILITY") || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-red-400" />
+            Financial Dashboard & Net Worth
+          </h2>
+          <p className="text-xs text-zinc-400 font-mono mt-1">
+            Accounts balance, liabilities, credit card due schedules & reconciliations
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setIsAddAccountOpen(true)}>
+            <Plus className="w-4 h-4" /> Account
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setIsAddCardOpen(true)}>
+            <Plus className="w-4 h-4 stroke-[2.5]" /> Credit Card
+          </Button>
+        </div>
+      </div>
+
+      {/* Net Worth Hero Card */}
+      <Card glow="red" className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <span className="text-xs text-zinc-500 font-mono uppercase tracking-wider block">
+              Calculated Net Worth
+            </span>
+            <div className="text-3xl sm:text-4xl font-mono font-bold text-white mt-1">
+              {formatINR(netWorth || 0)}
+            </div>
+            <p className="text-[11px] text-zinc-500 font-mono mt-1">
+              Total Assets minus Total Liabilities
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 bg-black/60 p-4 rounded-2xl border border-white/10">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white">
+              <ArrowUpRight className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs text-zinc-500 font-mono block">Total Assets</span>
+              <span className="text-lg font-bold text-white font-mono">
+                {formatINR(totalAssets || 0)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 bg-black/60 p-4 rounded-2xl border border-white/10">
+            <div className="w-10 h-10 rounded-xl bg-red-500/15 text-red-400 flex items-center justify-center">
+              <ArrowDownRight className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs text-zinc-500 font-mono block">Total Liabilities</span>
+              <span className="text-lg font-bold text-red-400 font-mono">
+                {formatINR(totalLiabilities || 0)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Credit Card Hub */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-bold text-white tracking-wider uppercase font-mono flex items-center gap-2">
+            <CardIcon className="w-4 h-4 text-brand-red" />
+            Credit Card Schedules ({cards.length})
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {cards.map((card) => {
+            return (
+              <Card key={card.id} className="p-5 flex flex-col justify-between group">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-base font-bold text-white truncate">
+                      {card.bank ? `${card.bank} ` : ""}{card.name}
+                    </h4>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Badge variant="red" size="sm">
+                      {card.dueDateLabel}
+                    </Badge>
+                    <button
+                      onClick={() => handleDeleteCard(card.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-brand-red transition-all"
+                      title="Delete card"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dates Only */}
+                <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3 border-t border-white/10 text-xs font-mono">
+                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
+                      Statement Date
+                    </span>
+                    <span className="font-bold text-white">
+                      {card.statementDate}th of month
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
+                      Payment Due Date
+                    </span>
+                    <span className="font-bold text-brand-red">
+                      {card.dueDate}th of month
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Accounts Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Assets List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <PiggyBank className="w-4 h-4 text-white" />
+              <CardTitle>Asset Accounts ({assetAccounts.length})</CardTitle>
+            </div>
+            <span className="text-xs font-bold text-white font-mono">
+              {formatINR(totalAssets || 0)}
+            </span>
+          </CardHeader>
+
+          <div className="divide-y divide-white/5">
+            {assetAccounts.map((acc: any) => (
+              <div
+                key={acc.id}
+                className="py-3.5 flex items-center justify-between text-xs"
+              >
+                <div>
+                  <p className="font-bold text-white">{acc.name}</p>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {acc.category}
+                  </span>
+                </div>
+                <span className="font-bold text-white font-mono">
+                  {formatINR(acc.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Liabilities List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-red-400" />
+              <CardTitle>Liabilities & Loans</CardTitle>
+            </div>
+            <span className="text-xs font-bold text-red-400 font-mono">
+              {formatINR(totalLiabilities || 0)}
+            </span>
+          </CardHeader>
+
+          <div className="divide-y divide-white/5">
+            <div className="py-3.5 flex items-center justify-between text-xs">
+              <div>
+                <p className="font-bold text-white">Credit Cards (Total Outstanding)</p>
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  {cards.length} Active Cards
+                </span>
+              </div>
+              <span className="font-bold text-red-400 font-mono">
+                {formatINR(totalCardOutstanding || 0)}
+              </span>
+            </div>
+
+            {liabilityAccounts.map((acc: any) => (
+              <div
+                key={acc.id}
+                className="py-3.5 flex items-center justify-between text-xs"
+              >
+                <div>
+                  <p className="font-bold text-white">{acc.name}</p>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {acc.category}
+                  </span>
+                </div>
+                <span className="font-bold text-red-400 font-mono">
+                  {formatINR(acc.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Add Account Modal */}
+      <Modal
+        isOpen={isAddAccountOpen}
+        onClose={() => setIsAddAccountOpen(false)}
+        title="Add Financial Account"
+      >
+        <form onSubmit={handleCreateAccount} className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Account Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. HDFC Salary, Zerodha Funds, Gold"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Type
+              </label>
+              <select
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+              >
+                <option value="ASSET">Asset (Positive balance)</option>
+                <option value="LIABILITY">Liability (Debt / Loan)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Category
+              </label>
+              <select
+                value={accountCategory}
+                onChange={(e) => setAccountCategory(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+              >
+                <option value="BANK">Bank Account</option>
+                <option value="INVESTMENT">Investment / Mutual Fund</option>
+                <option value="FD">Fixed Deposit (FD)</option>
+                <option value="CASH">Physical Cash</option>
+                <option value="LOAN">Loan / Debt</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Current Balance (₹ INR)
+            </label>
+            <input
+              type="number"
+              placeholder="0.00"
+              value={accountBalance}
+              onChange={(e) => setAccountBalance(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setIsAddAccountOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              Save Account
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Card Modal */}
+      <Modal
+        isOpen={isAddCardOpen}
+        onClose={() => setIsAddCardOpen(false)}
+        title="Add Credit Card"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Pick Indian Bank Preset
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-28 overflow-y-auto p-1 border border-white/10 rounded-2xl bg-black/60">
+              {INDIAN_CARD_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleApplyCardPreset(preset)}
+                  className="text-left p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-[11px] text-zinc-300 border border-white/5"
+                >
+                  <span className="font-bold block text-red-400 font-mono">
+                    {preset.name}
+                  </span>
+                  <span className="text-[10px] text-zinc-500">{preset.bank}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handleCreateCard} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Card Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Millennia, Amazon Pay"
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC Bank, ICICI"
+                  value={cardBank}
+                  onChange={(e) => setCardBank(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Statement Day (1-31)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  required
+                  value={cardStatementDate}
+                  onChange={(e) => setCardStatementDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Payment Due Day (1-31)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  required
+                  value={cardDueDate}
+                  onChange={(e) => setCardDueDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+            </div>
+
+            <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+              <Button
+                variant="glass"
+                size="sm"
+                type="button"
+                onClick={() => setIsAddCardOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="red" size="sm" type="submit">
+                Add Card
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Record Payment Modal */}
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title={`Record Payment: ${selectedCardForPayment?.name || "Card"}`}
+      >
+        <form onSubmit={handleRecordPayment} className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Payment Amount (₹) *
+            </label>
+            <input
+              type="number"
+              required
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-base text-red-400 font-mono font-bold focus:outline-none focus:border-red-500"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Deduct from Bank Account (Optional)
+            </label>
+            <select
+              value={paymentSourceId}
+              onChange={(e) => setPaymentSourceId(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+            >
+              <option value="">Do not deduct from bank</option>
+              {assetAccounts.map((acc: any) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({formatINR(acc.balance)})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setIsPaymentModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              Confirm Payment
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}

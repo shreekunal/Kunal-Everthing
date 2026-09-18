@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String         @id @default(cuid())
+  email               String         @unique
+  passwordHash        String
+  pinHash             String?        // 4-digit PIN bcrypt hash
+  biometricCredential String?        // WebAuthn public key credential JSON
+  name                String         @default("Kunal")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  settings          UserSettings?
+  tasks             Task[]
+  routines          Routine[]
+  routineCompletions RoutineCompletion[]
+  workSessions      WorkSession[]
+  accounts          FinancialAccount[]
+  creditCards       CreditCard[]
+  cardPayments      CreditCardPayment[]
+  netWorthSnapshots NetWorthSnapshot[]
+  importantDates    ImportantDate[]
+  partners          Partner[]
+  messageTemplates  MessageTemplate[]
+  scheduledMessages ScheduledMessage[]
+  vaultItems        VaultItem[]
+  notifications     Notification[]
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency             String   @default("INR")
+  timezone             String   @default("Asia/Kolkata")
+  theme                String   @default("pitch-black")
+  vaultAutoLockMinutes Int      @default(5)
+  clipboardClearSecs   Int      @default(30)
+  notificationsEnabled Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Task {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  priority       String    @default("MEDIUM") // HIGH, MEDIUM, LOW
+  status         String    @default("TODO")   // TODO, IN_PROGRESS, DONE, CANCELLED
+  dueDate        String?   // YYYY-MM-DD
+  dueTime        String?   // HH:mm
+  remindAt       DateTime? // Exact reminder timestamp
+  reminderOffset String?   // NONE, 1_HOUR, TODAY_EVENING, TOMORROW_MORNING, CUSTOM
+  recurrence     String    @default("NONE")   // NONE, DAILY, WEEKDAYS, WEEKLY, MONTHLY
+  category       String    @default("General")
+  notes          String?
+  completedAt    DateTime?
+  isArchived     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Routine {
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  category              String              @default("Health") // Health, Study, Work, Mindset
+  targetDays            String              @default("DAILY")  // DAILY, MON_SAT, WEEKDAYS, WEEKENDS, SUNDAY
+  targetDurationMinutes Int                 @default(30)
+  currentStreak         Int                 @default(0)
+  bestStreak            Int                 @default(0)
+  isArchived            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  completions           RoutineCompletion[]
+}
+
+model RoutineCompletion {
+  id         String   @id @default(cuid())
+  routineId  String
+  routine    Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       String   // YYYY-MM-DD
+  completed  Boolean  @default(true)
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([routineId, date])
+}
+
+model WorkSession {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            String   @default("WORK") // WORK, STUDY, PERSONAL
+  project         String
+  durationMinutes Int
+  date            String   // YYYY-MM-DD
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+model FinancialAccount {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  type        String   @default("ASSET") // ASSET, LIABILITY
+  category    String   @default("BANK")  // BANK, INVESTMENT, FD, CASH, LOAN, OTHER
+  balance     Float    @default(0.0)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CreditCard {
+  id                 String              @id @default(cuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  bank               String
+  network            String              @default("VISA") // VISA, MASTERCARD, AMEX, RUPAY, OTHER
+  last4              String
+  creditLimit        Float               @default(100000.0)
+  statementDate      Int                 @default(12)     // Day of month (1-31)
+  dueDate            Int                 @default(30)     // Day of month (1-31)
+  currentOutstanding Float               @default(0.0)
+  minDue             Float               @default(0.0)
+  autopay            Boolean             @default(false)
+  notes              String?
+  isArchived         Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  payments           CreditCardPayment[]
+}
+
+model CreditCardPayment {
+  id              String     @id @default(cuid())
+  cardId          String
+  card            CreditCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Float
+  paymentDate     String     // YYYY-MM-DD
+  sourceAccountId String?
+  notes           String?
+  createdAt       DateTime   @default(now())
+}
+
+model NetWorthSnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshotDate     String   // YYYY-MM-DD
+  totalAssets      Float
+  totalLiabilities Float
+  netWorth         Float
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, snapshotDate])
+}
+
+model ImportantDate {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  date               String   // YYYY-MM-DD
+  category           String   @default("CUSTOM") // BIRTHDAY, ANNIVERSARY, BILL_DUE, EXAM, DOCUMENT_EXPIRY, SUBSCRIPTION, CUSTOM
+  repeatPattern      String   @default("YEARLY") // YEARLY, MONTHLY, ONCE
+  reminderDaysBefore String   @default("14,7,1,0") // Comma-separated days before
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Partner {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  nickname         String?
+  birthday         String?             // YYYY-MM-DD
+  anniversary      String?             // YYYY-MM-DD
+  phone            String?             // e.g. +919876543210
+  preferredChannel String              @default("WHATSAPP") // WHATSAPP, CALL, TELEGRAM, OTHER
+  preferences      String?             // Favorite food, flowers, wishes, etc.
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  scheduledMessages ScheduledMessage[]
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String   @default("GENERAL") // GOOD_MORNING, GOOD_LUCK, MISS_YOU, ANNIVERSARY, BIRTHDAY, CHECK_IN, CUSTOM
+  title     String
+  content   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScheduledMessage {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partnerId     String
+  partner       Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  message       String
+  scheduledDate String    // YYYY-MM-DD
+  scheduledTime String    // HH:mm
+  channel       String    @default("WHATSAPP")
+  status        String    @default("PENDING") // PENDING, SENT, CANCELLED
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VaultItem {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String    @default("PASSWORD") // PASSWORD, CARD, NOTE, API_KEY, RECOVERY
+  title        String
+  category     String    @default("General")
+  iv           String    // Base64 encoded Initialization Vector
+  ciphertext   String    // Base64 encoded AES-256-GCM ciphertext
+  salt         String    // Base64 encoded salt used for derivation
+  lastCopiedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  category  String   @default("SYSTEM") // TASK, ROUTINE, CARD_DUE, DATE, RELATIONSHIP, SYSTEM
+  priority  String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  actionUrl String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,73 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "kunal-os-ultra-secure-jwt-secret-key-2026"
+);
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // 1. Bypass static assets and internal Next.js paths
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/icons/") ||
+    pathname === "/sw.js"
+  ) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get("kunal_os_token")?.value;
+  let isAuthenticated = false;
+
+  if (token) {
+    try {
+      await jwtVerify(token, JWT_SECRET);
+      isAuthenticated = true;
+    } catch {
+      isAuthenticated = false;
+    }
+  }
+
+  // 2. If authenticated and on login page, redirect to home
+  if (pathname === "/login") {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 3. If unauthenticated and on protected page or API
+  if (!isAuthenticated) {
+    // Return 401 for API requests
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Unauthorized. Vault locked." },
+        { status: 401 }
+      );
+    }
+
+    // Redirect to login page for browser navigation
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
+};

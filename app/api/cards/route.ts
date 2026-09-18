@@ -1,0 +1,100 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { getNextCardDueDate } from "@/lib/formatters";
+
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+
+    const cards = await prisma.creditCard.findMany({
+      where: { userId: user.id, isArchived: false },
+      include: {
+        payments: {
+          orderBy: { paymentDate: "desc" },
+          take: 5,
+        },
+      },
+      orderBy: { currentOutstanding: "desc" },
+    });
+
+    const cardsWithDueInfo = cards.map((c) => {
+      const dueInfo = getNextCardDueDate(c.dueDate);
+      const utilization = c.creditLimit > 0 ? (c.currentOutstanding / c.creditLimit) * 100 : 0;
+      const availableLimit = Math.max(0, c.creditLimit - c.currentOutstanding);
+
+      return {
+        id: c.id,
+        name: c.name,
+        bank: c.bank,
+        network: c.network,
+        last4: c.last4,
+        creditLimit: c.creditLimit,
+        currentOutstanding: c.currentOutstanding,
+        minDue: c.minDue,
+        availableLimit,
+        utilization: Math.round(utilization),
+        statementDate: c.statementDate,
+        dueDate: c.dueDate,
+        autopay: c.autopay,
+        daysRemaining: dueInfo.daysRemaining,
+        dueDateLabel: dueInfo.label,
+        formattedDueDate: dueInfo.date.toISOString(),
+        recentPayments: c.payments,
+      };
+    });
+
+    return NextResponse.json({ cards: cardsWithDueInfo });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    const body = await request.json();
+
+    const {
+      name,
+      bank,
+      network,
+      last4,
+      creditLimit,
+      statementDate,
+      dueDate,
+      currentOutstanding,
+      minDue,
+      autopay,
+      notes,
+    } = body;
+
+    if (!name) {
+      return NextResponse.json(
+        { error: "Card name is required" },
+        { status: 400 }
+      );
+    }
+
+    const card = await prisma.creditCard.create({
+      data: {
+        userId: user.id,
+        name,
+        bank: bank || "Bank",
+        network: network || "VISA",
+        last4: last4 ? last4.slice(-4) : "0000",
+        creditLimit: parseFloat(creditLimit) || 100000.0,
+        statementDate: parseInt(statementDate, 10) || 12,
+        dueDate: parseInt(dueDate, 10) || 30,
+        currentOutstanding: parseFloat(currentOutstanding) || 0.0,
+        minDue: parseFloat(minDue) || (parseFloat(currentOutstanding) || 0) * 0.05,
+        autopay: Boolean(autopay),
+        notes: notes || null,
+      },
+    });
+
+    return NextResponse.json({ card }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
