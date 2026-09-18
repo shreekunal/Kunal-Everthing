@@ -324,7 +324,7 @@ export default function RelationshipPage() {
         onClose={() => setIsEditProfileOpen(false)}
         title="Edit Partner Profile"
       >
-        <form onSubmit={handleSaveProfile} className="space-y-4">
+        <form onSubmit={handleSavePartner} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
