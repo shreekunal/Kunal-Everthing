@@ -17,9 +17,14 @@ import {
   ArrowRight,
   TrendingUp,
   LayoutDashboard,
+  Trophy,
+  Zap,
+  ShieldCheck,
+  UtensilsCrossed,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -72,7 +77,30 @@ export default function DashboardPage() {
     }
   };
 
-  const { todayTasks, routines, financials, weeklySummary, upcomingDues, partner } =
+  const handleQuickDeduct = async (type: "UNHEALTHY_FOOD" | "FAP") => {
+    const isFood = type === "UNHEALTHY_FOOD";
+    const confirmMsg = isFood
+      ? "Log Unhealthy / Junk Food infraction (-50 XP) and reset Clean Diet streak?"
+      : "Log Monk Protocol Relapse (-100 XP) and reset Purity streak to Day 0?";
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      await fetch("/api/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: isFood ? "PENALTY_UNHEALTHY_FOOD" : "PENALTY_FAP",
+          points: isFood ? 50 : 100,
+        }),
+      });
+      fetchDashboardData();
+    } catch (err) {
+      console.error("Deduction error:", err);
+    }
+  };
+
+  const { todayTasks, routines, financials, weeklySummary, upcomingDues, partner, discipline } =
     data || {};
 
   return (
@@ -174,8 +202,91 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Discipline Karma & Streaks Live Bar */}
+      {discipline && (
+        <Card glow="red" className="relative overflow-hidden bg-black/90">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Rank and XP */}
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-brand-red/15 border border-brand-red/40 flex items-center justify-center text-brand-red shadow-glow-red flex-shrink-0">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-white tracking-tight">
+                    {discipline.title}
+                  </h4>
+                  <Badge variant="red" size="sm">
+                    Lvl {discipline.level}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  <strong className="text-white font-bold">{discipline.totalXP} XP</strong> Total Karma •{" "}
+                  <span className="text-emerald-400">+{discipline.todayEarned} today</span> •{" "}
+                  <span className="text-brand-red">-{discipline.todayDeducted} lost</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Clean Streaks & Quick Deduct */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Purity Streak Pill */}
+              <div className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-xs font-mono">
+                <ShieldCheck className="w-4 h-4 text-brand-red" />
+                <span className="text-zinc-400">Purity:</span>
+                <span className="text-white font-bold">{discipline.streaks?.purity?.currentStreak || 0}d</span>
+              </div>
+
+              {/* Diet Streak Pill */}
+              <div className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-xs font-mono">
+                <UtensilsCrossed className="w-4 h-4 text-emerald-400" />
+                <span className="text-zinc-400">Diet:</span>
+                <span className="text-white font-bold">{discipline.streaks?.diet?.currentStreak || 0}d</span>
+              </div>
+
+              {/* Fast Infraction Buttons */}
+              <button
+                onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
+                title="Ate Junk Food (-50 XP)"
+                className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-xs font-mono text-zinc-300 hover:text-red-400 transition-colors flex items-center gap-1.5"
+              >
+                <span>🍔 -50</span>
+              </button>
+
+              <button
+                onClick={() => handleQuickDeduct("FAP")}
+                title="Relapse / Fap (-100 XP)"
+                className="px-2.5 py-1.5 rounded-xl bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/40 text-xs font-mono text-white transition-colors flex items-center gap-1.5 shadow-glow-red-subtle"
+              >
+                <Zap className="w-3.5 h-3.5 text-brand-red" />
+                <span>-100</span>
+              </button>
+
+              <Link
+                href="/rewards"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-mono text-white transition-colors flex items-center gap-1"
+              >
+                <span>Hub</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* XP Progress Bar */}
+          <div className="mt-3.5 pt-3 border-t border-white/5">
+            <div className="w-full h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-red-600 to-brand-red rounded-full transition-all duration-500 shadow-glow-red"
+                style={{ width: `${Math.max(5, discipline.progressPercent)}%` }}
+              />
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
         {/* Left 2 Cols: Priorities & Habits */}
         <div className="lg:col-span-2 space-y-6">
           {/* Today's Tasks */}

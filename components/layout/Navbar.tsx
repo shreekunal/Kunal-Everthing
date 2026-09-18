@@ -18,6 +18,7 @@ import {
   X,
   CheckCheck,
   Lock,
+  Trophy,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "../ui/Button";
@@ -44,6 +45,7 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
     { name: "Home", href: "/", icon: LayoutDashboard },
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Routines", href: "/routines", icon: Flame },
+    { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Progress", href: "/progress", icon: BarChart3 },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Vault", href: "/vault", icon: ShieldCheck },
@@ -51,6 +53,7 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
+
 
 
   const fetchNotifications = async () => {

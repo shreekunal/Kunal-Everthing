@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { awardPoints } from "@/lib/rewards";
 import { format, subDays } from "date-fns";
+
 
 export async function PATCH(
   request: Request,
@@ -83,6 +85,42 @@ export async function PATCH(
       },
     });
 
+    // Award XP rewards
+    if (isCompletedNow) {
+      // Habit completion XP
+      await awardPoints({
+        userId: user.id,
+        points: 30,
+        type: "ROUTINE_COMPLETED",
+        title: `Completed Routine: ${routine.name}`,
+        reason: `Maintained habit (${routine.category})`,
+        category: "HABITS",
+        referenceId: `${routine.id}_${targetDate}`,
+      });
+
+      // Check for streak milestone bonus
+      if ([7, 14, 30, 60, 100, 365].includes(currentStreak)) {
+        const bonusXP = currentStreak >= 100 ? 250 : currentStreak >= 30 ? 100 : 50;
+        await awardPoints({
+          userId: user.id,
+          points: bonusXP,
+          type: "STREAK_BONUS",
+          title: `🔥 ${currentStreak}-Day Streak Bonus: ${routine.name}`,
+          reason: `Exceptional habit consistency milestone!`,
+          category: "HABITS",
+          referenceId: `${routine.id}_streak_${currentStreak}`,
+        });
+      }
+    } else {
+      // Revert XP if routine completion was unmarked
+      await prisma.rewardLog.deleteMany({
+        where: {
+          userId: user.id,
+          referenceId: `${routine.id}_${targetDate}`,
+        },
+      });
+    }
+
     return NextResponse.json({
       routine: updated,
       completedToday: isCompletedNow,
@@ -91,6 +129,7 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
 export async function DELETE(
   request: Request,

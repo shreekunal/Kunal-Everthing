@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { awardPoints } from "@/lib/rewards";
 import { addDays, addMonths, format, parseISO } from "date-fns";
 
 export async function PATCH(
@@ -21,6 +22,7 @@ export async function PATCH(
     }
 
     const isMarkingComplete = body.status === "DONE" && existingTask.status !== "DONE";
+    const isUnmarkingComplete = body.status === "TODO" && existingTask.status === "DONE";
 
     const updateData: any = { ...body };
     if ("remindAt" in body) {
@@ -28,12 +30,40 @@ export async function PATCH(
     }
     if (isMarkingComplete) {
       updateData.completedAt = new Date();
+    } else if (isUnmarkingComplete) {
+      updateData.completedAt = null;
     }
 
     const updatedTask = await prisma.task.update({
       where: { id },
       data: updateData,
     });
+
+    // Reward XP on task completion
+    if (isMarkingComplete) {
+      const priorityXP =
+        existingTask.priority === "HIGH" ? 50 : existingTask.priority === "MEDIUM" ? 35 : 20;
+
+      await awardPoints({
+        userId: user.id,
+        points: priorityXP,
+        type: "TASK_COMPLETED",
+        title: `Completed Task: ${existingTask.title}`,
+        reason: `${existingTask.priority} priority task completed`,
+        category: "PRODUCTIVITY",
+        referenceId: existingTask.id,
+      });
+    } else if (isUnmarkingComplete) {
+      // Clean up previous reward log if unmarking task
+      await prisma.rewardLog.deleteMany({
+        where: {
+          userId: user.id,
+          referenceId: existingTask.id,
+          type: "TASK_COMPLETED",
+        },
+      });
+    }
+
 
     // Handle Smart Recurrence: Generate next instance if marked complete and recurring
     if (isMarkingComplete && existingTask.recurrence && existingTask.recurrence !== "NONE") {

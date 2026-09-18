@@ -12,6 +12,10 @@ import {
   Send,
   Plus,
   Bell,
+  Trophy,
+  Zap,
+  UtensilsCrossed,
+  ShieldAlert,
 } from "lucide-react";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
 
@@ -21,7 +25,7 @@ interface QuickAddModalProps {
   onItemAdded?: () => void;
 }
 
-type TabType = "task" | "routine" | "session" | "date" | "message";
+type TabType = "task" | "routine" | "session" | "date" | "message" | "discipline";
 
 export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>("task");
@@ -50,6 +54,13 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
   const [dateTitle, setDateTitle] = useState("");
   const [dateValue, setDateValue] = useState("");
   const [dateCategory, setDateCategory] = useState("CUSTOM");
+
+  // Discipline states
+  const [disciplineAction, setDisciplineAction] = useState<"UNHEALTHY_FOOD" | "FAP" | "CUSTOM_PENALTY" | "CUSTOM_REWARD">("UNHEALTHY_FOOD");
+  const [disciplinePoints, setDisciplinePoints] = useState("50");
+  const [disciplineTitle, setDisciplineTitle] = useState("");
+  const [disciplineNotes, setDisciplineNotes] = useState("");
+
 
   const calculateRemindAt = (preset: string, customVal: string): string | null => {
     const now = new Date();
@@ -210,13 +221,63 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
     onClose();
   };
 
+  const handleCreateDiscipline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let payload: any = {};
+      if (disciplineAction === "UNHEALTHY_FOOD") {
+        payload = { action: "PENALTY_UNHEALTHY_FOOD", points: 50, notes: disciplineNotes };
+      } else if (disciplineAction === "FAP") {
+        payload = { action: "PENALTY_FAP", points: 100, notes: disciplineNotes };
+      } else if (disciplineAction === "CUSTOM_PENALTY") {
+        payload = {
+          action: "PENALTY_CUSTOM",
+          title: disciplineTitle || "Discipline Infraction",
+          points: Number(disciplinePoints) || 30,
+          notes: disciplineNotes,
+        };
+      } else {
+        payload = {
+          action: "REWARD_CUSTOM",
+          title: disciplineTitle || "Good Habit Deed",
+          points: Number(disciplinePoints) || 30,
+          notes: disciplineNotes,
+        };
+      }
+
+      const res = await fetch("/api/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setSuccessMessage("⚡ Discipline record updated!");
+        setDisciplineNotes("");
+        setDisciplineTitle("");
+        if (onItemAdded) onItemAdded();
+        setTimeout(() => {
+          setSuccessMessage("");
+          onClose();
+        }, 800);
+      }
+    } catch {
+      alert("Failed to record discipline action");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
     { id: "task", label: "Task", icon: CheckSquare },
     { id: "routine", label: "Routine", icon: Flame },
+    { id: "discipline", label: "Discipline", icon: Trophy },
     { id: "session", label: "Work/Study", icon: BarChart3 },
     { id: "date", label: "Date", icon: Calendar },
     { id: "message", label: "WhatsApp", icon: Heart },
   ];
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Add">
@@ -601,6 +662,138 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
           </div>
         </div>
       )}
+
+      {/* Discipline & Infraction Form */}
+      {activeTab === "discipline" && (
+        <form onSubmit={handleCreateDiscipline} className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Action / Infraction Type *
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisciplineAction("UNHEALTHY_FOOD");
+                  setDisciplinePoints("50");
+                }}
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                  disciplineAction === "UNHEALTHY_FOOD"
+                    ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
+                    : "bg-white/[0.03] text-zinc-400 border-white/10"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>🍔 Ate Junk Food</span>
+                  <span className="text-brand-red font-bold">-50 XP</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 block mt-0.5">Resets Clean Diet streak</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDisciplineAction("FAP");
+                  setDisciplinePoints("100");
+                }}
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                  disciplineAction === "FAP"
+                    ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
+                    : "bg-white/[0.03] text-zinc-400 border-white/10"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>⚡ Relapse / Fap</span>
+                  <span className="text-brand-red font-bold">-100 XP</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 block mt-0.5">Resets Purity to Day 0</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDisciplineAction("CUSTOM_PENALTY");
+                  setDisciplinePoints("30");
+                }}
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                  disciplineAction === "CUSTOM_PENALTY"
+                    ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
+                    : "bg-white/[0.03] text-zinc-400 border-white/10"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>⚠️ Other Penalty</span>
+                  <span className="text-brand-red font-bold">-XP</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 block mt-0.5">Custom infraction deduction</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDisciplineAction("CUSTOM_REWARD");
+                  setDisciplinePoints("30");
+                }}
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
+                  disciplineAction === "CUSTOM_REWARD"
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold"
+                    : "bg-white/[0.03] text-zinc-400 border-white/10"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>🌟 Habit / Deed</span>
+                  <span className="text-emerald-400 font-bold">+XP</span>
+                </div>
+                <span className="text-[10px] text-zinc-500 block mt-0.5">Cold shower, reading, etc.</span>
+              </button>
+            </div>
+          </div>
+
+          {(disciplineAction === "CUSTOM_PENALTY" || disciplineAction === "CUSTOM_REWARD") && (
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Title / Deed *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Skipped gym / Read 30 mins"
+                value={disciplineTitle}
+                onChange={(e) => setDisciplineTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Notes / Triggers (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="Context or reflection..."
+              value={disciplineNotes}
+              onChange={(e) => setDisciplineNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant={disciplineAction === "CUSTOM_REWARD" ? "secondary" : "primary"}
+              size="sm"
+              type="submit"
+              disabled={loading}
+            >
+              {disciplineAction === "CUSTOM_REWARD" ? "+ Award XP" : "⚡ Apply Discipline"}
+            </Button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }
+

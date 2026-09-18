@@ -32,7 +32,11 @@ model User {
   scheduledMessages ScheduledMessage[]
   vaultItems        VaultItem[]
   notifications     Notification[]
+  rewardLogs        RewardLog[]
+  disciplineStreaks DisciplineStreak[]
+  rewardItems       RewardItem[]
 }
+
 
 model UserSettings {
   id                   String   @id @default(cuid())
@@ -257,3 +261,46 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 }
+
+model RewardLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points      Int      // Positive for reward, negative for penalty
+  type        String   // TASK_COMPLETED, ROUTINE_COMPLETED, STREAK_BONUS, PENALTY_UNHEALTHY_FOOD, PENALTY_FAP, PENALTY_CUSTOM, REWARD_CUSTOM, REWARD_REDEMPTION
+  title       String
+  reason      String?
+  category    String   @default("GENERAL") // PRODUCTIVITY, HABITS, NUTRITION, PURITY, MINDFULNESS
+  referenceId String?
+  createdAt   DateTime @default(now())
+}
+
+model DisciplineStreak {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String    // PURITY_NOFAP, CLEAN_DIET
+  name          String
+  currentStreak Int       @default(0)
+  bestStreak    Int       @default(0)
+  lastResetDate DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, type])
+}
+
+model RewardItem {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  cost          Int
+  category      String   @default("LEISURE") // LEISURE, ENTERTAINMENT, FOOD, BUY
+  icon          String   @default("Gift")
+  isArchived    Boolean  @default(false)
+  timesRedeemed Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+

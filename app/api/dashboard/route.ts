@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getDisciplineSummary } from "@/lib/rewards";
 import { format, startOfWeek, endOfWeek, isPast, parseISO } from "date-fns";
 import { getNextCardDueDate } from "@/lib/formatters";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const user = await getCurrentUser();
     const todayStr = format(new Date(), "yyyy-MM-dd");
+
+    // Discipline & Rewards summary
+    const discipline = await getDisciplineSummary(user.id);
 
     // 1. Fetch Today's Tasks + Overdue Tasks
     const allTasks = await prisma.task.findMany({
@@ -125,6 +131,7 @@ export async function GET() {
         name: user.name,
         email: user.email,
       },
+      discipline,
       todayTasks,
       routines: routinesWithStatus,
       financials: {
@@ -153,3 +160,4 @@ export async function GET() {
     return NextResponse.json({ error: error.message || "Failed to load dashboard" }, { status: 500 });
   }
 }
+

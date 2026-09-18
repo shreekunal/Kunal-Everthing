@@ -255,3 +255,35 @@ export async function POST() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    const user = await getCurrentUser();
+
+    await prisma.task.deleteMany({ where: { userId: user.id } });
+    await prisma.routineCompletion.deleteMany({ where: { userId: user.id } });
+    await prisma.routine.deleteMany({ where: { userId: user.id } });
+    await prisma.workSession.deleteMany({ where: { userId: user.id } });
+    await prisma.creditCardPayment.deleteMany({ where: { userId: user.id } });
+    await prisma.creditCard.deleteMany({ where: { userId: user.id } });
+    await prisma.financialAccount.deleteMany({ where: { userId: user.id } });
+    await prisma.netWorthSnapshot.deleteMany({ where: { userId: user.id } });
+    await prisma.importantDate.deleteMany({ where: { userId: user.id } });
+    await prisma.scheduledMessage.deleteMany({ where: { userId: user.id } });
+    await prisma.messageTemplate.deleteMany({ where: { userId: user.id } });
+    await prisma.partner.deleteMany({ where: { userId: user.id } });
+    await prisma.vaultItem.deleteMany({ where: { userId: user.id } });
+    await prisma.notification.deleteMany({ where: { userId: user.id } });
+    await prisma.rewardLog.deleteMany({ where: { userId: user.id } });
+    await prisma.disciplineStreak.deleteMany({ where: { userId: user.id } });
+    await prisma.rewardItem.deleteMany({ where: { userId: user.id } });
+
+    return NextResponse.json({
+      success: true,
+      message: "All portal data purged cleanly.",
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+

@@ -17,6 +17,7 @@ import {
   Calendar,
   Settings,
   Lock,
+  Trophy,
 } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -44,12 +45,14 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
   ];
 
   const drawerNav = [
+    { name: "Discipline Karma & XP", href: "/rewards", icon: Trophy },
     { name: "Routines & Habits", href: "/routines", icon: Flame },
     { name: "Work & Study Tracker", href: "/progress", icon: BarChart3 },
     { name: "Relationship Hub", href: "/relationship", icon: Heart },
     { name: "Important Dates", href: "/dates", icon: Calendar },
     { name: "Settings & Backup", href: "/settings", icon: Settings },
   ];
+
 
   return (
     <>

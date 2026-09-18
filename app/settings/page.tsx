@@ -26,7 +26,28 @@ import { registerWebAuthnCredential, isBiometricsAvailable } from "@/lib/webauth
 export default function SettingsPage() {
   const [seeding, setSeeding] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearSuccess, setClearSuccess] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState("");
+
+  const handleClearAllData = async () => {
+    if (!confirm("⚠️ Are you sure you want to completely purge and clear ALL data inside KunalOS? This will wipe all tasks, habits, cards, accounts, and discipline logs for a fresh start.")) {
+      return;
+    }
+
+    setClearing(true);
+    try {
+      const res = await fetch("/api/seed", { method: "DELETE" });
+      if (res.ok) {
+        setClearSuccess(true);
+        setTimeout(() => setClearSuccess(false), 3000);
+        window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+      }
+    } finally {
+      setClearing(false);
+    }
+  };
+
 
   // PIN & Biometrics State
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -468,6 +489,31 @@ export default function SettingsPage() {
             </Button>
           </div>
 
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-red-500/[0.03] rounded-xl border border-red-500/20">
+            <div>
+              <p className="font-semibold text-red-400">Purge & Wipe All Portal Data</p>
+              <p className="text-zinc-400 text-[11px] mt-0.5">
+                Clear all tasks, routines, credit cards, bank accounts, and reward logs for a clean personal start.
+              </p>
+            </div>
+            <Button
+              variant="red"
+              size="sm"
+              onClick={handleClearAllData}
+              isLoading={clearing}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Wipe All Data</span>
+            </Button>
+          </div>
+
+          {clearSuccess && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-center gap-2 text-xs text-brand-red font-mono">
+              <CheckCircle2 className="w-4 h-4 text-brand-red" />
+              <span>All portal data has been completely wiped clean!</span>
+            </div>
+          )}
+
           {seedSuccess && (
             <div className="p-3 bg-white/[0.04] border border-brand-red/30 rounded-xl flex items-center justify-center gap-2 text-xs text-brand-red font-mono">
               <CheckCircle2 className="w-4 h-4 text-brand-red" />
@@ -476,6 +522,7 @@ export default function SettingsPage() {
           )}
         </div>
       </Card>
+
 
       {/* APK & Mobile PWA */}
       <Card>
