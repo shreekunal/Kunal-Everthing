@@ -522,7 +522,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
 
       {/* Session Form */}
       {activeTab === "session" && (
-        <form onSubmit={handleCreateSession} className="space-y-4">
+        <form onSubmit={handleLogSession} className="space-y-4">
           <div>
             <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
               Project / Topic *
