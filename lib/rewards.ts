@@ -242,40 +242,41 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
  * Seed default reward store items if none exist
  */
 export async function ensureDefaultRewardItems(userId: string) {
-  const count = await prisma.rewardItem.count({ where: { userId } });
-  if (count === 0) {
-    await prisma.rewardItem.createMany({
-      data: [
-        {
-          userId,
-          title: "Cheat Meal / Junk Food Pass",
-          cost: 400,
-          category: "FOOD",
-          icon: "Pizza",
-        },
-        {
-          userId,
-          title: "1-Hour Guilt-Free Gaming / Entertainment",
-          cost: 250,
-          category: "LEISURE",
-          icon: "Gamepad2",
-        },
-        {
-          userId,
-          title: "Movie / Series Night",
-          cost: 300,
-          category: "ENTERTAINMENT",
-          icon: "Film",
-        },
-        {
-          userId,
-          title: "Weekend Mini-Splurge Purchase",
-          cost: 600,
-          category: "BUY",
-          icon: "ShoppingBag",
-        },
-      ],
+  const allowedTitles = ["Eat Junk", "Relapse"];
+
+  // Prune any reward items that are not Eat Junk or Relapse
+  await prisma.rewardItem.deleteMany({
+    where: {
+      userId,
+      title: { notIn: allowedTitles },
+    },
+  });
+
+  const existing = await prisma.rewardItem.findMany({ where: { userId } });
+  const existingTitles = existing.map((i) => i.title);
+
+  const toCreate: any[] = [];
+  if (!existingTitles.includes("Eat Junk")) {
+    toCreate.push({
+      userId,
+      title: "Eat Junk",
+      cost: 200,
+      category: "FOOD",
+      icon: "Pizza",
     });
+  }
+  if (!existingTitles.includes("Relapse")) {
+    toCreate.push({
+      userId,
+      title: "Relapse",
+      cost: 500,
+      category: "LEISURE",
+      icon: "Zap",
+    });
+  }
+
+  if (toCreate.length > 0) {
+    await prisma.rewardItem.createMany({ data: toCreate });
   }
 }
 

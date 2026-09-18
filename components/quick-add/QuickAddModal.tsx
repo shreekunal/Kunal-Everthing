@@ -281,8 +281,8 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Add">
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-1.5 p-1 bg-black/60 border border-white/10 rounded-2xl mb-5 overflow-x-auto">
+      {/* Mobile-Optimized Tab Switcher */}
+      <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 p-1.5 bg-black/80 border border-white/10 rounded-2xl mb-5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -293,14 +293,14 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
                 setActiveTab(tab.id as TabType);
                 setSuccessMessage("");
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
                 isActive
-                  ? "bg-red-500/20 text-red-400 border border-red-500/30 shadow-glow-red-subtle"
-                  : "text-zinc-400 hover:text-white"
+                  ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
-              {tab.label}
+              <span>{tab.label}</span>
             </button>
           );
         })}
@@ -613,51 +613,58 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Pick Preset Template
+              Quick Love Presets
             </label>
-            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-1 border border-white/10 rounded-2xl bg-black/60">
-              {DEFAULT_MESSAGE_TEMPLATES.map((tmpl, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setMessageText(tmpl.content)}
-                  className="text-left p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-[11px] text-zinc-300 border border-white/5 transition-colors"
-                >
-                  <span className="font-semibold block text-red-400 font-mono">
-                    {tmpl.title}
-                  </span>
-                  <span className="line-clamp-1 text-zinc-400">{tmpl.content}</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {DEFAULT_MESSAGE_TEMPLATES.map((tmpl, idx) => {
+                const isSelected = messageText === tmpl.content;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setMessageText(tmpl.content)}
+                    className={`text-left p-3 rounded-2xl border transition-all ${
+                      isSelected
+                        ? "bg-brand-red/15 border-brand-red text-white shadow-glow-red-subtle"
+                        : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-zinc-300"
+                    }`}
+                  >
+                    <span className="font-semibold block text-white text-xs font-mono">
+                      &quot;{tmpl.content}&quot;
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Message Content
+              Message Preview / Custom Text
             </label>
             <textarea
               rows={3}
-              placeholder="Good morning ❤️..."
+              placeholder="Type message or tap preset above..."
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
             />
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="red"
               size="sm"
               type="button"
               onClick={handleSendWhatsApp}
               disabled={!messageText}
+              className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red"
             >
               <Send className="w-3.5 h-3.5" />
-              Open in WhatsApp
+              <span>Send WhatsApp Message</span>
             </Button>
           </div>
         </div>

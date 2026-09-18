@@ -93,33 +93,23 @@ export const DEFAULT_ROUTINES_PRESET = [
 
 export const DEFAULT_MESSAGE_TEMPLATES = [
   {
+    category: "LOVE",
+    title: "I love you Golu",
+    content: "I love you Golu",
+  },
+  {
+    category: "AFFECTION",
+    title: "Mera bacha pyara sa",
+    content: "Mera bacha pyara sa",
+  },
+  {
+    category: "GOOD_NIGHT",
+    title: "Good Night babu .. Take Care",
+    content: "Good Night babu .. Take Care",
+  },
+  {
     category: "GOOD_MORNING",
-    title: "Sweet Morning Wish",
-    content: "Good morning ❤️ Hope you have an incredible and productive day ahead! Thinking of you.",
-  },
-  {
-    category: "GOOD_LUCK",
-    title: "Good Luck / Cheering",
-    content: "Good luck today! You've worked so hard for this and you're going to crush it ❤️ You've got this!",
-  },
-  {
-    category: "MISS_YOU",
-    title: "Thinking of You",
-    content: "Just wanted to take a quick pause and say I miss you ❤️ Can't wait to see you soon.",
-  },
-  {
-    category: "ANNIVERSARY",
-    title: "Anniversary Love",
-    content: "Happy Anniversary my love ❤️ Thank you for making every day so special and beautiful. Here's to us!",
-  },
-  {
-    category: "BIRTHDAY",
-    title: "Birthday Wish",
-    content: "Happy Birthday to the most amazing person in my world! 🎂❤️ May this year bring you all the happiness and success you deserve.",
-  },
-  {
-    category: "CHECK_IN",
-    title: "Afternoon Check-in",
-    content: "Hey, hope your day is going smoothly! Remember to take a break and stay hydrated ❤️",
+    title: "Good Morning Babyyyy",
+    content: "Good Morning Babyyyy",
   },
 ];

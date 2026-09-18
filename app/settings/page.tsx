@@ -230,7 +230,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Device Lock & Biometrics (NEW) */}
+      {/* Device Lock & Biometrics */}
       <Card glow="red">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                 </span>
                 <span className="font-bold text-white font-mono text-sm flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  Active (Default: 1234)
+                  Active & Protected
                 </span>
               </div>
               <div className="mt-3">
@@ -326,61 +326,11 @@ export default function SettingsPage() {
 
           {/* Quick Lock Button */}
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-400">Lock your Everything session immediately:</span>
+            <span className="text-zinc-400">Lock your portal immediately:</span>
             <Button variant="red" size="sm" onClick={handleLockNow}>
               <Lock className="w-3.5 h-3.5" />
               <span>Lock Everything Now</span>
             </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Theme & Display */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Moon className="w-4 h-4 text-brand-red" />
-            <CardTitle>Theme & Visual Architecture</CardTitle>
-          </div>
-          <Badge variant="red" size="sm">
-            Pitch Black Tri-Color
-          </Badge>
-        </CardHeader>
-
-        <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans">
-          <p>
-            Everything is rendered in an ultra-pure tri-color palette: pure pitch black (
-            <code className="text-white font-mono bg-white/[0.04] px-1.5 py-0.5 rounded">#000000</code>
-            ), crisp frosted glass white (
-            <code className="text-white font-mono bg-white/[0.04] px-1.5 py-0.5 rounded">#FFFFFF</code>
-            ), and vivid scarlet red (
-            <code className="text-brand-red font-mono bg-white/[0.04] px-1.5 py-0.5 rounded">#EF4444</code>
-            ) with multi-layered <code className="text-zinc-200 font-mono">backdrop-blur-2xl</code> frosted glass surfaces.
-          </p>
-        </div>
-      </Card>
-
-      {/* Regional & Financial Preferences */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-brand-red" />
-            <CardTitle>Localization & Financial Formatting</CardTitle>
-          </div>
-        </CardHeader>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
-            <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">Default Currency</span>
-            <span className="font-bold text-white font-mono text-sm">
-              INR (₹) — Indian Rupee Lakhs/Crores Format
-            </span>
-          </div>
-          <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
-            <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">Timezone</span>
-            <span className="font-bold text-white font-mono text-sm">
-              Asia/Kolkata (IST • UTC+5:30)
-            </span>
           </div>
         </div>
       </Card>
@@ -412,7 +362,7 @@ export default function SettingsPage() {
                 Encryption Standard
               </span>
               <span className="font-bold text-brand-red font-mono text-sm">
-                PBKDF2-SHA256 (100k) + AES-GCM
+                PBKDF2-SHA256 + AES-GCM
               </span>
             </div>
           </div>
@@ -453,7 +403,7 @@ export default function SettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Download className="w-4 h-4 text-brand-red" />
-            <CardTitle>Data Backup & Preset Seeding</CardTitle>
+            <CardTitle>Data Backup & System Reset</CardTitle>
           </div>
         </CardHeader>
 
@@ -473,9 +423,9 @@ export default function SettingsPage() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
             <div>
-              <p className="font-semibold text-white">Re-seed Preset Indian Financial Data</p>
+              <p className="font-semibold text-white">Reset Default System Presets</p>
               <p className="text-zinc-400 text-[11px] mt-0.5">
-                Populate default Indian card presets (HDFC Millennia, ICICI Amazon Pay), habits, and templates.
+                Populate standard Indian card presets, habits, and default templates.
               </p>
             </div>
             <Button
@@ -523,26 +473,6 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-
-      {/* APK & Mobile PWA */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-brand-red" />
-            <CardTitle>Mobile PWA & Android APK Deployment</CardTitle>
-          </div>
-        </CardHeader>
-
-        <div className="space-y-3 text-xs text-zinc-300">
-          <p>
-            Everything is ready for instant PWA home screen installation or native packaging via Capacitor.
-          </p>
-          <div className="p-3 bg-white/[0.02] rounded-xl border border-white/10 font-mono text-[11px] text-zinc-300">
-            <code>npx cap add android && npx cap copy && npx cap open android</code>
-          </div>
-        </div>
-      </Card>
-
       {/* Change Master PIN Modal */}
       <Modal
         isOpen={isPinModalOpen}
@@ -577,7 +507,7 @@ export default function SettingsPage() {
               maxLength={4}
               value={currentPin}
               onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 1234"
+              placeholder="••••"
               className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white font-mono tracking-widest text-center text-lg focus:outline-none focus:border-brand-red"
               required
             />

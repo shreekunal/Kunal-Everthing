@@ -45,14 +45,14 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
   ];
 
   const drawerNav = [
+    { name: "Zero-Knowledge Vault", href: "/vault", icon: ShieldCheck },
+    { name: "Money & Accounts", href: "/money", icon: Wallet },
     { name: "Discipline Karma & XP", href: "/rewards", icon: Trophy },
     { name: "Routines & Habits", href: "/routines", icon: Flame },
     { name: "Work & Study Tracker", href: "/progress", icon: BarChart3 },
-    { name: "Relationship Hub", href: "/relationship", icon: Heart },
     { name: "Important Dates", href: "/dates", icon: Calendar },
     { name: "Settings & Backup", href: "/settings", icon: Settings },
   ];
-
 
   return (
     <>
@@ -89,6 +89,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           {drawerNav.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            const isVault = item.href === "/vault";
 
             return (
               <Link
@@ -96,21 +97,28 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 href={item.href}
                 onClick={() => setIsDrawerOpen(false)}
                 className={clsx(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono font-medium transition-colors",
+                  "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium transition-colors",
                   isActive
                     ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
+                    : isVault
+                    ? "bg-white/[0.04] text-white hover:bg-white/[0.08] border border-brand-red/30"
                     : "text-zinc-300 hover:text-white hover:bg-white/[0.05]"
                 )}
               >
                 <Icon className={clsx("w-4 h-4", isActive ? "text-white" : "text-brand-red")} />
                 <span>{item.name}</span>
+                {isVault && (
+                  <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-brand-red/20 text-brand-red border border-brand-red/30 font-bold uppercase">
+                    Encrypted
+                  </span>
+                )}
               </Link>
             );
           })}
 
           <button
             onClick={handleLockPortal}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-1 border-t border-white/5 pt-3"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-1 border-t border-white/5 pt-3"
           >
             <Lock className="w-4 h-4 text-red-400" />
             <span>Lock Everything Portal</span>
@@ -118,34 +126,33 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
         </div>
       </div>
 
-
       {/* Bottom Floating Glass Navigation Dock */}
       <div className="fixed bottom-3 left-4 right-4 h-16 bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl z-30 md:hidden flex items-center justify-around px-2 shadow-glass-panel pb-safe">
-        {/* Home */}
+        {/* 1. Home */}
         <Link
           href="/"
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/" ? "text-red-400 font-bold" : "text-zinc-400 hover:text-white"
+            pathname === "/" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
           )}
         >
           <LayoutDashboard className="w-5 h-5 mb-0.5" />
           <span>Home</span>
         </Link>
 
-        {/* Tasks */}
+        {/* 2. Tasks */}
         <Link
           href="/tasks"
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/tasks" ? "text-red-400 font-bold" : "text-zinc-400 hover:text-white"
+            pathname === "/tasks" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
           )}
         >
           <CheckSquare className="w-5 h-5 mb-0.5" />
           <span>Tasks</span>
         </Link>
 
-        {/* Floating Quick Add Button */}
+        {/* 3. Floating Quick Add Button */}
         <div className="flex-1 flex justify-center -mt-6">
           <button
             onClick={onOpenQuickAdd}
@@ -156,24 +163,24 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           </button>
         </div>
 
-        {/* Money */}
+        {/* 4. Relationship Hub */}
         <Link
-          href="/money"
+          href="/relationship"
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/money" ? "text-red-400 font-bold" : "text-zinc-400 hover:text-white"
+            pathname === "/relationship" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
           )}
         >
-          <Wallet className="w-5 h-5 mb-0.5" />
-          <span>Money</span>
+          <Heart className="w-5 h-5 mb-0.5" />
+          <span>Love</span>
         </Link>
 
-        {/* More Drawer */}
+        {/* 5. More Drawer */}
         <button
           onClick={() => setIsDrawerOpen(!isDrawerOpen)}
           className={clsx(
             "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            isDrawerOpen ? "text-red-400 font-bold" : "text-zinc-400 hover:text-white"
+            isDrawerOpen ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
           )}
         >
           <Menu className="w-5 h-5 mb-0.5" />

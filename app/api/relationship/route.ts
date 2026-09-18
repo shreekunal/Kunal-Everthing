@@ -23,8 +23,17 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
     });
 
-    // Auto-seed default templates if none exist
-    if (templates.length === 0) {
+    const defaultContents = DEFAULT_MESSAGE_TEMPLATES.map((d) => d.content);
+    const hasOutdatedTemplates = templates.some(
+      (t) => t.isDefault && !defaultContents.includes(t.content)
+    );
+
+    // Auto-seed or update to only the 4 requested templates
+    if (templates.length === 0 || hasOutdatedTemplates) {
+      await prisma.messageTemplate.deleteMany({
+        where: { userId: user.id, isDefault: true },
+      });
+
       for (const tmpl of DEFAULT_MESSAGE_TEMPLATES) {
         await prisma.messageTemplate.create({
           data: {
@@ -36,8 +45,10 @@ export async function GET() {
           },
         });
       }
+
       templates = await prisma.messageTemplate.findMany({
         where: { userId: user.id },
+        orderBy: { createdAt: "asc" },
       });
     }
 

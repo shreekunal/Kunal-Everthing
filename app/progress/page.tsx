@@ -7,12 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { formatDuration, formatDate } from "@/lib/formatters";
 import {
   BarChart3,
-  Play,
-  Pause,
-  RotateCcw,
   Plus,
-  Clock,
   TrendingUp,
+  Calendar,
 } from "lucide-react";
 import {
   BarChart,
@@ -29,13 +26,7 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Live Timer states
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timerProject, setTimerProject] = useState("Deep Work");
-  const [timerType, setTimerType] = useState<"WORK" | "STUDY" | "PERSONAL">("WORK");
-
-  // Manual entry
+  // Manual session entry
   const [manualProject, setManualProject] = useState("");
   const [manualDuration, setManualDuration] = useState("45");
   const [manualType, setManualType] = useState<"WORK" | "STUDY" | "PERSONAL">("WORK");
@@ -59,39 +50,6 @@ export default function ProgressPage() {
     fetchProgress();
   }, []);
 
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        setTimerSeconds((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning]);
-
-  const handleSaveTimerSession = async () => {
-    const minutes = Math.max(1, Math.round(timerSeconds / 60));
-    try {
-      await fetch("/api/progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: timerProject,
-          durationMinutes: minutes,
-          type: timerType,
-        }),
-      });
-      setIsTimerRunning(false);
-      setTimerSeconds(0);
-      fetchProgress();
-    } catch (err) {
-      console.error("Save session error:", err);
-    }
-  };
-
   const handleManualLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProject) return;
@@ -113,15 +71,6 @@ export default function ProgressPage() {
     }
   };
 
-  const formatTimerDigits = (totalSecs: number) => {
-    const hrs = Math.floor(totalSecs / 3600);
-    const mins = Math.floor((totalSecs % 3600) / 60);
-    const secs = totalSecs % 60;
-    return `${hrs.toString().padStart(2, "0")}:${mins
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const { today, thisWeek, last7Days, recentSessions } = data || {};
 
   return (
@@ -129,233 +78,156 @@ export default function ProgressPage() {
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-red-400" />
-          Focus Stopwatch & Analytics
+          <BarChart3 className="w-5 h-5 text-brand-red" />
+          Focus & Productivity Analytics
         </h2>
         <p className="text-xs text-zinc-400 font-mono mt-1">
-          Real-time activity stopwatch and daily/weekly productivity rollups
+          Daily & weekly deep work rollups, subject distribution, and session logging
         </p>
       </div>
 
-      {/* Grid: Stopwatch + Manual Log */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Glass Stopwatch */}
-        <Card glow="red" className="flex flex-col justify-between">
-          <div>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-red-400" />
-                <CardTitle>Live Stopwatch</CardTitle>
-              </div>
-              <Badge variant={isTimerRunning ? "red" : "glass"} size="sm">
-                {isTimerRunning ? "Active Session" : "Standby"}
-              </Badge>
-            </CardHeader>
-
-            <div className="flex flex-col items-center justify-center py-6">
-              <div className="text-5xl font-mono font-bold tracking-widest text-white drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]">
-                {formatTimerDigits(timerSeconds)}
-              </div>
-              <p className="text-xs text-red-400 font-mono mt-2 uppercase tracking-wider font-semibold">
-                {timerType}: {timerProject}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <input
-                type="text"
-                value={timerProject}
-                onChange={(e) => setTimerProject(e.target.value)}
-                placeholder="Project name"
-                className="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
-              />
-              <select
-                value={timerType}
-                onChange={(e) =>
-                  setTimerType(e.target.value as "WORK" | "STUDY" | "PERSONAL")
-                }
-                className="px-3.5 py-2 rounded-xl bg-black border border-white/10 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
-              >
-                <option value="WORK">Work</option>
-                <option value="STUDY">Study</option>
-                <option value="PERSONAL">Personal</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-3 border-t border-white/5">
-            {!isTimerRunning ? (
-              <Button
-                variant="primary"
-                size="sm"
-                className="flex-1"
-                onClick={() => setIsTimerRunning(true)}
-              >
-                <Play className="w-4 h-4 fill-white" /> Start
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="flex-1"
-                onClick={() => setIsTimerRunning(false)}
-              >
-                <Pause className="w-4 h-4" /> Pause
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsTimerRunning(false);
-                setTimerSeconds(0);
-              }}
-              disabled={timerSeconds === 0}
-            >
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="white"
-              size="sm"
-              onClick={handleSaveTimerSession}
-              disabled={timerSeconds < 30}
-            >
-              Log
-            </Button>
-          </div>
-        </Card>
-
-        {/* Manual Activity Entry */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Plus className="w-4 h-4 text-white" />
-              <CardTitle>Manual Activity Log</CardTitle>
-            </div>
-          </CardHeader>
-
-          <form onSubmit={handleManualLog} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-mono text-zinc-400 mb-1 uppercase">
-                Project Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Next.js Architecture, Playwright"
-                value={manualProject}
-                onChange={(e) => setManualProject(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-mono text-zinc-400 mb-1 uppercase">
-                  Category
-                </label>
-                <select
-                  value={manualType}
-                  onChange={(e) =>
-                    setManualType(e.target.value as "WORK" | "STUDY" | "PERSONAL")
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
-                >
-                  <option value="WORK">Work</option>
-                  <option value="STUDY">Study</option>
-                  <option value="PERSONAL">Personal</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-mono text-zinc-400 mb-1 uppercase">
-                  Duration (Mins)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={manualDuration}
-                  onChange={(e) => setManualDuration(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <Button variant="primary" size="sm" type="submit">
-                Record Session
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </div>
-
-      {/* Aggregation Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <span className="text-[11px] text-zinc-500 font-mono uppercase">Today&apos;s Work</span>
+      {/* Hero Metric Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card glow="red">
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
+            Today&apos;s Work
+          </span>
           <p className="text-xl font-bold text-white font-mono mt-1">
             {formatDuration(today?.workMinutes || 0)}
           </p>
         </Card>
-        <Card>
-          <span className="text-[11px] text-zinc-500 font-mono uppercase">Today&apos;s Study</span>
-          <p className="text-xl font-bold text-red-400 font-mono mt-1">
+        <Card glow="red">
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
+            Today&apos;s Study
+          </span>
+          <p className="text-xl font-bold text-brand-red font-mono mt-1">
             {formatDuration(today?.studyMinutes || 0)}
           </p>
         </Card>
         <Card>
-          <span className="text-[11px] text-zinc-500 font-mono uppercase">Week Total</span>
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
+            Week Total
+          </span>
           <p className="text-xl font-bold text-white font-mono mt-1">
             {formatDuration(thisWeek?.totalMinutes || 0)}
           </p>
         </Card>
         <Card>
-          <span className="text-[11px] text-zinc-500 font-mono uppercase">Work/Study Split</span>
-          <p className="text-xs text-zinc-300 font-mono mt-1">
-            W: {formatDuration(thisWeek?.workMinutes || 0)} | S:{" "}
-            {formatDuration(thisWeek?.studyMinutes || 0)}
+          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
+            Work / Study Split
+          </span>
+          <p className="text-xs text-zinc-300 font-mono mt-1.5">
+            W: <strong className="text-white">{formatDuration(thisWeek?.workMinutes || 0)}</strong> | S:{" "}
+            <strong className="text-brand-red">{formatDuration(thisWeek?.studyMinutes || 0)}</strong>
           </p>
         </Card>
       </div>
 
-      {/* 7-Day Chart */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-brand-red" />
-            <CardTitle>Last 7 Days Hours Breakdown</CardTitle>
-          </div>
-        </CardHeader>
+      {/* Grid: Manual Log + 7-Day Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Manual Activity Entry */}
+        <Card className="lg:col-span-1 flex flex-col justify-between">
+          <div>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-brand-red" />
+                <CardTitle>Log Focus Session</CardTitle>
+              </div>
+            </CardHeader>
 
-        <div className="h-64 min-h-[256px] w-full pt-4">
-          {mounted ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={last7Days || []}>
-                <XAxis dataKey="day" stroke="#71717A" fontSize={11} fontStyle="monospace" />
-                <YAxis stroke="#71717A" fontSize={11} unit="h" fontStyle="monospace" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.95)",
-                    borderColor: "rgba(255,255,255,0.15)",
-                    borderRadius: "1rem",
-                    fontSize: "12px",
-                  }}
+            <form onSubmit={handleManualLog} className="space-y-3.5">
+              <div>
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                  Project / Focus Area *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Next.js, Algorithms, Client Work"
+                  value={manualProject}
+                  onChange={(e) => setManualProject(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
                 />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px", fontFamily: "monospace" }} />
-                <Bar dataKey="workHours" name="Work Hours" fill="#FFFFFF" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="studyHours" name="Study Hours" fill="#EF4444" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="personalHours" name="Personal" fill="#71717A" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-mono">
-              Loading analytics chart...
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                    Category
+                  </label>
+                  <select
+                    value={manualType}
+                    onChange={(e) =>
+                      setManualType(e.target.value as "WORK" | "STUDY" | "PERSONAL")
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+                  >
+                    <option value="WORK">Work</option>
+                    <option value="STUDY">Study</option>
+                    <option value="PERSONAL">Personal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                    Duration (Mins)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={manualDuration}
+                    onChange={(e) => setManualDuration(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button variant="red" size="sm" type="submit" className="w-full py-2.5 font-semibold">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Record Focus Session</span>
+                </Button>
+              </div>
+            </form>
+          </div>
+        </Card>
+
+        {/* 7-Day Chart */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-brand-red" />
+              <CardTitle>Last 7 Days Hours Breakdown</CardTitle>
             </div>
-          )}
-        </div>
-      </Card>
+          </CardHeader>
+
+          <div className="h-64 min-h-[256px] w-full pt-4">
+            {mounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={last7Days || []}>
+                  <XAxis dataKey="day" stroke="#71717A" fontSize={11} fontStyle="monospace" />
+                  <YAxis stroke="#71717A" fontSize={11} unit="h" fontStyle="monospace" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(0,0,0,0.95)",
+                      borderColor: "rgba(255,255,255,0.15)",
+                      borderRadius: "1rem",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px", fontFamily: "monospace" }} />
+                  <Bar dataKey="workHours" name="Work Hours" fill="#FFFFFF" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="studyHours" name="Study Hours" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="personalHours" name="Personal" fill="#71717A" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-mono">
+                Loading analytics chart...
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
       {/* Activity Log */}
       <Card>

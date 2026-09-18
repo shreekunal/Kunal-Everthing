@@ -147,7 +147,7 @@ export async function authenticateWithBiometrics(credentialId?: string): Promise
 
   const targetCredId = credentialId || serverCredId;
   if (!targetCredId) {
-    throw new Error("No fingerprint enrolled yet. Log in with Master PIN (1234) and enroll in Settings.");
+    throw new Error("No fingerprint enrolled yet. Log in with Master PIN and enroll in Settings.");
   }
 
   const challengeBuffer = challenge

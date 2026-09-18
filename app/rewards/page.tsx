@@ -487,43 +487,43 @@ export default function RewardsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Gift className="w-4 h-4 text-brand-red" />
-            <CardTitle>Guilt-Free Reward Perk Store</CardTitle>
+            <CardTitle>Guilt-Free Rewards Store</CardTitle>
           </div>
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={() => setIsAddPerkModalOpen(true)}
-            className="text-xs gap-1"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Perk</span>
-          </Button>
+          <Badge variant="red" size="sm">
+            Discipline Passes
+          </Badge>
         </CardHeader>
 
         <p className="text-xs text-zinc-400 -mt-2 mb-4">
-          Redeem earned discipline XP for guilt-free leisure, entertainment, and rewards.
+          Redeem earned discipline XP to take planned, guilt-free breaks without sacrificing long-term streaks.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {rewardItems.map((item: any) => {
             const canAfford = totalXP >= item.cost;
+            const isJunk = item.title.toLowerCase().includes("junk");
             return (
               <div
                 key={item.id}
-                className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-3 hover:border-white/20 transition-colors"
+                className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-4 hover:border-brand-red/30 transition-all shadow-glass-card"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-zinc-500 font-mono uppercase">
-                      {item.category}
-                    </span>
-                    <span className="font-bold text-sm font-mono text-brand-red">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red">
+                      {isJunk ? <Pizza className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                    </div>
+                    <span className="font-bold text-base font-mono text-brand-red">
                       {item.cost} XP
                     </span>
                   </div>
-                  <h5 className="text-xs font-bold text-white leading-snug">{item.title}</h5>
+                  <h5 className="text-sm font-bold text-white leading-snug">{item.title}</h5>
+                  <p className="text-xs text-zinc-400 font-mono mt-1">
+                    {isJunk
+                      ? "One guilt-free cheat meal or junk food pass."
+                      : "Controlled release protocol without streak penalty."}
+                  </p>
                   {item.timesRedeemed > 0 && (
-                    <span className="text-[10px] text-zinc-500 font-mono block mt-1">
+                    <span className="text-[10px] text-zinc-500 font-mono block mt-2">
                       Redeemed {item.timesRedeemed}x
                     </span>
                   )}
@@ -534,9 +534,9 @@ export default function RewardsPage() {
                   size="sm"
                   disabled={!canAfford}
                   onClick={() => handleRedeemPerk(item.id, item.cost, item.title)}
-                  className="w-full text-xs"
+                  className="w-full text-xs font-semibold py-2.5"
                 >
-                  {canAfford ? "Redeem Perk" : `Need ${item.cost - totalXP} More XP`}
+                  {canAfford ? `Redeem ${item.title}` : `Need ${item.cost - totalXP} More XP`}
                 </Button>
               </div>
             );

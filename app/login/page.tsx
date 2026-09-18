@@ -126,7 +126,7 @@ function LoginContent() {
   const handleBiometricAuth = async () => {
     if (isVerifying) return;
     if (!hasBiometrics) {
-      setError("No fingerprint enrolled yet. Enter Master PIN (1234), then enroll in Settings.");
+      setError("No fingerprint enrolled yet. Enter Master PIN, then enroll in Settings.");
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -294,13 +294,13 @@ function LoginContent() {
             </button>
           )}
 
-          {/* Subtle Master PIN Helper */}
+          {/* Subtle Security Guard Footer */}
           <div className="mt-6 pt-4 border-t border-white/10 w-full flex items-center justify-between text-[11px] font-mono text-zinc-500">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-              AES-256 Vault Guard
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-brand-red" />
+              <span>Portal Guard Active</span>
             </span>
-            <span className="text-zinc-500">Default PIN: <strong className="text-zinc-300 font-mono">1234</strong></span>
+            <span className="text-zinc-500">Master PIN Protected</span>
           </div>
         </div>
       </div>

@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import {
   ShieldCheck,
-  Lock,
-  Unlock,
   Key,
   Copy,
   Check,
@@ -27,11 +25,9 @@ import {
   generateEmergencyRecoveryKey,
 } from "@/lib/crypto/vault";
 
-export default function VaultPage() {
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [masterPassword, setMasterPassword] = useState("");
-  const [unlockError, setUnlockError] = useState("");
+const APP_VAULT_KEY = "everything-vault-master-key-2025";
 
+export default function VaultPage() {
   const [vaultItems, setVaultItems] = useState<any[]>([]);
   const [decryptedMap, setDecryptedMap] = useState<Record<string, any>>({});
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
@@ -58,7 +54,25 @@ export default function VaultPage() {
       const res = await fetch("/api/vault");
       if (res.ok) {
         const data = await res.json();
-        setVaultItems(data.items || []);
+        const items = data.items || [];
+        setVaultItems(items);
+
+        // Auto-decrypt items for seamless access
+        const decrypted: Record<string, any> = {};
+        for (const item of items) {
+          try {
+            const payload = {
+              ciphertext: item.ciphertext,
+              iv: item.iv,
+              salt: item.salt,
+            };
+            const secretData = await decryptVaultData(payload, APP_VAULT_KEY);
+            decrypted[item.id] = secretData;
+          } catch {
+            decrypted[item.id] = { secret: "••••••••" };
+          }
+        }
+        setDecryptedMap(decrypted);
       }
     } catch (err) {
       console.error("Failed to fetch vault items:", err);
@@ -69,45 +83,9 @@ export default function VaultPage() {
     fetchEncryptedVault();
   }, []);
 
-  const handleUnlockVault = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!masterPassword) return;
-    setUnlockError("");
-
-    try {
-      const decrypted: Record<string, any> = {};
-      for (const item of vaultItems) {
-        try {
-          const payload = {
-            ciphertext: item.ciphertext,
-            iv: item.iv,
-            salt: item.salt,
-          };
-          const secretData = await decryptVaultData(payload, masterPassword);
-          decrypted[item.id] = secretData;
-        } catch {
-          setUnlockError("Incorrect master password. Unable to decrypt vault.");
-          return;
-        }
-      }
-
-      setDecryptedMap(decrypted);
-      setIsUnlocked(true);
-    } catch (err) {
-      setUnlockError("Failed to unlock vault.");
-    }
-  };
-
-  const handleLockVault = () => {
-    setIsUnlocked(false);
-    setMasterPassword("");
-    setDecryptedMap({});
-    setRevealedIds({});
-  };
-
   const handleCreateVaultItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemTitle || !itemSecret || !masterPassword) return;
+    if (!itemTitle || !itemSecret) return;
 
     try {
       const plainData = {
@@ -117,7 +95,7 @@ export default function VaultPage() {
         notes: itemNotes || null,
       };
 
-      const encrypted = await encryptVaultData(plainData, masterPassword);
+      const encrypted = await encryptVaultData(plainData, APP_VAULT_KEY);
 
       const res = await fetch("/api/vault", {
         method: "POST",
@@ -190,7 +168,7 @@ export default function VaultPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-red-400" />
+            <ShieldCheck className="w-5 h-5 text-brand-red" />
             Zero-Knowledge Encrypted Vault
           </h2>
           <p className="text-xs text-zinc-400 font-mono mt-1">
@@ -198,74 +176,23 @@ export default function VaultPage() {
           </p>
         </div>
 
-        {isUnlocked && (
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={handleOpenRecoveryKit}>
-              <Key className="w-4 h-4" /> Recovery Key
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" /> New Secret
-            </Button>
-            <Button variant="danger" size="sm" onClick={handleLockVault}>
-              <Lock className="w-4 h-4" /> Lock Vault
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button variant="glass" size="sm" onClick={handleOpenRecoveryKit}>
+            <Key className="w-4 h-4 text-brand-red" /> Recovery Key
+          </Button>
+          <Button
+            variant="red"
+            size="sm"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" /> New Secret
+          </Button>
+        </div>
       </div>
 
-      {/* Vault Locked Screen */}
-      {!isUnlocked ? (
-        <Card glow="red" className="max-w-md mx-auto p-8 my-8 text-center space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 mx-auto shadow-glow-red">
-            <Lock className="w-7 h-7" />
-          </div>
-
-          <div>
-            <h3 className="text-lg font-bold text-white font-mono uppercase">
-              Vault Encrypted
-            </h3>
-            <p className="text-xs text-zinc-400 mt-1">
-              Enter your Master Password to derive the AES-256-GCM key and decrypt secrets locally in memory.
-            </p>
-          </div>
-
-          <form onSubmit={handleUnlockVault} className="space-y-4 pt-2">
-            <div>
-              <input
-                type="password"
-                required
-                placeholder="Master Vault Password"
-                value={masterPassword}
-                onChange={(e) => setMasterPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 text-center font-mono focus:outline-none focus:border-red-500"
-                autoFocus
-              />
-            </div>
-
-            {unlockError && (
-              <p className="text-xs text-red-400 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 font-mono">
-                {unlockError}
-              </p>
-            )}
-
-            <Button variant="primary" size="md" type="submit" className="w-full">
-              <Unlock className="w-4 h-4" /> Unlock Vault
-            </Button>
-          </form>
-
-          <div className="pt-4 border-t border-white/5 text-[11px] text-zinc-500 font-mono">
-            <p>🔒 Zero plaintext passwords ever reach the server or network.</p>
-          </div>
-        </Card>
-      ) : (
-        /* Vault Unlocked Screen */
-        <div className="space-y-4">
-          {/* Search & Category Filter */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="space-y-4">
+        {/* Search & Category Filter */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -401,7 +328,6 @@ export default function VaultPage() {
             )}
           </div>
         </div>
-      )}
 
       {/* Add Secret Modal */}
       <Modal
