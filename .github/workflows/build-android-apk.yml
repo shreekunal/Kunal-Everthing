@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web App & Add Android Platform
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://neondb_owner:npg_1qwGudWJAz7y@ep-patient-rain-b48j6u4k-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'kunal-os-production-master-secret-key-2025' }}
+          NODE_ENV: production
+        run: |
+          npm run build
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          mkdir -p android/app/src/main/assets
+          npx cap sync android
+
+      - name: Generate App Icons and Splash Screens
+        run: |
+          npx @capacitor/assets generate --android --iconBackgroundColor '#ffffff' --splashBackgroundColor '#111827' || true
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KunalOS-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

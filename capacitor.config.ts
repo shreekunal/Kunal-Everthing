@@ -17,7 +17,7 @@ interface CapacitorConfig {
 const config: CapacitorConfig = {
   appId: "com.kunal.os",
   appName: "KunalOS",
-  webDir: "out",
+  webDir: "public",
   server: {
     // When deploying to cloud (Render / Vercel), specify your deployed URL here:
     // url: "https://kunal-os.onrender.com",

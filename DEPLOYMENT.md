@@ -71,6 +71,16 @@ KunalOS includes a production multi-stage [`Dockerfile`](./Dockerfile):
 
 ---
 
+## 📱 Option D: Build Android APK (GitHub Actions)
+
+KunalOS includes an automated **GitHub Actions CI/CD workflow** ([`.github/workflows/build-android-apk.yml`](./.github/workflows/build-android-apk.yml)):
+
+1. **Automatic Build on Push**: Every time you push to `main` or `master`, GitHub Actions will build the web bundle, sync Capacitor Android assets, and compile the **Release/Debug APK** using Gradle.
+2. **Manual Dispatch**: Go to your GitHub repository → **Actions** tab → **Build Android APK** → **Run workflow**.
+3. **Download Artifact**: Once the action completes, download the **`KunalOS-Debug-APK`** zip containing `app-debug.apk` directly from the workflow run summary.
+
+---
+
 ## 🔐 First Time Login
 
 Once deployed:
