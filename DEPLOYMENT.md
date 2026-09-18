@@ -25,7 +25,7 @@ This guide walks you through deploying **KunalOS** to [Render](https://render.co
    - **Start Command**: `npm run start`.
    - **Environment Variables**:
      - `NODE_ENV`: `production`
-     - `DATABASE_URL`: `file:./dev.db`
+     - `DATABASE_URL`: `postgresql://neondb_owner:npg_1qwGudWJAz7y@ep-patient-rain-b48j6u4k-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
      - `JWT_SECRET`: *(auto-generated secure token)*
 
 ---
@@ -38,33 +38,26 @@ If you prefer configuring via the Render UI:
 2. Connect your Git repository.
 3. Configure the following fields:
    - **Name**: `kunal-os`
-   - **Region**: Select closest to your users (e.g. *Singapore / Oregon / Frankfurt*)
+   - **Region**: Select closest to your users (e.g. *Oregon / Frankfurt / Singapore*)
    - **Branch**: `main` (or your active branch)
    - **Runtime**: `Node`
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm run start`
-   - **Instance Type**: `Free` (or `Starter` for persistent disk)
+   - **Instance Type**: `Free`
 4. Under **Advanced** → **Environment Variables**, add:
    - `NODE_ENV` = `production`
-   - `DATABASE_URL` = `file:./dev.db`
+   - `DATABASE_URL` = `postgresql://neondb_owner:npg_1qwGudWJAz7y@ep-patient-rain-b48j6u4k-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
    - `JWT_SECRET` = *(enter a long random 32+ character string)*
 5. Click **Create Web Service**.
 
 ---
 
-## 💾 Optional: Persistent Storage on Render (Disks)
+## 🛡️ Permanent Cloud Storage (Neon PostgreSQL)
 
-Render Free Tier has an ephemeral file system. If you want your local SQLite database file to persist across instance sleep cycles:
+KunalOS is connected to **Neon Serverless PostgreSQL**.
+- **Permanent & Free Forever**: Your data will never expire or be deleted after 30 days.
+- **Auto-Sync**: Any schema changes automatically sync on deployment.
 
-1. Upgrade the instance to **Starter** ($7/mo).
-2. Go to **Disks** → **Add Disk**:
-   - **Name**: `kunal-os-data`
-   - **Mount Path**: `/var/data`
-   - **Size**: `1 GB`
-3. Update Environment Variable:
-   - `DATABASE_URL` = `file:/var/data/dev.db`
-
-*(Alternatively, you can connect an external cloud database like Neon Postgres or Turso SQLite by setting `DATABASE_URL`)*.
 
 ---
 
