@@ -125,6 +125,12 @@ function LoginContent() {
   // Handle Biometric Unlock
   const handleBiometricAuth = async () => {
     if (isVerifying) return;
+    if (!hasBiometrics) {
+      setError("No fingerprint enrolled yet. Enter Master PIN (1234), then enroll in Settings.");
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
     setIsVerifying(true);
     setError("");
 
@@ -175,11 +181,11 @@ function LoginContent() {
         <div className="bg-black/90 backdrop-blur-3xl border border-white/15 rounded-3xl p-6 sm:p-8 shadow-glass-panel flex flex-col items-center text-center">
           {/* Header Icon */}
           <div className="relative mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-glass-card">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-glass-card overflow-hidden p-2">
               {success ? (
                 <CheckCircle2 className="w-8 h-8 text-white animate-bounce" />
               ) : (
-                <Lock className="w-8 h-8 text-brand-red animate-pulse" />
+                <img src="/BrandLogo.png" alt="Everything" className="w-12 h-12 object-contain" />
               )}
             </div>
             <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-brand-red rounded-full border-2 border-black shadow-glow-red" />
@@ -187,7 +193,7 @@ function LoginContent() {
 
           {/* Title */}
           <h1 className="text-lg font-bold text-white tracking-widest font-mono uppercase">
-            KunalOS
+            Everything
           </h1>
           <p className="text-xs text-zinc-400 mt-1 font-mono">
             {success
@@ -247,9 +253,9 @@ function LoginContent() {
               disabled={isVerifying}
               title="Unlock with Fingerprint / Biometrics"
               className={`h-14 rounded-2xl border flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${
-                hasBiometrics || biometricsSupported
+                hasBiometrics
                   ? "bg-white/[0.06] hover:bg-brand-red/20 hover:border-brand-red/40 border-white/15 text-brand-red shadow-glow-red-subtle"
-                  : "bg-white/[0.02] border-white/5 text-zinc-600 cursor-not-allowed"
+                  : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300"
               }`}
             >
               <Fingerprint className="w-6 h-6" />

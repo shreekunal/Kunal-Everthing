@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const [recoveryKey, setRecoveryKey] = useState("");
 
   const handleClearAllData = async () => {
-    if (!confirm("⚠️ Are you sure you want to completely purge and clear ALL data inside KunalOS? This will wipe all tasks, habits, cards, accounts, and discipline logs for a fresh start.")) {
+    if (!confirm("⚠️ Are you sure you want to completely purge and clear ALL data inside Everything? This will wipe all tasks, habits, cards, accounts, and discipline logs for a fresh start.")) {
       return;
     }
 
@@ -326,10 +326,10 @@ export default function SettingsPage() {
 
           {/* Quick Lock Button */}
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-400">Lock your KunalOS session immediately:</span>
+            <span className="text-zinc-400">Lock your Everything session immediately:</span>
             <Button variant="red" size="sm" onClick={handleLockNow}>
               <Lock className="w-3.5 h-3.5" />
-              <span>Lock KunalOS Now</span>
+              <span>Lock Everything Now</span>
             </Button>
           </div>
         </div>
@@ -349,7 +349,7 @@ export default function SettingsPage() {
 
         <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans">
           <p>
-            KunalOS is rendered in an ultra-pure tri-color palette: pure pitch black (
+            Everything is rendered in an ultra-pure tri-color palette: pure pitch black (
             <code className="text-white font-mono bg-white/[0.04] px-1.5 py-0.5 rounded">#000000</code>
             ), crisp frosted glass white (
             <code className="text-white font-mono bg-white/[0.04] px-1.5 py-0.5 rounded">#FFFFFF</code>
@@ -535,7 +535,7 @@ export default function SettingsPage() {
 
         <div className="space-y-3 text-xs text-zinc-300">
           <p>
-            KunalOS is ready for instant PWA home screen installation or native packaging via Capacitor.
+            Everything is ready for instant PWA home screen installation or native packaging via Capacitor.
           </p>
           <div className="p-3 bg-white/[0.02] rounded-xl border border-white/10 font-mono text-[11px] text-zinc-300">
             <code>npx cap add android && npx cap copy && npx cap open android</code>

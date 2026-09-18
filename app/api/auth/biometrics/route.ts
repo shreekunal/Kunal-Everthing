@@ -50,6 +50,14 @@ export async function POST(req: NextRequest) {
     const user = await getOrCreateDefaultUser();
 
     if (action === "register") {
+      const token = req.cookies.get("kunal_os_token")?.value;
+      if (!token) {
+        return NextResponse.json(
+          { error: "Authentication required to enroll biometrics. Please log in first." },
+          { status: 401 }
+        );
+      }
+
       if (!credential || !credential.id) {
         return NextResponse.json({ error: "Valid biometric credential is required" }, { status: 400 });
       }
@@ -116,8 +124,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   try {
+    const token = req.cookies.get("kunal_os_token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

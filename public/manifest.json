@@ -1,6 +1,6 @@
 {
-  "name": "KunalOS",
-  "short_name": "KunalOS",
+  "name": "Everything",
+  "short_name": "Everything",
   "description": "Unified Personal Life, Finance, Encrypted Vault, and Routine Management Portal",
   "start_url": "/",
   "display": "standalone",

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>KunalOS</title>
+  <title>Everything</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -19,11 +19,18 @@
       width: 100vw;
       overflow: hidden;
     }
+    .logo-img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+      margin-bottom: 1.25rem;
+    }
     .logo {
-      font-size: 2.2rem;
+      font-size: 2rem;
       font-weight: 800;
-      letter-spacing: -0.05em;
+      letter-spacing: 0.1em;
       margin-bottom: 1rem;
+      text-transform: uppercase;
     }
     .accent { color: #ef4444; }
     .loader {
@@ -40,7 +47,8 @@
   </style>
 </head>
 <body>
-  <div class="logo">KUNAL<span class="accent">OS</span></div>
+  <img src="/BrandLogo.png" alt="Everything" class="logo-img" />
+  <div class="logo">EVERY<span class="accent">THING</span></div>
   <div class="loader"></div>
   <script>
     // Capacitor WebView entrypoint

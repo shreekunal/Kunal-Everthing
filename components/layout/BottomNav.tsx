@@ -113,7 +113,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-1 border-t border-white/5 pt-3"
           >
             <Lock className="w-4 h-4 text-red-400" />
-            <span>Lock KunalOS Portal</span>
+            <span>Lock Everything Portal</span>
           </button>
         </div>
       </div>

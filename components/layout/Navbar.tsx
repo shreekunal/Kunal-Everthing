@@ -88,9 +88,9 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
       <div className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-4 py-2.5 shadow-glass-panel flex items-center justify-between gap-3">
         {/* Left: Minimalist Branding */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
-          <span className="w-2 h-2 rounded-full bg-brand-red shadow-glow-red animate-pulse" />
+          <img src="/BrandLogo.png" alt="Everything" className="w-5 h-5 object-contain rounded" />
           <span className="font-bold text-xs tracking-[0.25em] text-white font-mono uppercase group-hover:text-brand-red transition-colors">
-            KUNALOS
+            EVERYTHING
           </span>
         </Link>
 
@@ -208,7 +208,7 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
           <button
             onClick={handleLockPortal}
             className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-colors"
-            title="Lock KunalOS Portal"
+            title="Lock Everything Portal"
             aria-label="Lock Portal"
           >
             <Lock className="w-4 h-4" />

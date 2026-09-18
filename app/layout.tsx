@@ -3,13 +3,17 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "KunalOS — Personal Life OS",
+  title: "Everything — Personal Life OS",
   description: "Unified Personal Life, Finance, Encrypted Vault, and Routine Management Portal",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/BrandLogo.png",
+    apple: "/BrandLogo.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "KunalOS",
+    title: "Everything",
   },
 };
 

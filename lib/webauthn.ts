@@ -42,11 +42,14 @@ export async function isBiometricsAvailable(): Promise<boolean> {
  */
 export async function registerWebAuthnCredential(username: string = "Kunal"): Promise<any> {
   if (typeof window === "undefined" || !navigator.credentials) {
-    throw new Error("WebAuthn is not supported on this browser/device.");
+    throw new Error("Biometric authentication is not supported on this browser or device.");
   }
 
   // Fetch challenge from server
   const challengeRes = await fetch("/api/auth/biometrics");
+  if (!challengeRes.ok) {
+    throw new Error("Unable to contact authentication server. Please check your connection.");
+  }
   const { challenge } = await challengeRes.json();
 
   const challengeBuffer = challenge
@@ -54,12 +57,13 @@ export async function registerWebAuthnCredential(username: string = "Kunal"): Pr
     : crypto.getRandomValues(new Uint8Array(32));
 
   const userIdBuffer = new TextEncoder().encode(username + "_" + Date.now());
+  const currentHost = window.location.hostname || "localhost";
 
   const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
     challenge: challengeBuffer as unknown as BufferSource,
     rp: {
       name: "KunalOS",
-      id: window.location.hostname === "localhost" ? "localhost" : window.location.hostname,
+      id: currentHost === "localhost" ? "localhost" : currentHost,
     },
     user: {
       id: userIdBuffer as unknown as BufferSource,
@@ -72,19 +76,30 @@ export async function registerWebAuthnCredential(username: string = "Kunal"): Pr
     ],
     authenticatorSelection: {
       authenticatorAttachment: "platform",
-      userVerification: "required",
+      userVerification: "preferred",
       residentKey: "preferred",
     },
     timeout: 60000,
     attestation: "none",
   };
 
-  const credential = (await navigator.credentials.create({
-    publicKey: publicKeyCredentialCreationOptions,
-  })) as PublicKeyCredential;
+  let credential: PublicKeyCredential | null = null;
+  try {
+    credential = (await navigator.credentials.create({
+      publicKey: publicKeyCredentialCreationOptions,
+    })) as PublicKeyCredential;
+  } catch (err: any) {
+    if (err.name === "NotAllowedError") {
+      throw new Error("Biometric registration was cancelled or timed out.");
+    }
+    if (err.message && err.message.includes("Web Authentication Service")) {
+      throw new Error("Error connecting to Web Authentication Service. Ensure your phone has a screen lock (Fingerprint / PIN) enabled and Google Play Services is up to date.");
+    }
+    throw new Error(err.message || "Failed to create biometric credential.");
+  }
 
   if (!credential) {
-    throw new Error("Biometric enrollment failed or cancelled.");
+    throw new Error("Biometric enrollment cancelled.");
   }
 
   const rawIdBase64 = bufferToBase64url(credential.rawId);
@@ -118,43 +133,60 @@ export async function registerWebAuthnCredential(username: string = "Kunal"): Pr
  */
 export async function authenticateWithBiometrics(credentialId?: string): Promise<boolean> {
   if (typeof window === "undefined" || !navigator.credentials) {
-    throw new Error("WebAuthn is not supported on this browser.");
+    throw new Error("Biometric authentication is not supported on this browser.");
   }
 
   // Fetch status and challenge from backend
   const statusRes = await fetch("/api/auth/biometrics");
+  if (!statusRes.ok) {
+    throw new Error("Unable to connect to authentication server.");
+  }
   const { challenge, credentialId: serverCredId } = await statusRes.json();
 
   const targetCredId = credentialId || serverCredId;
+  if (!targetCredId) {
+    throw new Error("No fingerprint enrolled yet. Log in with Master PIN (1234) and enroll in Settings.");
+  }
+
   const challengeBuffer = challenge
     ? base64urlToBuffer(challenge)
     : crypto.getRandomValues(new Uint8Array(32));
 
+  const currentHost = window.location.hostname || "localhost";
+
   const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
     challenge: challengeBuffer as unknown as BufferSource,
     timeout: 60000,
-    userVerification: "required",
-    rpId: window.location.hostname === "localhost" ? "localhost" : window.location.hostname,
+    userVerification: "preferred",
+    rpId: currentHost === "localhost" ? "localhost" : currentHost,
   };
 
-  if (targetCredId) {
-    try {
-      publicKeyCredentialRequestOptions.allowCredentials = [
-        {
-          id: base64urlToBuffer(targetCredId) as unknown as BufferSource,
-          type: "public-key",
-          transports: ["internal"],
-        },
-      ];
-    } catch {
-      // If parsing fails, allow credential selection automatically
-    }
+  try {
+    publicKeyCredentialRequestOptions.allowCredentials = [
+      {
+        id: base64urlToBuffer(targetCredId) as unknown as BufferSource,
+        type: "public-key",
+        transports: ["internal"],
+      },
+    ];
+  } catch {
+    // Fallback if parsing fails
   }
 
-
-  const assertion = (await navigator.credentials.get({
-    publicKey: publicKeyCredentialRequestOptions,
-  })) as PublicKeyCredential;
+  let assertion: PublicKeyCredential | null = null;
+  try {
+    assertion = (await navigator.credentials.get({
+      publicKey: publicKeyCredentialRequestOptions,
+    })) as PublicKeyCredential;
+  } catch (err: any) {
+    if (err.name === "NotAllowedError") {
+      throw new Error("Fingerprint verification cancelled or timed out.");
+    }
+    if (err.message && err.message.includes("Web Authentication Service")) {
+      throw new Error("Error connecting to Web Authentication Service. Ensure your phone has a screen lock enabled.");
+    }
+    throw new Error(err.message || "Biometric authentication failed.");
+  }
 
   if (!assertion) {
     throw new Error("Biometric authentication was cancelled.");

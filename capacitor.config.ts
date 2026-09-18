@@ -16,7 +16,7 @@ interface CapacitorConfig {
 
 const config: CapacitorConfig = {
   appId: "com.kunal.os",
-  appName: "KunalOS",
+  appName: "Everything",
   webDir: "public",
   server: {
     url: "https://kunal-os.onrender.com",
