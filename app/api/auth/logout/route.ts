@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function POST() {
   const response = NextResponse.json({
     success: true,
-    message: "Logged out and locked KunalOS successfully.",
+    message: "Logged out and locked Everything successfully.",
   });
 
   // Clear cookie

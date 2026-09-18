@@ -68,7 +68,10 @@ def create_foreground_icon(src_img, target_size):
     return canvas
 
 def main():
-    src_path = "/home/shrik/Work/KunalOS/BrandLogo.png"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(script_dir, ".."))
+
+    src_path = os.path.join(project_root, "BrandLogo.png")
     if not os.path.exists(src_path):
         print(f"Error: {src_path} not found")
         return
@@ -85,7 +88,7 @@ def main():
         "mipmap-xxxhdpi": {"launcher": 192, "foreground": 432},
     }
     
-    res_base = "/home/shrik/Work/KunalOS/android/app/src/main/res"
+    res_base = os.path.join(project_root, "android", "app", "src", "main", "res")
     
     for density, sizes in densities.items():
         dir_path = os.path.join(res_base, density)
@@ -106,7 +109,7 @@ def main():
         print(f"Generated icons for {density}")
         
     # 2. Capacitor Assets (for npx @capacitor/assets)
-    assets_dir = "/home/shrik/Work/KunalOS/assets"
+    assets_dir = os.path.join(project_root, "assets")
     os.makedirs(assets_dir, exist_ok=True)
     
     icon_1024 = create_square_icon(img, 1024, padding_ratio=0.1)
@@ -120,7 +123,7 @@ def main():
     print("Generated Capacitor asset icons in assets/")
     
     # 3. Public web directory
-    public_dir = "/home/shrik/Work/KunalOS/public"
+    public_dir = os.path.join(project_root, "public")
     os.makedirs(public_dir, exist_ok=True)
     
     web_icon_512 = create_square_icon(img, 512, padding_ratio=0.08)

@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { generateEmergencyRecoveryKey } from "@/lib/crypto/vault";
-import { registerWebAuthnCredential, isBiometricsAvailable } from "@/lib/webauthn";
+import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 
 export default function SettingsPage() {
   const [seeding, setSeeding] = useState(false);
@@ -68,8 +68,8 @@ export default function SettingsPage() {
   useEffect(() => {
     async function loadSecurityStatus() {
       try {
-        const supported = await isBiometricsAvailable();
-        setBiometricsSupported(supported);
+        const status = await checkDeviceBiometrics();
+        setBiometricsSupported(status.isAvailable);
 
         const res = await fetch("/api/auth/status");
         if (res.ok) {
@@ -132,7 +132,7 @@ export default function SettingsPage() {
     setBioLoading(true);
     setBioMessage(null);
     try {
-      await registerWebAuthnCredential("Kunal");
+      await enrollDeviceBiometrics();
       setHasBiometrics(true);
       setBioMessage({ text: "Fingerprint / Biometric credential enrolled successfully!" });
     } catch (err: any) {

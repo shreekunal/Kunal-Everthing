@@ -10,7 +10,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { authenticateWithBiometrics, isBiometricsAvailable } from "@/lib/webauthn";
+import { authenticateDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 
 function LoginContent() {
   const router = useRouter();
@@ -30,8 +30,8 @@ function LoginContent() {
   useEffect(() => {
     async function checkStatus() {
       try {
-        const supported = await isBiometricsAvailable();
-        setBiometricsSupported(supported);
+        const status = await checkDeviceBiometrics();
+        setBiometricsSupported(status.isAvailable);
 
         const res = await fetch("/api/auth/status");
         if (res.ok) {
@@ -135,7 +135,7 @@ function LoginContent() {
     setError("");
 
     try {
-      const ok = await authenticateWithBiometrics();
+      const ok = await authenticateDeviceBiometrics();
       if (ok) {
         setSuccess(true);
         setTimeout(() => {

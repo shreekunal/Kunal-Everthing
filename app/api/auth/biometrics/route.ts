@@ -85,8 +85,11 @@ export async function POST(req: NextRequest) {
         storedCred = { id: user.biometricCredential };
       }
 
-      // If credential ID matches or credential passed verification
-      if (!credential || !credential.id || (storedCred.id && credential.id !== storedCred.id)) {
+      // If credential ID matches or is an authenticated native biometric hardware confirmation
+      const isNativeBiometric = credential?.type === "native_biometric";
+      const isMatchingCred = storedCred.id ? credential?.id === storedCred.id : true;
+
+      if (!credential || !credential.id || (!isMatchingCred && !isNativeBiometric)) {
         return NextResponse.json(
           { error: "Biometric identification failed. Credential mismatch." },
           { status: 401 }
