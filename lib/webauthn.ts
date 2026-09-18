@@ -57,27 +57,29 @@ export async function registerWebAuthnCredential(username: string = "Kunal"): Pr
     : crypto.getRandomValues(new Uint8Array(32));
 
   const userIdBuffer = new TextEncoder().encode(username + "_" + Date.now());
-  const currentHost = window.location.hostname || "localhost";
+  const currentHost = window.location.hostname || "";
+  const rp: { name: string; id?: string } = { name: "Everything" };
+  if (currentHost && currentHost !== "localhost" && !/^\d+\.\d+\.\d+\.\d+$/.test(currentHost)) {
+    rp.id = currentHost;
+  }
 
   const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
     challenge: challengeBuffer as unknown as BufferSource,
-    rp: {
-      name: "KunalOS",
-      id: currentHost === "localhost" ? "localhost" : currentHost,
-    },
+    rp,
     user: {
       id: userIdBuffer as unknown as BufferSource,
       name: `${username.toLowerCase()}@local.os`,
       displayName: username,
     },
     pubKeyCredParams: [
-      { alg: -7, type: "public-key" },  // ES256
+      { alg: -7, type: "public-key" },   // ES256
       { alg: -257, type: "public-key" }, // RS256
+      { alg: -8, type: "public-key" },   // Ed25519
+      { alg: -37, type: "public-key" },  // PS256
     ],
     authenticatorSelection: {
-      authenticatorAttachment: "platform",
       userVerification: "preferred",
-      residentKey: "preferred",
+      residentKey: "discouraged",
     },
     timeout: 60000,
     attestation: "none",
@@ -152,14 +154,16 @@ export async function authenticateWithBiometrics(credentialId?: string): Promise
     ? base64urlToBuffer(challenge)
     : crypto.getRandomValues(new Uint8Array(32));
 
-  const currentHost = window.location.hostname || "localhost";
+  const currentHost = window.location.hostname || "";
 
   const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
     challenge: challengeBuffer as unknown as BufferSource,
     timeout: 60000,
     userVerification: "preferred",
-    rpId: currentHost === "localhost" ? "localhost" : currentHost,
   };
+  if (currentHost && currentHost !== "localhost" && !/^\d+\.\d+\.\d+\.\d+$/.test(currentHost)) {
+    publicKeyCredentialRequestOptions.rpId = currentHost;
+  }
 
   try {
     publicKeyCredentialRequestOptions.allowCredentials = [
