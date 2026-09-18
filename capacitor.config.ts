@@ -19,8 +19,8 @@ const config: CapacitorConfig = {
   appName: "KunalOS",
   webDir: "public",
   server: {
-    // When deploying to cloud (Render / Vercel), specify your deployed URL here:
-    // url: "https://kunal-os.onrender.com",
+    url: "https://kunal-os.onrender.com",
+    cleartext: false,
     androidScheme: "https",
   },
   android: {
