@@ -415,11 +415,11 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
-            <Button variant="red" size="sm" type="submit" isLoading={loading}>
+            <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
               Create Task
             </Button>
           </div>
@@ -479,11 +479,11 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={loading}>
+            <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
               Create Routine
             </Button>
           </div>
@@ -503,7 +503,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
               placeholder="e.g. Next.js App, Micro CRM, Cloud Study"
               value={sessionProject}
               onChange={(e) => setSessionProject(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
               autoFocus
             />
           </div>
@@ -516,7 +516,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
               <select
                 value={sessionType}
                 onChange={(e) => setSessionType(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red font-mono"
               >
                 <option value="WORK">Work</option>
                 <option value="STUDY">Study</option>
@@ -532,16 +532,16 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded }: QuickAddModalPro
                 min="1"
                 value={sessionDuration}
                 onChange={(e) => setSessionDuration(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red font-mono"
               />
             </div>
           </div>
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={loading}>
+            <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
               Log Activity
             </Button>
           </div>
