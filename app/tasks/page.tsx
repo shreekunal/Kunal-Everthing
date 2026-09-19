@@ -111,6 +111,48 @@ export default function TasksPage() {
     }
   };
 
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+
+  const handleClearCompleted = async () => {
+    const completed = tasks.filter((t) => t.status === "DONE");
+    if (completed.length === 0) return;
+    if (!confirm(`Delete / Clear all ${completed.length} completed tasks?`)) return;
+
+    haptics.warning();
+    try {
+      await Promise.all(
+        completed.map((t) => fetch(`/api/tasks/${t.id}`, { method: "DELETE" }))
+      );
+      fetchTasks();
+    } catch (err) {
+      console.error("Clear completed error:", err);
+    }
+  };
+
+  const handlePostponeTask = async (task: any) => {
+    haptics.impactMedium();
+    let baseDate = new Date();
+    if (task.dueDate) {
+      const parsed = new Date(task.dueDate);
+      if (!isNaN(parsed.getTime())) {
+        baseDate = parsed;
+      }
+    }
+    const nextDate = addDays(baseDate, 1);
+    const nextDateStr = format(nextDate, "yyyy-MM-dd");
+
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate: nextDateStr }),
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error("Postpone task error:", err);
+    }
+  };
+
   const handleUpdateReminder = async (taskId: string, preset: string, customVal: string = "") => {
     const remindAt = calculateRemindAt(preset, customVal);
     try {
@@ -167,10 +209,17 @@ export default function TasksPage() {
     }
   };
 
+  const TASK_CATEGORIES = ["ALL", "Work", "Study", "Health", "Personal", "Finance"];
+
   const filteredTasks = tasks.filter((task) => {
-    if (filter === "ACTIVE") return task.status !== "DONE";
-    if (filter === "COMPLETED") return task.status === "DONE";
-    if (filter === "HIGH") return task.priority === "HIGH" && task.status !== "DONE";
+    if (filter === "ACTIVE" && task.status === "DONE") return false;
+    if (filter === "COMPLETED" && task.status !== "DONE") return false;
+    if (filter === "HIGH" && (task.priority !== "HIGH" || task.status === "DONE")) return false;
+    if (
+      selectedCategory !== "ALL" &&
+      (task.category || "").toLowerCase() !== selectedCategory.toLowerCase()
+    )
+      return false;
     return true;
   });
 
@@ -197,28 +246,79 @@ export default function TasksPage() {
         </Button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto">
-        {(
-          [
-            { id: "ACTIVE", label: `Active (${activeCount})` },
-            { id: "HIGH", label: "Urgent (High)" },
-            { id: "ALL", label: `All (${tasks.length})` },
-            { id: "COMPLETED", label: `Completed (${completedCount})` },
-          ] as const
-        ).map((tab) => (
+      {/* Filter Tabs & Archive/Clear */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {(
+            [
+              { id: "ACTIVE", label: `Active (${activeCount})` },
+              { id: "HIGH", label: "Urgent (High)" },
+              { id: "ALL", label: `All (${tasks.length})` },
+              { id: "COMPLETED", label: `Completed (${completedCount})` },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                haptics.selection();
+                setFilter(tab.id);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-colors whitespace-nowrap ${
+                filter === tab.id
+                  ? "bg-brand-red text-white shadow-glow-red font-bold"
+                  : "bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {completedCount > 0 && (
           <button
-            key={tab.id}
-            onClick={() => setFilter(tab.id)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-colors whitespace-nowrap ${
-              filter === tab.id
-                ? "bg-brand-red text-white shadow-glow-red font-bold"
-                : "bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5"
-            }`}
+            onClick={handleClearCompleted}
+            className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-mono text-red-400 flex items-center gap-1.5 transition-all whitespace-nowrap active:scale-95"
           >
-            {tab.label}
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear Done ({completedCount})</span>
           </button>
-        ))}
+        )}
+      </div>
+
+      {/* Category Pills Filter */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {TASK_CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat;
+          const count =
+            cat === "ALL"
+              ? tasks.length
+              : tasks.filter(
+                  (t) => (t.category || "").toLowerCase() === cat.toLowerCase()
+                ).length;
+          return (
+            <button
+              key={cat}
+              onClick={() => {
+                haptics.selection();
+                setSelectedCategory(cat);
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-mono font-medium transition-all whitespace-nowrap flex items-center gap-1.5 border ${
+                isSelected
+                  ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                  : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+              }`}
+            >
+              <span>{cat === "ALL" ? "All Categories" : cat}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  isSelected ? "bg-black/30 text-white" : "bg-white/10 text-zinc-400"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Task List */}
@@ -314,6 +414,16 @@ export default function TasksPage() {
                         Urgent
                       </Badge>
                     )}
+
+                    {/* Postpone +1d Button */}
+                    <button
+                      onClick={() => handlePostponeTask(task)}
+                      className="px-2 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-300 hover:text-white transition-all flex items-center gap-1 active:scale-95"
+                      title="Postpone 1 Day to Tomorrow"
+                    >
+                      <Calendar className="w-3 h-3 text-brand-red" />
+                      <span>+1d</span>
+                    </button>
 
                     {/* Quick Inline Reminder Button */}
                     <div className="relative">

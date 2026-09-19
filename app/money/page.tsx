@@ -16,8 +16,13 @@ import {
   PiggyBank,
   Trash2,
   Calendar,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  ShieldAlert,
 } from "lucide-react";
 import { INDIAN_CARD_PRESETS } from "@/lib/presets";
+import { haptics } from "@/lib/haptics";
 
 export default function MoneyPage() {
   const [data, setData] = useState<any>(null);
@@ -110,16 +115,50 @@ export default function MoneyPage() {
         body: JSON.stringify({
           name: cardName,
           bank: cardBank || "Bank",
+          creditLimit: Number(cardLimit) || 100000,
+          currentOutstanding: Number(cardOutstanding) || 0,
           statementDate: Number(cardStatementDate) || 12,
           dueDate: Number(cardDueDate) || 30,
         }),
       });
+      haptics.success();
       setCardName("");
       setCardBank("");
+      setCardLimit("150000");
+      setCardOutstanding("0");
       setIsAddCardOpen(false);
       fetchFinancials();
     } catch (err) {
       console.error("Create card error:", err);
+    }
+  };
+
+  const handleQuickPayFullBalance = async (card: any) => {
+    if (!card.currentOutstanding || card.currentOutstanding <= 0) {
+      haptics.impactLight();
+      alert("This card has ₹0 outstanding balance!");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Mark full balance of ${formatINR(card.currentOutstanding)} on ${card.name} as paid?`
+      )
+    )
+      return;
+
+    haptics.success();
+    try {
+      await fetch(`/api/cards/${card.id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: card.currentOutstanding,
+        }),
+      });
+      fetchFinancials();
+    } catch (err) {
+      console.error("Quick pay error:", err);
     }
   };
 
@@ -246,47 +285,148 @@ export default function MoneyPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((card) => {
+            const days = card.daysRemaining ?? 30;
+            const isUrgent = days <= 3;
+            const isWarning = days > 3 && days <= 15;
+            const countdownBarColor = isUrgent
+              ? "bg-red-500"
+              : isWarning
+              ? "bg-amber-400"
+              : "bg-emerald-400";
+
             return (
-              <Card key={card.id} className="p-5 flex flex-col justify-between group">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-base font-bold text-white truncate">
-                      {card.bank ? `${card.bank} ` : ""}{card.name}
-                    </h4>
+              <Card
+                key={card.id}
+                glow={isUrgent ? "red" : undefined}
+                className="p-5 flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-base font-bold text-white truncate">
+                        {card.bank ? `${card.bank} ` : ""}{card.name}
+                      </h4>
+                      {card.last4 && (
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          •••• {card.last4}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge
+                        variant={isUrgent ? "red" : isWarning ? "outline" : "outline"}
+                        size="sm"
+                      >
+                        {card.dueDateLabel}
+                      </Badge>
+                      <button
+                        onClick={() => handleDeleteCard(card.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-brand-red transition-all"
+                        title="Delete card"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <Badge variant="red" size="sm">
-                      {card.dueDateLabel}
-                    </Badge>
-                    <button
-                      onClick={() => handleDeleteCard(card.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-brand-red transition-all"
-                      title="Delete card"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  {/* Due Date Countdown Bar */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                      <span className="flex items-center gap-1 text-zinc-400">
+                        <Clock className="w-3 h-3 text-zinc-400" />
+                        {isUrgent ? "⚠️ Payment Urgent" : isWarning ? "Approaching Due" : "Safe Window"}
+                      </span>
+                      <span className={`font-bold ${isUrgent ? "text-red-400 animate-pulse" : isWarning ? "text-amber-400" : "text-emerald-400"}`}>
+                        {days} {days === 1 ? "day" : "days"} left
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${countdownBarColor}`}
+                        style={{
+                          width: `${Math.max(5, Math.min(100, ((30 - Math.min(30, days)) / 30) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 30% Credit Utilization Warning Pill */}
+                  <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
+                    {card.utilization > 30 ? (
+                      <span className="px-2 py-0.5 rounded-lg bg-red-500/15 border border-red-500/30 text-[10px] font-mono font-bold text-red-400 flex items-center gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5" />
+                        {card.utilization}% Used (&gt;30% Risk)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/10 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+                        🛡️ {card.utilization}% Used (Optimal)
+                      </span>
+                    )}
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      Limit: {formatINR(card.creditLimit || 0)}
+                    </span>
+                  </div>
+
+                  {/* Statement & Due Dates */}
+                  <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10 text-xs font-mono">
+                    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5">
+                      <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
+                        Statement Date
+                      </span>
+                      <span className="font-bold text-white">
+                        {card.statementDate}th of month
+                      </span>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5">
+                      <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
+                        Payment Due Date
+                      </span>
+                      <span className="font-bold text-brand-red">
+                        {card.dueDate}th of month
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Dates Only */}
-                <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3 border-t border-white/10 text-xs font-mono">
-                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
-                    <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                      Statement Date
+                {/* Outstanding & 1-Click Pay */}
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase font-mono block">
+                      Outstanding
                     </span>
-                    <span className="font-bold text-white">
-                      {card.statementDate}th of month
+                    <span className="text-sm font-bold text-red-400 font-mono">
+                      {formatINR(card.currentOutstanding || 0)}
                     </span>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
-                    <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                      Payment Due Date
-                    </span>
-                    <span className="font-bold text-brand-red">
-                      {card.dueDate}th of month
-                    </span>
+                  <div className="flex items-center gap-1.5">
+                    {card.currentOutstanding > 0 && (
+                      <Button
+                        variant="red"
+                        size="sm"
+                        className="text-[11px] h-7 px-2.5"
+                        onClick={() => handleQuickPayFullBalance(card)}
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        <span>1-Click Paid</span>
+                      </Button>
+                    )}
+                    <Button
+                      variant="glass"
+                      size="sm"
+                      className="text-[11px] h-7 px-2"
+                      onClick={() => {
+                        setSelectedCardForPayment(card);
+                        setPaymentAmount(
+                          card.currentOutstanding ? String(card.currentOutstanding) : ""
+                        );
+                        setIsPaymentModalOpen(true);
+                      }}
+                    >
+                      Pay
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -542,6 +682,35 @@ export default function MoneyPage() {
                   value={cardDueDate}
                   onChange={(e) => setCardDueDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Total Credit Limit (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={cardLimit}
+                  onChange={(e) => setCardLimit(e.target.value)}
+                  placeholder="150000"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Current Due / Outstanding (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={cardOutstanding}
+                  onChange={(e) => setCardOutstanding(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
                 />
               </div>
             </div>

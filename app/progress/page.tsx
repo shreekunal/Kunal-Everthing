@@ -10,7 +10,9 @@ import {
   Plus,
   TrendingUp,
   Calendar,
+  Target,
 } from "lucide-react";
+import { haptics } from "@/lib/haptics";
 import {
   BarChart,
   Bar,
@@ -123,6 +125,43 @@ export default function ProgressPage() {
         </Card>
       </div>
 
+      {/* Weekly Focus Goal Progress Bar (25 Hours Target) */}
+      {(() => {
+        const weekTargetMinutes = 25 * 60; // 25 hours
+        const currentWeekMinutes =
+          (thisWeek?.workMinutes || 0) + (thisWeek?.studyMinutes || 0);
+        const progressPercent = Math.min(
+          100,
+          Math.round((currentWeekMinutes / weekTargetMinutes) * 100)
+        );
+
+        return (
+          <Card glow="red" className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-brand-red" />
+                <span className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                  Weekly Focus Target (25 Hours Goal)
+                </span>
+              </div>
+              <span className="text-xs font-bold font-mono text-brand-red">
+                {progressPercent}% Achieved ({formatDuration(currentWeekMinutes)} / 25h)
+              </span>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand-red rounded-full transition-all duration-500 shadow-glow-red"
+                style={{ width: `${Math.max(3, progressPercent)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-2">
+              <span>{progressPercent >= 100 ? "🎯 Weekly Target Smashed!" : `${formatDuration(Math.max(0, weekTargetMinutes - currentWeekMinutes))} remaining to goal`}</span>
+              <span>Pace: {Math.round((currentWeekMinutes / (new Date().getDay() || 7)) / 60 * 10) / 10}h / day</span>
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* Grid: Manual Log + 7-Day Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Manual Activity Entry */}
@@ -146,7 +185,7 @@ export default function ProgressPage() {
                   placeholder="e.g. Next.js, Algorithms, Client Work"
                   value={manualProject}
                   onChange={(e) => setManualProject(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
                 />
               </div>
 
@@ -178,6 +217,35 @@ export default function ProgressPage() {
                     onChange={(e) => setManualDuration(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
                   />
+                </div>
+              </div>
+
+              {/* Quick Pomodoro Chips */}
+              <div>
+                <span className="block text-[10px] font-mono text-zinc-500 mb-1.5 uppercase">
+                  Quick Pomodoro Presets
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[25, 45, 60, 90].map((mins) => {
+                    const isSelected = Number(manualDuration) === mins;
+                    return (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => {
+                          haptics.selection();
+                          setManualDuration(String(mins));
+                        }}
+                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center ${
+                          isSelected
+                            ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                            : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                        }`}
+                      >
+                        {mins}m
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

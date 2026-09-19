@@ -21,9 +21,11 @@ import {
   Zap,
   ShieldCheck,
   UtensilsCrossed,
+  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { haptics } from "@/lib/haptics";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
@@ -143,6 +145,55 @@ export default function DashboardPage() {
     }
   };
 
+  const handlePostponeTask = async (task: any) => {
+    haptics.impactMedium();
+    let baseDate = new Date();
+    if (task.dueDate) {
+      const parsed = new Date(task.dueDate);
+      if (!isNaN(parsed.getTime())) {
+        baseDate = parsed;
+      }
+    }
+    const nextDate = addDays(baseDate, 1);
+    const nextDateStr = format(nextDate, "yyyy-MM-dd");
+
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate: nextDateStr }),
+      });
+      fetchDashboardData();
+    } catch (err) {
+      console.error("Postpone task error:", err);
+    }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12)
+      return {
+        title: "Morning Focus, Kunal",
+        sub: "Start strong with your primary objectives and deep work protocols.",
+      };
+    if (hour >= 12 && hour < 17)
+      return {
+        title: "Afternoon Momentum, Kunal",
+        sub: "Maintain operational cadence, hydrate, and eliminate distractions.",
+      };
+    if (hour >= 17 && hour < 22)
+      return {
+        title: "Evening Discipline, Kunal",
+        sub: "Review your accomplishments, close remaining loops, and prepare for rest.",
+      };
+    return {
+      title: "Night Vigil, Kunal",
+      sub: "Guard your peace, practice restorative gratitude, and recover for tomorrow.",
+    };
+  };
+
+  const greeting = getGreeting();
+
   const { todayTasks, routines, financials, weeklySummary, upcomingDues, partner, discipline } =
     data || {};
 
@@ -165,15 +216,15 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Dashboard Section Header */}
+        {/* Dashboard Section Header with Dynamic Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
               <LayoutDashboard className="w-5 h-5 text-brand-red" />
-              Dashboard & Daily Briefing
+              {greeting.title}
             </h2>
             <p className="text-xs text-zinc-400 font-mono mt-1">
-              Real-time glance at your tasks, routines, deep work focus, and financial standing
+              {greeting.sub}
             </p>
           </div>
 
@@ -182,6 +233,42 @@ export default function DashboardPage() {
             <span>{format(new Date(), "EEEE, MMM d, yyyy")}</span>
           </div>
         </div>
+
+        {/* Urgent Credit Card Due Alert Banner */}
+        {(() => {
+          const urgentCard = upcomingDues?.find(
+            (c: any) => c.daysRemaining <= 3 && (c.outstanding > 0 || c.currentOutstanding > 0)
+          );
+          if (!urgentCard) return null;
+
+          const outstandingAmt = urgentCard.outstanding || urgentCard.currentOutstanding || 0;
+
+          return (
+            <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-between gap-3 text-xs font-mono shadow-glow-red">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center flex-shrink-0 animate-pulse">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-sm truncate">
+                    Urgent Payment Due: {urgentCard.bank} {urgentCard.name}
+                  </p>
+                  <p className="text-red-300 text-[11px] mt-0.5">
+                    {urgentCard.daysRemaining <= 0
+                      ? "Payment is DUE TODAY!"
+                      : `Due in ${urgentCard.daysRemaining} days`} • Outstanding: {formatINR(outstandingAmt)}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/money"
+                className="px-3.5 py-1.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors whitespace-nowrap active:scale-95 flex-shrink-0"
+              >
+                Pay Now
+              </Link>
+            </div>
+          );
+        })()}
 
       {/* 4 Hero Glass Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -427,6 +514,18 @@ export default function DashboardPage() {
                             High
                           </Badge>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePostponeTask(task);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-zinc-400 hover:text-white border border-white/10 flex items-center gap-1 transition-all active:scale-95"
+                          title="Postpone +1 Day to Tomorrow"
+                        >
+                          <Calendar className="w-2.5 h-2.5 text-brand-red" />
+                          <span>+1d</span>
+                        </button>
                       </div>
                     </div>
                   );

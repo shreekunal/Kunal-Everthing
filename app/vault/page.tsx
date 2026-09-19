@@ -17,6 +17,8 @@ import {
   FileText,
   CreditCard,
   Search,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import {
   encryptVaultData,
@@ -24,6 +26,7 @@ import {
   copyToClipboardWithAutoClear,
   generateEmergencyRecoveryKey,
 } from "@/lib/crypto/vault";
+import { haptics } from "@/lib/haptics";
 
 const APP_VAULT_KEY = "everything-vault-master-key-2025";
 
@@ -44,6 +47,28 @@ export default function VaultPage() {
   const [itemSecret, setItemSecret] = useState("");
   const [itemWebsite, setItemWebsite] = useState("");
   const [itemNotes, setItemNotes] = useState("");
+  const [showModalPassword, setShowModalPassword] = useState(false);
+
+  const generatePassword = (length = 18) => {
+    haptics.selection();
+    const charset =
+      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+    let password = "";
+    if (typeof window !== "undefined" && window.crypto) {
+      const array = new Uint32Array(length);
+      window.crypto.getRandomValues(array);
+      for (let i = 0; i < length; i++) {
+        password += charset[array[i] % charset.length];
+      }
+    } else {
+      for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
+    }
+    setItemSecret(password);
+    setShowModalPassword(true);
+    haptics.impactLight();
+  };
 
   // Recovery Key Modal
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
@@ -395,17 +420,57 @@ export default function VaultPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Secret / Password *
-            </label>
-            <input
-              type="password"
-              required
-              placeholder="••••••••••••"
-              value={itemSecret}
-              onChange={(e) => setItemSecret(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-red-500"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-mono text-zinc-400 uppercase">
+                Secret / Password *
+              </label>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => generatePassword(16)}
+                  className="px-2 py-0.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[10px] font-mono text-red-400 flex items-center gap-1 transition-all active:scale-95"
+                >
+                  <Sparkles className="w-2.5 h-2.5" />
+                  <span>Generate (16)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generatePassword(24)}
+                  className="px-2 py-0.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-300 flex items-center gap-1 transition-all active:scale-95"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  <span>Ultra (24)</span>
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <input
+                type={showModalPassword ? "text" : "password"}
+                required
+                placeholder="••••••••••••"
+                value={itemSecret}
+                onChange={(e) => setItemSecret(e.target.value)}
+                className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-red-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowModalPassword(!showModalPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white transition-colors"
+                title={showModalPassword ? "Hide password" : "Show password"}
+              >
+                {showModalPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            {itemSecret && (
+              <div className="mt-1.5 flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
+                <span>Entropy: {itemSecret.length >= 16 ? "🛡️ Military Grade (Strong)" : "⚠️ Short / Moderate"}</span>
+                <span>{itemSecret.length} chars</span>
+              </div>
+            )}
           </div>
 
           <div className="pt-3 flex justify-end gap-2 border-t border-white/10">

@@ -63,6 +63,31 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     const body = await request.json();
 
+    if (body.action === "CREATE_TEMPLATE") {
+      const { title, content, category } = body;
+      if (!content) {
+        return NextResponse.json({ error: "Content is required" }, { status: 400 });
+      }
+      const template = await prisma.messageTemplate.create({
+        data: {
+          userId: user.id,
+          title: title || "Custom Message",
+          content,
+          category: category || "CUSTOM",
+          isDefault: false,
+        },
+      });
+      return NextResponse.json({ template });
+    }
+
+    if (body.action === "DELETE_TEMPLATE") {
+      const { templateId } = body;
+      await prisma.messageTemplate.delete({
+        where: { id: templateId, userId: user.id },
+      });
+      return NextResponse.json({ success: true });
+    }
+
     const { name, nickname, birthday, anniversary, phone, preferredChannel, preferences, notes } = body;
 
     const partner = await prisma.partner.upsert({

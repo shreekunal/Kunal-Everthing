@@ -5,19 +5,22 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { Flame, Plus, Check, Trophy, Trash2 } from "lucide-react";
+import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { haptics } from "@/lib/haptics";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
   const [past14Days, setPast14Days] = useState<string[]>([]);
+  const [past30Days, setPast30Days] = useState<string[]>([]);
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState<"ALL" | "MORNING" | "AFTERNOON" | "NIGHT">("ALL");
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form states
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Health");
+  const [category, setCategory] = useState("Morning");
   const [targetDays, setTargetDays] = useState("DAILY");
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(30);
 
@@ -28,6 +31,7 @@ export default function RoutinesPage() {
         const data = await res.json();
         setRoutines(data.routines || []);
         setPast14Days(data.past14Days || []);
+        setPast30Days(data.past30Days || data.past14Days || []);
       }
     } catch (err) {
       console.error("Failed to fetch routines:", err);
@@ -92,6 +96,48 @@ export default function RoutinesPage() {
 
   const totalStreaks = routines.reduce((acc, r) => acc + r.currentStreak, 0);
 
+  const TIME_FILTERS = [
+    { id: "ALL" as const, label: "All Protocols", icon: Sparkles },
+    { id: "MORNING" as const, label: "Morning Protocol", icon: Sun },
+    { id: "AFTERNOON" as const, label: "Afternoon Focus", icon: Sunset },
+    { id: "NIGHT" as const, label: "Night Protocol", icon: Moon },
+  ];
+
+  const filteredRoutines = routines.filter((r) => {
+    if (selectedTimeFilter === "ALL") return true;
+    const cat = (r.category || "").toUpperCase();
+    const name = (r.name || "").toUpperCase();
+    if (selectedTimeFilter === "MORNING")
+      return cat.includes("MORN") || name.includes("MORN") || cat.includes("HEALTH");
+    if (selectedTimeFilter === "AFTERNOON")
+      return (
+        cat.includes("AFTER") ||
+        cat.includes("NOON") ||
+        name.includes("AFTER") ||
+        cat.includes("WORK") ||
+        cat.includes("STUDY")
+      );
+    if (selectedTimeFilter === "NIGHT")
+      return (
+        cat.includes("NIGHT") ||
+        cat.includes("EVEN") ||
+        name.includes("NIGHT") ||
+        name.includes("SLEEP") ||
+        name.includes("BED") ||
+        cat.includes("DISCIPLINE")
+      );
+    return true;
+  });
+
+  // Calculate daily completion counts for 30-day heatmap
+  const dailyCounts: Record<string, number> = {};
+  past30Days.forEach((day) => {
+    dailyCounts[day] = routines.filter((r) =>
+      r.pastHistory?.some((h: any) => h.date === day && h.completed)
+    ).length;
+  });
+  const maxPerDay = Math.max(1, routines.length);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,18 +158,109 @@ export default function RoutinesPage() {
         </Button>
       </div>
 
+      {/* 30-Day Habit Contribution Heatmap Card */}
+      <Card glow="red" className="p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-brand-red" />
+            <h3 className="text-xs font-bold text-white tracking-wider uppercase font-mono">
+              30-Day Monk Consistency Grid
+            </h3>
+          </div>
+          <span className="text-xs font-mono text-zinc-400">
+            {hoveredDate
+              ? `${hoveredDate}: ${dailyCounts[hoveredDate] || 0}/${routines.length} habits done`
+              : "Hover / Tap any day to inspect"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-10 sm:grid-cols-15 gap-1.5 p-2.5 rounded-2xl bg-black/50 border border-white/5">
+          {past30Days.map((day) => {
+            const count = dailyCounts[day] || 0;
+            const ratio = count / maxPerDay;
+            const isFull = ratio >= 0.8 && count > 0;
+            const isHigh = ratio >= 0.5 && !isFull;
+            const isMed = ratio > 0 && !isHigh && !isFull;
+
+            return (
+              <button
+                key={day}
+                type="button"
+                onMouseEnter={() => setHoveredDate(day)}
+                onClick={() => {
+                  haptics.selection();
+                  setHoveredDate(day);
+                }}
+                className={`h-7 rounded-lg transition-all flex flex-col items-center justify-center text-[9px] font-mono border ${
+                  isFull
+                    ? "bg-brand-red text-white border-brand-red shadow-glow-red font-bold"
+                    : isHigh
+                    ? "bg-red-500/60 text-white border-red-500/40"
+                    : isMed
+                    ? "bg-red-500/20 text-red-300 border-red-500/30"
+                    : "bg-white/[0.03] text-zinc-600 border-white/5 hover:border-white/20"
+                }`}
+                title={`${day}: ${count}/${routines.length} completed`}
+              >
+                <span>{day.split("-")[2]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-3 pt-2 border-t border-white/5">
+          <div className="flex items-center gap-2">
+            <span>Legend:</span>
+            <span className="inline-block w-2.5 h-2.5 rounded bg-white/[0.04] border border-white/10" />
+            <span className="text-zinc-600">0</span>
+            <span className="inline-block w-2.5 h-2.5 rounded bg-red-500/20" />
+            <span className="text-zinc-400">Low</span>
+            <span className="inline-block w-2.5 h-2.5 rounded bg-red-500/60" />
+            <span className="text-zinc-300">Med</span>
+            <span className="inline-block w-2.5 h-2.5 rounded bg-brand-red shadow-glow-red" />
+            <span className="text-white">100%</span>
+          </div>
+          <span>30 Days Tracked</span>
+        </div>
+      </Card>
+
+      {/* Time-of-Day Protocol Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {TIME_FILTERS.map((item) => {
+          const Icon = item.icon;
+          const isSelected = selectedTimeFilter === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                haptics.selection();
+                setSelectedTimeFilter(item.id);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
+                isSelected
+                  ? "bg-brand-red text-white border-brand-red shadow-glow-red"
+                  : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Routine Cards with 14-day Heatmap */}
       <div className="space-y-4">
         {loading ? (
           <div className="p-12 text-center text-xs text-zinc-500 font-mono">
             Loading habits & matrix...
           </div>
-        ) : routines.length === 0 ? (
-          <div className="p-12 text-center text-xs text-zinc-500 font-mono">
-            No routines configured yet. Click &apos;New Routine&apos; to start!
+        ) : filteredRoutines.length === 0 ? (
+          <div className="p-12 text-center text-xs text-zinc-500 font-mono border border-white/5 rounded-2xl bg-white/[0.02]">
+            No routines found for this protocol. Click &apos;New Routine&apos; to create one!
           </div>
         ) : (
-          routines.map((routine) => {
+          filteredRoutines.map((routine) => {
             return (
               <Card key={routine.id} className="p-5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -268,10 +405,13 @@ export default function RoutinesPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
               >
-                <option value="Health">Health</option>
-                <option value="Study">Study</option>
-                <option value="Work">Work</option>
-                <option value="Mindset">Mindset</option>
+                <option value="Morning">Morning Protocol</option>
+                <option value="Afternoon">Afternoon Focus</option>
+                <option value="Night">Night Protocol</option>
+                <option value="Health">Health & Fitness</option>
+                <option value="Study">Study & Knowledge</option>
+                <option value="Work">Deep Work</option>
+                <option value="Discipline">Monk Discipline</option>
                 <option value="Finance">Finance</option>
               </select>
             </div>

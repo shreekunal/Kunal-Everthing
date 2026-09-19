@@ -15,9 +15,13 @@ import {
   Calendar,
   Gift,
   Phone,
+  PhoneCall,
   Sparkles,
   Edit2,
   MessageCircle,
+  Cake,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 
@@ -38,6 +42,75 @@ export default function RelationshipPage() {
 
   // Custom Message Dispatcher
   const [customMessage, setCustomMessage] = useState("");
+
+  // Template Modal
+  const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
+  const [newTemplateTitle, setNewTemplateTitle] = useState("");
+  const [newTemplateCategory, setNewTemplateCategory] = useState("LOVE");
+  const [newTemplateContent, setNewTemplateContent] = useState("");
+
+  const getNextOccurrence = (dateString?: string) => {
+    if (!dateString) return null;
+    const parts = dateString.split("-");
+    if (parts.length < 3) return null;
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const now = new Date();
+    let next = new Date(now.getFullYear(), month, day);
+    next.setHours(0, 0, 0, 0);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (next < today) {
+      next = new Date(now.getFullYear() + 1, month, day);
+    }
+    const diffDays = Math.round(
+      (next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return { date: next, days: diffDays };
+  };
+
+  const handleCreateTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTemplateContent) return;
+    try {
+      const res = await fetch("/api/relationship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TEMPLATE",
+          title: newTemplateTitle || "Custom Message",
+          category: newTemplateCategory,
+          content: newTemplateContent,
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setNewTemplateTitle("");
+        setNewTemplateContent("");
+        setIsAddTemplateOpen(false);
+        fetchRelationshipData();
+      }
+    } catch (err) {
+      console.error("Create template error:", err);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm("Delete this custom message template?")) return;
+    haptics.warning();
+    try {
+      await fetch("/api/relationship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_TEMPLATE",
+          templateId,
+        }),
+      });
+      fetchRelationshipData();
+    } catch (err) {
+      console.error("Delete template error:", err);
+    }
+  };
 
   const fetchRelationshipData = async () => {
     try {
@@ -162,14 +235,24 @@ export default function RelationshipPage() {
                   {partner?.phone || "No phone number configured"}
                 </p>
                 {partner?.phone && (
-                  <button
-                    type="button"
-                    onClick={() => handleSendWhatsApp("Hello baby ❤️")}
-                    className="px-2 py-0.5 rounded-lg bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/30 text-[10px] font-mono text-brand-red transition-all flex items-center gap-1 active:scale-95"
-                  >
-                    <span>Direct Chat</span>
-                    <Send className="w-2.5 h-2.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <a
+                      href={`tel:${partner.phone}`}
+                      onClick={() => haptics.impactMedium()}
+                      className="px-2 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 transition-all flex items-center gap-1 active:scale-95"
+                    >
+                      <PhoneCall className="w-2.5 h-2.5" />
+                      <span>Call Golu</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleSendWhatsApp("Hello baby ❤️")}
+                      className="px-2 py-0.5 rounded-lg bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/30 text-[10px] font-mono text-brand-red transition-all flex items-center gap-1 active:scale-95"
+                    >
+                      <span>Direct Chat</span>
+                      <Send className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -194,6 +277,63 @@ export default function RelationshipPage() {
             </div>
           </div>
         </div>
+
+        {/* Live Birthday & Anniversary Countdowns */}
+        {(() => {
+          const nextBday = getNextOccurrence(partner?.birthday);
+          const nextAnniv = getNextOccurrence(partner?.anniversary);
+          if (!nextBday && !nextAnniv) return null;
+
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/10">
+              {nextBday && (
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red">
+                      <Cake className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-mono text-zinc-400 block">
+                        Birthday Countdown
+                      </span>
+                      <span className="text-xs font-bold text-white font-mono">
+                        {nextBday.days === 0
+                          ? "🎉 Today is her Birthday!"
+                          : `${nextBday.days} days remaining`}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {formatDate(nextBday.date.toISOString())}
+                  </span>
+                </div>
+              )}
+
+              {nextAnniv && (
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red">
+                      <Heart className="w-4 h-4 fill-brand-red" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-mono text-zinc-400 block">
+                        Anniversary Countdown
+                      </span>
+                      <span className="text-xs font-bold text-brand-red font-mono">
+                        {nextAnniv.days === 0
+                          ? "❤️ Happy Anniversary!"
+                          : `${nextAnniv.days} days remaining`}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {formatDate(nextAnniv.date.toISOString())}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Partner Preferences & Notes */}
         {(partner?.preferences || partner?.notes) && (
@@ -258,10 +398,23 @@ export default function RelationshipPage() {
 
       {/* Message Templates Library */}
       <div>
-        <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-3 flex items-center gap-2 font-mono">
-          <Sparkles className="w-4 h-4 text-brand-red" />
-          Pre-Composed Message Templates ({templates.length})
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase flex items-center gap-2 font-mono">
+            <Sparkles className="w-4 h-4 text-brand-red" />
+            Message Templates ({templates.length})
+          </h3>
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => {
+              haptics.selection();
+              setIsAddTemplateOpen(true);
+            }}
+          >
+            <Plus className="w-3.5 h-3.5 text-brand-red" />
+            <span>New Template</span>
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {templates.map((tmpl: any) => {
@@ -274,6 +427,15 @@ export default function RelationshipPage() {
                     <Badge variant="red" size="sm">
                       {tmpl.category}
                     </Badge>
+                    {!tmpl.isDefault && (
+                      <button
+                        onClick={() => handleDeleteTemplate(tmpl.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all"
+                        title="Delete template"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                   <h4 className="text-sm font-bold text-white mb-1.5">
                     {tmpl.title}
@@ -413,6 +575,75 @@ export default function RelationshipPage() {
             </Button>
             <Button variant="red" size="sm" type="submit">
               Save Profile
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Custom Message Template Modal */}
+      <Modal
+        isOpen={isAddTemplateOpen}
+        onClose={() => setIsAddTemplateOpen(false)}
+        title="Create Message Template"
+      >
+        <form onSubmit={handleCreateTemplate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Title *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Good Morning Babu"
+                value={newTemplateTitle}
+                onChange={(e) => setNewTemplateTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Category
+              </label>
+              <select
+                value={newTemplateCategory}
+                onChange={(e) => setNewTemplateCategory(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
+              >
+                <option value="LOVE">Love & Sweet</option>
+                <option value="CARE">Care & Health</option>
+                <option value="NIGHT">Good Night</option>
+                <option value="MORNING">Good Morning</option>
+                <option value="CUSTOM">Custom</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Message Content *
+            </label>
+            <textarea
+              required
+              rows={3}
+              placeholder="e.g. I love you so much Golu ❤️ Have a great day!"
+              value={newTemplateContent}
+              onChange={(e) => setNewTemplateContent(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+            <Button
+              variant="glass"
+              size="sm"
+              type="button"
+              onClick={() => setIsAddTemplateOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="red" size="sm" type="submit">
+              Save Template
             </Button>
           </div>
         </form>
