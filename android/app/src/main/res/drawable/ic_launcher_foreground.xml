@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Circle O -->
+    <path
+        android:fillColor="#14FFFFFF"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 42, 54 m -15, 0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0" />
+    <!-- Arrow Line -> -->
+    <path
+        android:strokeColor="#EF4444"
+        android:strokeWidth="7.5"
+        android:strokeLineCap="round"
+        android:pathData="M 57, 54 L 78, 54" />
+    <!-- Arrow Head -> -->
+    <path
+        android:strokeColor="#EF4444"
+        android:strokeWidth="7.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 69, 42 L 81, 54 L 69, 66" />
+</vector>

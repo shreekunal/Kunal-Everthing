@@ -167,7 +167,46 @@ const SHAYARI_COLLECTION: ShayariItem[] = [
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const source = searchParams.get("source");
     const category = searchParams.get("category");
+
+    // QuoteSlate Live 5 Quotes integration (strictly no fallback)
+    if (source === "quoteslate" || category === "QUOTESLATE") {
+      const count = parseInt(searchParams.get("count") || "5", 10);
+      const quoteslateUrl = `https://quoteslate.vercel.app/api/quotes/random?tags=love&count=${count}`;
+      
+      try {
+        const response = await fetch(quoteslateUrl, {
+          headers: {
+            "Accept": "application/json",
+            "User-Agent": "Everything-App/1.0",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(6000),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          return NextResponse.json(
+            { error: `QuoteSlate API status ${response.status} (${errorText.slice(0, 80) || "Rate limited or blocked by upstream"})` },
+            { status: response.status >= 400 && response.status < 500 ? 429 : 502 }
+          );
+        }
+
+        const rawData = await response.json();
+        const quotesArray = Array.isArray(rawData) ? rawData : [rawData];
+        return NextResponse.json({
+          quotes: quotesArray.slice(0, 5),
+          source: "quoteslate",
+          count: quotesArray.slice(0, 5).length,
+        });
+      } catch (upstreamErr: any) {
+        return NextResponse.json(
+          { error: upstreamErr.message || "Failed to reach QuoteSlate API" },
+          { status: 502 }
+        );
+      }
+    }
 
     let pool = SHAYARI_COLLECTION;
     if (category && category !== "ALL") {
@@ -191,3 +230,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to fetch shayari" }, { status: 500 });
   }
 }
+

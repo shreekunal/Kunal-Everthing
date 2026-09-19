@@ -1,15 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
-import { AppOpeningCurtain } from "@/components/ui/AppOpeningCurtain";
 
 export const metadata: Metadata = {
   title: "Everything — Personal Life OS",
   description: "Unified Personal Life, Finance, Encrypted Vault, and Routine Management Portal",
   manifest: "/manifest.json",
   icons: {
-    icon: "/BrandLogo.png",
-    apple: "/BrandLogo.png",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
   },
   appleWebApp: {
     capable: true,
@@ -34,7 +33,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark bg-black">
       <body className="bg-black text-foreground antialiased min-h-screen">
-        <AppOpeningCurtain />
         <AppShell>{children}</AppShell>
       </body>
     </html>
