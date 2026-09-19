@@ -570,7 +570,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               Cancel
             </Button>
             <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
-              Log Activity
+              Log Activity (+{Math.max(5, Number(sessionDuration) || 0)} XP)
             </Button>
           </div>
         </form>

@@ -222,9 +222,14 @@ export default function ProgressPage() {
 
               {/* Quick Pomodoro Chips */}
               <div>
-                <span className="block text-[10px] font-mono text-zinc-500 mb-1.5 uppercase">
-                  Quick Pomodoro Presets
-                </span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="block text-[10px] font-mono text-zinc-500 uppercase">
+                    Quick Pomodoro Presets
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                    +{Math.max(5, Number(manualDuration) || 0)} XP Yield
+                  </span>
+                </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[25, 45, 60, 90].map((mins) => {
                     const isSelected = Number(manualDuration) === mins;
@@ -236,13 +241,16 @@ export default function ProgressPage() {
                           haptics.selection();
                           setManualDuration(String(mins));
                         }}
-                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center ${
+                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex flex-col items-center justify-center ${
                           isSelected
                             ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
                             : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
                         }`}
                       >
-                        {mins}m
+                        <span>{mins}m</span>
+                        <span className={`text-[9px] ${isSelected ? "text-white/90" : "text-emerald-400"}`}>
+                          +{mins}XP
+                        </span>
                       </button>
                     );
                   })}
@@ -252,7 +260,7 @@ export default function ProgressPage() {
               <div className="pt-2">
                 <Button variant="red" size="sm" type="submit" className="w-full py-2.5 font-semibold">
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Record Focus Session</span>
+                  <span>Record Focus Session (+{Math.max(5, Number(manualDuration) || 0)} XP)</span>
                 </Button>
               </div>
             </form>

@@ -23,12 +23,14 @@ import {
   UtensilsCrossed,
   AlertTriangle,
   Calendar,
+  Skull,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
 import { haptics } from "@/lib/haptics";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
+import { PixelPet } from "@/components/discipline/PixelPet";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -352,23 +354,54 @@ export default function DashboardPage() {
       {/* Discipline Karma & Streaks Live Bar */}
       {discipline && (
         <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/30 shadow-glow-red-subtle p-3.5 sm:p-4">
-          {/* Header Row: Rank, Title, XP & Actions */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider bg-brand-red text-white shadow-glow-red-subtle">
-                Lvl {discipline.level}
-              </span>
-              <h3 className="text-sm font-black text-white tracking-tight">
-                {discipline.title}
-              </h3>
-              <div className="flex items-center gap-1.5 text-xs font-mono">
-                <span className="text-white font-bold bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-md">
-                  {discipline.totalXP} XP
+          {/* Pet Deceased Alert Banner (when monthly XP < 0) */}
+          {discipline.isPetDead && (
+            <div className="mb-3 px-3 py-2 rounded-xl bg-red-950/60 border border-red-500/60 flex items-center justify-between gap-2 text-xs font-mono shadow-glow-red animate-pulse">
+              <div className="flex items-center gap-2 text-red-300">
+                <Skull className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <span>
+                  <strong className="text-white">COMPANION DECEASED</strong> • Score: {discipline.totalXP} XP. Log focus sessions or complete tasks to resurrect!
                 </span>
-                <span className="text-emerald-400 text-[11px] font-medium">+{discipline.todayEarned}</span>
-                {discipline.todayDeducted > 0 && (
-                  <span className="text-brand-red text-[11px] font-medium">-{discipline.todayDeducted}</span>
-                )}
+              </div>
+            </div>
+          )}
+
+          {/* Header Row: Pixel Pet Companion + Level Rank + Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
+            {/* Left: Pixel Pet & Level Information */}
+            <div className="flex items-center gap-3">
+              <PixelPet
+                level={discipline.level}
+                totalXP={discipline.totalXP}
+                isPetDead={discipline.isPetDead}
+                purityStreak={discipline.streaks?.purity?.currentStreak || 0}
+                dietStreak={discipline.streaks?.diet?.currentStreak || 0}
+                todayDeducted={discipline.todayDeducted}
+              />
+              <div className="hidden sm:block w-[1px] h-8 bg-white/10" />
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white shadow-glow-red-subtle"}`}>
+                    {discipline.isPetDead ? "R.I.P." : `Lvl ${discipline.level}`}
+                  </span>
+                  <h3 className="text-sm font-black text-white tracking-tight">
+                    {discipline.title}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs font-mono mt-1">
+                  <span className={`font-bold border px-2 py-0.5 rounded-md ${discipline.totalXP < 0 ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-white bg-white/[0.06] border-white/10"}`}>
+                    {discipline.totalXP} XP
+                  </span>
+                  <span className="text-emerald-400 text-[11px] font-medium">+{discipline.todayEarned}</span>
+                  {discipline.todayDeducted > 0 && (
+                    <span className="text-brand-red text-[11px] font-medium">-{discipline.todayDeducted}</span>
+                  )}
+                  {discipline.season && (
+                    <span className="text-[10px] text-zinc-500 hidden md:inline ml-1">
+                      • {discipline.season.name} ({discipline.season.daysRemaining}d left)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -230,11 +230,15 @@ export default function RewardsPage() {
 
   const {
     totalXP = 0,
+    lifetimeXP = 0,
+    monthlyXP = 0,
+    season,
     level = 1,
     title: levelTitle = "Novice Disciple",
     currentLevelXP = 0,
     nextLevelXP = 100,
     progressPercent = 0,
+    isPetDead = false,
     todayEarned = 0,
     todayDeducted = 0,
     streaks = { purity: { currentStreak: 0, bestStreak: 0 }, diet: { currentStreak: 0, bestStreak: 0 } },
@@ -324,15 +328,16 @@ export default function RewardsPage() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse" />
                 <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-widest">
-                  Discipline Rank & Karma
+                  Discipline Rank & Karma {season && `• ${season.name} (${season.daysRemaining}d left)`}
                 </span>
               </div>
               <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                 <span>{levelTitle}</span>
               </h3>
               <p className="text-xs text-zinc-400 font-mono mt-0.5">
-                Level {level} Master • Total Score:{" "}
-                <strong className="text-white font-bold">{totalXP} XP</strong>
+                Level {level} • Season:{" "}
+                <strong className={`font-bold ${totalXP < 0 ? "text-red-400" : "text-white"}`}>{totalXP} XP</strong>
+                <span className="text-zinc-500 ml-2">Lifetime: {lifetimeXP} XP</span>
               </p>
             </div>
 
@@ -373,7 +378,10 @@ export default function RewardsPage() {
             <CardTitle>Discipline Matrix</CardTitle>
             <Badge variant="glass" size="sm">Rulebook</Badge>
           </CardHeader>
-          <div className="space-y-2 text-xs font-mono">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
+              <span className="text-zinc-300">Deep Work / Focus Session</span>
+              <span className="font-bold text-emerald-400">+1 XP / min</span>
+            </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Complete High Task</span>
               <span className="font-bold text-emerald-400">+50 XP</span>

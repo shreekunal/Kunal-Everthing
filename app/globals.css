@@ -52,3 +52,39 @@ body {
   animation: shake 0.4s ease-in-out;
 }
 
+@keyframes petFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-pet-float {
+  animation: petFloat 2.8s ease-in-out infinite;
+}
+
+@keyframes petBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04, 0.96); }
+}
+
+.animate-pet-breathe {
+  animation: petBreathe 3.2s ease-in-out infinite;
+}
+
+@keyframes petPulseDead {
+  0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9)); }
+}
+
+.animate-pet-dead {
+  animation: petPulseDead 2s ease-in-out infinite;
+}
+
+@keyframes curtainPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.4)); }
+  50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 24px rgba(239, 68, 68, 0.9)); }
+}
+
+.animate-curtain-pulse {
+  animation: curtainPulse 1.8s ease-in-out infinite;
+}
+

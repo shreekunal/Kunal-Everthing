@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppOpeningCurtain } from "@/components/ui/AppOpeningCurtain";
 
 export const metadata: Metadata = {
   title: "Everything — Personal Life OS",
@@ -33,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark bg-black">
       <body className="bg-black text-foreground antialiased min-h-screen">
+        <AppOpeningCurtain />
         <AppShell>{children}</AppShell>
       </body>
     </html>

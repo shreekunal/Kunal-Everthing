@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { awardPoints } from "@/lib/rewards";
 
 export async function GET() {
   try {
@@ -108,18 +109,31 @@ export async function POST(request: Request) {
       );
     }
 
+    const mins = parseInt(durationMinutes, 10);
     const session = await prisma.workSession.create({
       data: {
         userId: user.id,
         project,
-        durationMinutes: parseInt(durationMinutes, 10),
+        durationMinutes: mins,
         type: type || "WORK",
         date: date || format(new Date(), "yyyy-MM-dd"),
         notes: notes || null,
       },
     });
 
-    return NextResponse.json({ session }, { status: 201 });
+    // Award 1 XP per minute of focused work/study (minimum 5 XP)
+    const earnedXP = Math.max(5, mins);
+    await awardPoints({
+      userId: user.id,
+      points: earnedXP,
+      type: "WORK_SESSION_LOGGED",
+      title: `Focus Session: ${project} (${mins}m)`,
+      reason: `Completed ${mins} minutes of ${type || "WORK"} focus session`,
+      category: "PRODUCTIVITY",
+      referenceId: session.id,
+    });
+
+    return NextResponse.json({ session, earnedXP }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

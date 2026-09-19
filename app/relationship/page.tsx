@@ -22,6 +22,9 @@ import {
   Cake,
   Plus,
   Trash2,
+  Shuffle,
+  BookOpen,
+  Quote,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 
@@ -43,11 +46,35 @@ export default function RelationshipPage() {
   // Custom Message Dispatcher
   const [customMessage, setCustomMessage] = useState("");
 
+  // Romantic Shayari Studio states
+  const [shayariCategory, setShayariCategory] = useState<string>("ALL");
+  const [currentShayari, setCurrentShayari] = useState<any>(null);
+  const [shayariLoading, setShayariLoading] = useState(false);
+
   // Template Modal
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
   const [newTemplateTitle, setNewTemplateTitle] = useState("");
   const [newTemplateCategory, setNewTemplateCategory] = useState("LOVE");
   const [newTemplateContent, setNewTemplateContent] = useState("");
+
+  const fetchShayari = async (cat: string = shayariCategory) => {
+    setShayariLoading(true);
+    try {
+      const res = await fetch(`/api/relationship/shayari?category=${cat}`);
+      if (res.ok) {
+        const json = await res.json();
+        setCurrentShayari(json.shayari);
+      }
+    } catch (err) {
+      console.error("Shayari fetch error:", err);
+    } finally {
+      setShayariLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchShayari("ALL");
+  }, []);
 
   const getNextOccurrence = (dateString?: string) => {
     if (!dateString) return null;
@@ -362,6 +389,129 @@ export default function RelationshipPage() {
             )}
           </div>
         )}
+      </Card>
+
+      {/* Romantic Shayari & Poetry Studio */}
+      <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/30 shadow-glow-red-subtle p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-brand-red/15 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
+              <Quote className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                <span>Romantic Shayari Studio</span>
+                <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                  For Golu ❤️
+                </span>
+              </h3>
+              <p className="text-[11px] font-mono text-zinc-400">
+                Hand-curated poetry, sweet teasing, and instant WhatsApp dispatcher
+              </p>
+            </div>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            {[
+              { key: "ALL", label: "✨ All" },
+              { key: "ROMANTIC", label: "❤️ Ishq" },
+              { key: "CUTE", label: "🥰 Cute" },
+              { key: "YAAD", label: "💭 Yaad" },
+              { key: "MORNING", label: "☀️ Morning" },
+              { key: "NIGHT", label: "🌙 Night" },
+            ].map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setShayariCategory(cat.key);
+                  fetchShayari(cat.key);
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-mono transition-all border whitespace-nowrap ${
+                  shayariCategory === cat.key
+                    ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
+                    : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Active Shayari Display Area */}
+        <div className="mt-4 p-4 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/10 relative">
+          <div className="flex items-center justify-between mb-3 text-[11px] font-mono text-zinc-400">
+            <span className="text-brand-red font-semibold">
+              {currentShayari?.moodTag || "Romantic Couplet"}
+            </span>
+            <span>Category: {currentShayari?.category || "ROMANTIC"}</span>
+          </div>
+
+          <p className="text-base sm:text-lg font-serif italic text-white whitespace-pre-line leading-relaxed tracking-wide min-h-[4rem]">
+            {currentShayari?.text || "लोड हो रहा है..."}
+          </p>
+
+          {/* Action Row */}
+          <div className="mt-5 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() => {
+                  haptics.impactMedium();
+                  fetchShayari();
+                }}
+                isLoading={shayariLoading}
+                className="text-xs"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-brand-red" />
+                <span>Shuffle Next</span>
+              </Button>
+
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() => {
+                  if (currentShayari?.text) {
+                    handleCopyText("shayari-card", currentShayari.text);
+                  }
+                }}
+                className="text-xs"
+              >
+                {copiedId === "shayari-card" ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <Button
+              variant="red"
+              size="sm"
+              onClick={() => {
+                if (currentShayari?.text) {
+                  const message = `Golu... ❤️\n\n"${currentShayari.text}"\n\n— Tera Kunal`;
+                  handleSendWhatsApp(message);
+                }
+              }}
+              className="text-xs shadow-glow-red font-bold active:scale-95"
+            >
+              <Heart className="w-3.5 h-3.5 fill-white" />
+              <span>Send to Golu on WhatsApp</span>
+              <Send className="w-3.5 h-3.5 ml-0.5" />
+            </Button>
+          </div>
+        </div>
       </Card>
 
       {/* Quick Custom WhatsApp Compose */}

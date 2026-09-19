@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { format, subDays, differenceInDays } from "date-fns";
+import { format, subDays, differenceInDays, startOfMonth, endOfMonth } from "date-fns";
 
 export interface AwardParams {
   userId: string;
@@ -36,7 +36,9 @@ export function calculateLevel(totalXP: number): {
   currentLevelXP: number;
   nextLevelXP: number;
   progressPercent: number;
+  isPetDead: boolean;
 } {
+  const isPetDead = totalXP < 0;
   const safeXP = Math.max(0, totalXP);
 
   // Approximate formula: Level = floor(sqrt(XP / 25)) + 1
@@ -48,13 +50,16 @@ export function calculateLevel(totalXP: number): {
 
   const xpInCurrentLevel = safeXP - currentLevelThreshold;
   const xpNeededForLevel = nextLevelThreshold - currentLevelThreshold;
-  const progressPercent = Math.min(
-    100,
-    Math.max(0, Math.round((xpInCurrentLevel / (xpNeededForLevel || 1)) * 100))
-  );
+  const progressPercent = isPetDead
+    ? 0
+    : Math.min(
+        100,
+        Math.max(0, Math.round((xpInCurrentLevel / (xpNeededForLevel || 1)) * 100))
+      );
 
   let title = "Novice Disciple";
-  if (level >= 25) title = "Grandmaster of Mind 👑";
+  if (isPetDead) title = "Mourning Spirit 💀";
+  else if (level >= 25) title = "Grandmaster of Mind 👑";
   else if (level >= 20) title = "Apex Ascetic ⚔️";
   else if (level >= 15) title = "Monk of Focus 💎";
   else if (level >= 10) title = "Spartan Warrior 🥇";
@@ -62,11 +67,12 @@ export function calculateLevel(totalXP: number): {
   else if (level >= 3) title = "Disciplined Seeker 🥉";
 
   return {
-    level,
+    level: isPetDead ? 0 : level,
     title,
-    currentLevelXP: safeXP,
+    currentLevelXP: totalXP,
     nextLevelXP: nextLevelThreshold,
     progressPercent,
+    isPetDead,
   };
 }
 
@@ -293,11 +299,22 @@ export async function getDisciplineSummary(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  // Calculate total points
-  const totalXP = logs.reduce((sum, item) => sum + item.points, 0);
+  // Calculate lifetime XP
+  const lifetimeXP = logs.reduce((sum, item) => sum + item.points, 0);
+
+  // Calculate current month XP (Reset cycle on 1st of every month)
+  const now = new Date();
+  const currentMonthStart = startOfMonth(now);
+  const currentMonthEnd = endOfMonth(now);
+  const daysLeftInMonth = Math.max(0, differenceInDays(currentMonthEnd, now));
+
+  const monthlyLogs = logs.filter(
+    (item) => new Date(item.createdAt) >= currentMonthStart
+  );
+  const monthlyXP = monthlyLogs.reduce((sum, item) => sum + item.points, 0);
 
   // Today start of day
-  const todayDateStr = format(new Date(), "yyyy-MM-dd");
+  const todayDateStr = format(now, "yyyy-MM-dd");
   const todayLogs = logs.filter(
     (item) => format(item.createdAt, "yyyy-MM-dd") === todayDateStr
   );
@@ -310,7 +327,8 @@ export async function getDisciplineSummary(userId: string) {
     todayLogs.filter((l) => l.points < 0).reduce((sum, l) => sum + l.points, 0)
   );
 
-  const levelInfo = calculateLevel(totalXP);
+  // Monthly season drives current level, rank, and pet state
+  const levelInfo = calculateLevel(monthlyXP);
 
   const rewardItems = await prisma.rewardItem.findMany({
     where: { userId, isArchived: false },
@@ -328,7 +346,13 @@ export async function getDisciplineSummary(userId: string) {
   };
 
   return {
-    totalXP,
+    totalXP: monthlyXP,
+    lifetimeXP,
+    monthlyXP,
+    season: {
+      name: format(now, "MMMM yyyy"),
+      daysRemaining: daysLeftInMonth,
+    },
     ...levelInfo,
     todayEarned,
     todayDeducted,
