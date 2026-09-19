@@ -46,14 +46,14 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
     { name: "Vault", href: "/vault", icon: ShieldCheck },
   ];
 
-  const drawerNav = [
-    { name: "Zero-Knowledge Vault", href: "/vault", icon: ShieldCheck },
-    { name: "Money & Accounts", href: "/money", icon: Wallet },
-    { name: "Discipline Karma & XP", href: "/rewards", icon: Trophy },
-    { name: "Routines & Habits", href: "/routines", icon: Flame },
-    { name: "Work & Study Tracker", href: "/progress", icon: BarChart3 },
-    { name: "Important Dates", href: "/dates", icon: Calendar },
-    { name: "Settings & Backup", href: "/settings", icon: Settings },
+  const extendedNav = [
+    { name: "Vault", href: "/vault", icon: ShieldCheck },
+    { name: "Money", href: "/money", icon: Wallet },
+    { name: "Habits", href: "/routines", icon: Flame },
+    { name: "Focus", href: "/progress", icon: BarChart3 },
+    { name: "Discipline", href: "/rewards", icon: Trophy },
+    { name: "Dates", href: "/dates", icon: Calendar },
+    { name: "Settings", href: "/settings", icon: Settings },
   ];
 
   return (
@@ -79,7 +79,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             : "rounded-t-none max-h-20"
         )}
       >
-        {/* Upper Extended Drawer Section */}
+        {/* Upper Extended Drawer Section - Buttons Menu Grid */}
         <div
           className={clsx(
             "transition-all duration-300 ease-in-out overflow-y-auto px-4",
@@ -94,11 +94,12 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
               haptics.impactLight();
               setIsDrawerOpen(false);
             }}
-            className="w-12 h-1.5 bg-white/25 hover:bg-white/40 rounded-full mx-auto mb-3 cursor-pointer transition-colors"
+            className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mb-2.5 cursor-pointer transition-colors"
           />
 
-          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-white/10">
-            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-brand-red" />
               Extended Navigation
             </span>
             <button
@@ -106,14 +107,15 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 haptics.impactLight();
                 setIsDrawerOpen(false);
               }}
-              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="space-y-1">
-            {drawerNav.map((item) => {
+          {/* 4x2 App Launcher Buttons Grid */}
+          <div className="grid grid-cols-4 gap-2 py-1">
+            {extendedNav.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -125,36 +127,46 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                     setIsDrawerOpen(false);
                   }}
                   className={clsx(
-                    "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium transition-colors",
+                    "flex flex-col items-center justify-center p-2 rounded-2xl border transition-all active:scale-95 text-center group",
                     isActive
-                      ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
-                      : "text-zinc-300 hover:text-white hover:bg-white/[0.04]"
+                      ? "bg-brand-red/20 border-brand-red/50 text-white shadow-glow-red-subtle font-bold"
+                      : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-zinc-300 hover:text-white"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 text-zinc-400" />
-                    <span>{item.name}</span>
+                  <div
+                    className={clsx(
+                      "w-10 h-10 rounded-xl flex items-center justify-center mb-1.5 transition-transform group-active:scale-90",
+                      isActive
+                        ? "bg-brand-red text-white shadow-glow-red"
+                        : "bg-white/[0.05] border border-white/10 text-zinc-200 group-hover:text-white group-hover:bg-white/10"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
                   </div>
-                  {item.href === "/vault" && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                      Encrypted
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono font-medium truncate w-full text-center">
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
-          </div>
 
-          <button
-            onClick={() => {
-              haptics.warning();
-              handleLockPortal();
-            }}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-2 border-t border-white/5 pt-3"
-          >
-            <Lock className="w-4 h-4 text-red-400" />
-            <span>Lock Everything Portal</span>
-          </button>
+            {/* 8th Button: Lock OS */}
+            <button
+              type="button"
+              onClick={() => {
+                haptics.warning();
+                handleLockPortal();
+              }}
+              className="flex flex-col items-center justify-center p-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-center transition-all active:scale-95 group"
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-1.5 bg-red-500/20 border border-red-500/40 text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                <Lock className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-mono font-medium text-red-400 truncate w-full text-center">
+                Lock OS
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Lower Primary 5-Tab Bar */}
@@ -234,7 +246,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             )}
           >
             {isDrawerOpen ? (
-              <ChevronDown className="w-5 h-5 mb-0.5 animate-bounce" />
+              <X className="w-5 h-5 mb-0.5 text-brand-red" />
             ) : (
               <Menu className="w-5 h-5 mb-0.5" />
             )}

@@ -395,45 +395,49 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Middle Row: Sleek 4-Pill Telemetry Dock */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3">
-            {/* Purity Streak */}
-            <div className="px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2">
+          {/* Middle Row: Sleek 4-Pill Telemetry Dock (2x2 Grid with Centered Text) */}
+          <div className="grid grid-cols-2 gap-2.5 pt-3">
+            {/* Row 1, Col 1: Purity Streak */}
+            <div className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-center gap-1.5 font-mono">
               <ShieldCheck className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
-              <div className="flex items-baseline gap-1 min-w-0 font-mono">
-                <span className="text-xs font-bold text-white">{discipline.streaks?.purity?.currentStreak || 0}d</span>
-                <span className="text-[10px] text-zinc-500 truncate">Purity</span>
-              </div>
+              <span className="text-xs font-bold text-white">
+                {discipline.streaks?.purity?.currentStreak || 0}d
+              </span>
+              <span className="text-[10px] text-zinc-400">Purity</span>
             </div>
 
-            {/* Diet Streak */}
-            <div className="px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-2">
+            {/* Row 1, Col 2: Diet Streak */}
+            <div className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-center gap-1.5 font-mono">
               <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-              <div className="flex items-baseline gap-1 min-w-0 font-mono">
-                <span className="text-xs font-bold text-white">{discipline.streaks?.diet?.currentStreak || 0}d</span>
-                <span className="text-[10px] text-zinc-500 truncate">Diet</span>
-              </div>
+              <span className="text-xs font-bold text-white">
+                {discipline.streaks?.diet?.currentStreak || 0}d
+              </span>
+              <span className="text-[10px] text-zinc-400">Diet</span>
             </div>
 
-            {/* Quick Deduction: Ate Junk */}
-            <button
-              type="button"
-              onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-              className="px-2.5 py-1.5 rounded-xl bg-white/[0.03] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center justify-center gap-1.5 active:scale-95"
-            >
-              <span>🍔 Junk</span>
-              <span className="text-[10px] font-bold text-brand-red">-50</span>
-            </button>
-
-            {/* Quick Deduction: Relapse */}
+            {/* Row 2, Col 1: Relapse Deduction Button (below Purity) */}
             <button
               type="button"
               onClick={() => handleQuickDeduct("FAP")}
-              className="px-2.5 py-1.5 rounded-xl bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/40 hover:border-brand-red text-xs font-mono text-white transition-all flex items-center justify-center gap-1.5 shadow-glow-red-subtle active:scale-95"
+              className="px-3 py-2 rounded-xl bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/40 hover:border-brand-red text-xs font-mono text-white transition-all flex items-center justify-center text-center gap-1.5 shadow-glow-red-subtle active:scale-95"
             >
-              <Zap className="w-3 h-3 text-brand-red" />
+              <Zap className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
               <span>Relapse</span>
-              <span className="text-[10px] font-bold text-white bg-brand-red px-1 rounded">-100</span>
+              <span className="text-[10px] font-bold text-white bg-brand-red px-1.5 py-0.5 rounded leading-none">
+                -100
+              </span>
+            </button>
+
+            {/* Row 2, Col 2: Eat Junk Deduction Button (below Diet) */}
+            <button
+              type="button"
+              onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
+              className="px-3 py-2 rounded-xl bg-white/[0.03] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-xs font-mono text-zinc-200 hover:text-white transition-all flex items-center justify-center text-center gap-1.5 active:scale-95"
+            >
+              <span>🍔 Junk</span>
+              <span className="text-[10px] font-bold text-brand-red bg-red-500/15 px-1.5 py-0.5 rounded leading-none border border-red-500/30">
+                -50
+              </span>
             </button>
           </div>
 
