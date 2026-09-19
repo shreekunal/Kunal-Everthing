@@ -9,14 +9,24 @@ const JWT_SECRET = new TextEncoder().encode(
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Bypass static assets and internal Next.js paths
+  // 1. Bypass static assets, SVGs, images, and internal Next.js paths
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/.well-known/") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".jpg") ||
+    pathname.endsWith(".jpeg") ||
+    pathname.endsWith(".webp") ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".json") ||
     pathname === "/favicon.ico" ||
     pathname === "/manifest.json" ||
     pathname === "/BrandLogo.png" ||
+    pathname === "/BrandLogo.svg" ||
+    pathname === "/male-avatar.svg" ||
+    pathname === "/female-avatar.svg" ||
     pathname.startsWith("/icons/") ||
     pathname === "/sw.js"
   ) {
