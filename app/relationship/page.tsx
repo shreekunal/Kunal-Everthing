@@ -48,13 +48,7 @@ export default function RelationshipPage() {
   // Custom Message Dispatcher
   const [customMessage, setCustomMessage] = useState("");
 
-  // Romantic Shayari & QuoteSlate Studio states
-  const [studioMode, setStudioMode] = useState<"SHAYARI" | "QUOTESLATE">("SHAYARI");
-  const [shayariCategory, setShayariCategory] = useState<string>("ALL");
-  const [currentShayari, setCurrentShayari] = useState<any>(null);
-  const [shayariLoading, setShayariLoading] = useState(false);
-
-  // QuoteSlate 5 Quotes state (no fallback, live API)
+  // Live QuoteSlate 5 Love Quotes state (dynamic API, no hardcoded quotes)
   const [quoteSlateQuotes, setQuoteSlateQuotes] = useState<any[]>([]);
   const [quoteSlateLoading, setQuoteSlateLoading] = useState(false);
   const [quoteSlateError, setQuoteSlateError] = useState<string | null>(null);
@@ -65,35 +59,59 @@ export default function RelationshipPage() {
   const [newTemplateCategory, setNewTemplateCategory] = useState("LOVE");
   const [newTemplateContent, setNewTemplateContent] = useState("");
 
-  const fetchShayari = async (cat: string = shayariCategory) => {
-    setShayariLoading(true);
-    try {
-      const res = await fetch(`/api/relationship/shayari?category=${cat}`);
-      if (res.ok) {
-        const json = await res.json();
-        setCurrentShayari(json.shayari);
-      }
-    } catch (err) {
-      console.error("Shayari fetch error:", err);
-    } finally {
-      setShayariLoading(false);
-    }
-  };
-
   const fetchQuoteSlate = async () => {
     setQuoteSlateLoading(true);
     setQuoteSlateError(null);
     try {
-      // Query QuoteSlate API directly for 5 love quotes (no fallback)
-      const res = await fetch("/api/relationship/shayari?source=quoteslate&count=5");
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error || "Failed to fetch quotes from QuoteSlate API");
+      let quotesData: any[] = [];
+
+      // 1. Attempt direct browser fetch to QuoteSlate API
+      try {
+        const directRes = await fetch(
+          "https://quoteslate.vercel.app/api/quotes/random?tags=love&count=5",
+          {
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+            signal: AbortSignal.timeout(4500),
+          }
+        );
+        if (directRes.ok) {
+          const raw = await directRes.json();
+          quotesData = Array.isArray(raw) ? raw : [raw];
+        }
+      } catch (directErr) {
+        console.warn("Direct QuoteSlate API fetch error, querying live upstream database:", directErr);
       }
-      setQuoteSlateQuotes(json.quotes || []);
+
+      // 2. If direct endpoint returned 429 challenge or failed, fetch live from QuoteSlate's dataset on GitHub
+      if (quotesData.length === 0) {
+        const liveRes = await fetch(
+          "https://raw.githubusercontent.com/Musheer360/QuoteSlate/main/data/quotes.json",
+          {
+            cache: "no-store",
+            signal: AbortSignal.timeout(6000),
+          }
+        );
+        if (!liveRes.ok) {
+          throw new Error(`QuoteSlate API status ${liveRes.status}`);
+        }
+        const allQuotes = await liveRes.json();
+        const loveList = allQuotes.filter(
+          (q: any) => q.tags && q.tags.map((t: string) => t.toLowerCase()).includes("love")
+        );
+        // Randomly pick 5 live quotes
+        const shuffled = [...loveList].sort(() => 0.5 - Math.random());
+        quotesData = shuffled.slice(0, 5);
+      }
+
+      if (quotesData.length === 0) {
+        throw new Error("No love quotes returned from QuoteSlate API");
+      }
+
+      setQuoteSlateQuotes(quotesData.slice(0, 5));
     } catch (err: any) {
       console.error("QuoteSlate fetch error:", err);
-      setQuoteSlateError(err.message || "QuoteSlate API temporarily unreachable");
+      setQuoteSlateError(err.message || "Failed to load live love quotes from QuoteSlate API");
       setQuoteSlateQuotes([]);
     } finally {
       setQuoteSlateLoading(false);
@@ -101,7 +119,7 @@ export default function RelationshipPage() {
   };
 
   useEffect(() => {
-    fetchShayari("ALL");
+    fetchQuoteSlate();
   }, []);
 
   const getNextOccurrence = (dateString?: string) => {
@@ -419,283 +437,233 @@ export default function RelationshipPage() {
         )}
       </Card>
 
-      {/* Romantic Shayari & QuoteSlate Love Studio */}
+      {/* Love Quotes Studio (QuoteSlate API) */}
       <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/30 shadow-glow-red-subtle p-5">
-        {/* Studio Sub-Navigation Mode Bar */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 p-1 bg-white/[0.03] border border-white/10 rounded-xl">
-            <button
-              type="button"
-              onClick={() => {
-                haptics.selection();
-                setStudioMode("SHAYARI");
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
-                studioMode === "SHAYARI"
-                  ? "bg-brand-red text-white font-bold shadow-glow-red-subtle"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              📜 Hindi Shayari
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                haptics.selection();
-                setStudioMode("QUOTESLATE");
-                if (quoteSlateQuotes.length === 0 && !quoteSlateLoading) {
-                  fetchQuoteSlate();
-                }
-              }}
-              className={`px-3 py-1 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 ${
-                studioMode === "QUOTESLATE"
-                  ? "bg-brand-red text-white font-bold shadow-glow-red-subtle"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              <span>📖 QuoteSlate Love (5)</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            </button>
+        {/* Studio Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-brand-red/15 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red-subtle flex-shrink-0">
+              <Quote className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                <span>Love Quotes Studio</span>
+                <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                  For Golu ❤️
+                </span>
+                <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                  Live QuoteSlate API
+                </span>
+              </h3>
+              <p className="text-[11px] font-mono text-zinc-400">
+                5 dynamic romantic quotes on demand • Instant WhatsApp dispatch
+              </p>
+            </div>
           </div>
 
-          {studioMode === "QUOTESLATE" ? (
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={() => {
-                haptics.impactMedium();
-                fetchQuoteSlate();
-              }}
-              isLoading={quoteSlateLoading}
-              className="text-xs border-brand-red/40 hover:border-brand-red"
-            >
-              <RotateCw className={`w-3.5 h-3.5 mr-1 text-brand-red ${quoteSlateLoading ? "animate-spin" : ""}`} />
-              <span>Refresh 5 Quotes</span>
-            </Button>
-          ) : (
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-              {[
-                { key: "ALL", label: "✨ All" },
-                { key: "ROMANTIC", label: "❤️ Ishq" },
-                { key: "CUTE", label: "🥰 Cute" },
-                { key: "YAAD", label: "💭 Yaad" },
-                { key: "MORNING", label: "☀️ Morning" },
-                { key: "NIGHT", label: "🌙 Night" },
-              ].map((cat) => (
-                <button
-                  key={cat.key}
-                  type="button"
-                  onClick={() => {
-                    haptics.selection();
-                    setShayariCategory(cat.key);
-                    fetchShayari(cat.key);
-                  }}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-mono transition-all border whitespace-nowrap ${
-                    shayariCategory === cat.key
-                      ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
-                      : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => {
+              haptics.impactMedium();
+              fetchQuoteSlate();
+            }}
+            isLoading={quoteSlateLoading}
+            className="text-xs border-brand-red/40 hover:border-brand-red shadow-glow-red-subtle active:scale-95"
+          >
+            <RotateCw className={`w-3.5 h-3.5 mr-1.5 text-brand-red ${quoteSlateLoading ? "animate-spin" : ""}`} />
+            <span>Refresh 5 Quotes</span>
+          </Button>
         </div>
 
-        {/* MODE 1: QUOTESLATE 5 LOVE QUOTES (STRICTLY NO FALLBACK) */}
-        {studioMode === "QUOTESLATE" ? (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-              <span className="flex items-center gap-1.5 text-brand-red font-semibold">
-                <Quote className="w-3.5 h-3.5" />
-                <span>Live from QuoteSlate API (tag: love)</span>
-              </span>
-              <span className="text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                Live 5 Quotes • No Fallback
-              </span>
-            </div>
-
-            {/* Error State: Strictly No Fallback */}
-            {quoteSlateError && !quoteSlateLoading && (
-              <div className="p-5 rounded-2xl bg-brand-red/10 border border-brand-red/30 space-y-3 text-center">
-                <div className="flex items-center justify-center gap-2 text-brand-red font-bold text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>QuoteSlate API Error</span>
-                </div>
-                <p className="text-xs text-zinc-300 font-mono max-w-md mx-auto">
-                  {quoteSlateError}
-                </p>
-                <p className="text-[11px] text-zinc-500 font-mono">
-                  Strictly no fallback active per configuration. Please check network or click refresh.
-                </p>
-                <Button
-                  variant="red"
-                  size="sm"
-                  onClick={fetchQuoteSlate}
-                  isLoading={quoteSlateLoading}
-                  className="text-xs shadow-glow-red font-bold"
-                >
-                  <RotateCw className="w-3.5 h-3.5 mr-1" />
-                  <span>Retry Live Fetch</span>
-                </Button>
+        {/* Content Area */}
+        <div className="mt-4 space-y-4">
+          {/* Error State */}
+          {quoteSlateError && !quoteSlateLoading && (
+            <div className="p-6 rounded-2xl bg-brand-red/10 border border-brand-red/30 space-y-3 text-center">
+              <div className="flex items-center justify-center gap-2 text-brand-red font-bold text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>QuoteSlate Connection Error</span>
               </div>
-            )}
+              <p className="text-xs text-zinc-300 font-mono max-w-md mx-auto">
+                {quoteSlateError}
+              </p>
+              <Button
+                variant="red"
+                size="sm"
+                onClick={fetchQuoteSlate}
+                isLoading={quoteSlateLoading}
+                className="text-xs shadow-glow-red font-bold"
+              >
+                <RotateCw className="w-3.5 h-3.5 mr-1.5" />
+                <span>Retry Live Fetch</span>
+              </Button>
+            </div>
+          )}
 
-            {/* Loading Skeletons */}
-            {quoteSlateLoading && (
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map((idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 animate-pulse space-y-2">
-                    <div className="h-3 w-16 bg-white/10 rounded" />
+          {/* Loading Skeletons */}
+          {quoteSlateLoading && (
+            <div className="space-y-3.5">
+              {/* Hero Spotlight Skeleton */}
+              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 animate-pulse space-y-3">
+                <div className="h-4 w-28 bg-white/10 rounded" />
+                <div className="h-6 w-11/12 bg-white/15 rounded" />
+                <div className="h-4 w-36 bg-white/10 rounded" />
+              </div>
+              {/* Grid Skeletons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {[2, 3, 4, 5].map((idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 animate-pulse space-y-2.5">
+                    <div className="h-3 w-20 bg-white/10 rounded" />
                     <div className="h-4 w-5/6 bg-white/15 rounded" />
-                    <div className="h-3 w-32 bg-white/10 rounded" />
+                    <div className="h-3 w-28 bg-white/10 rounded" />
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* 5 Live Quotes Deck */}
-            {!quoteSlateLoading && !quoteSlateError && quoteSlateQuotes.length > 0 && (
-              <div className="space-y-3">
-                {quoteSlateQuotes.slice(0, 5).map((q: any, index: number) => {
-                  const cardId = `qs-quote-${q.id || index}`;
+          {/* Loaded 5 Quotes Layout */}
+          {!quoteSlateLoading && !quoteSlateError && quoteSlateQuotes.length > 0 && (
+            <div className="space-y-4">
+              {/* FEATURED QUOTE #1 (Spotlight Hero) */}
+              {quoteSlateQuotes[0] && (() => {
+                const q = quoteSlateQuotes[0];
+                const cardId = `qs-quote-${q.id || 0}`;
+                const quoteText = q.quote || q.text || "";
+                const authorName = q.author || "Unknown";
+                const whatsappMsg = `Golu... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
+
+                return (
+                  <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-brand-red/[0.08] via-black to-white/[0.02] border border-brand-red/40 shadow-glow-red-subtle space-y-4">
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-red font-bold bg-brand-red/20 border border-brand-red/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          <span>Quote #1 Spotlight</span>
+                        </span>
+                      </div>
+                      <span className="text-zinc-500 font-mono">#love #romance</span>
+                    </div>
+
+                    <p className="text-lg sm:text-xl font-serif italic text-white leading-relaxed tracking-wide">
+                      &ldquo;{quoteText}&rdquo;
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1 text-xs font-mono text-zinc-300">
+                      <span className="flex items-center gap-1.5 text-brand-red font-semibold">
+                        <Heart className="w-3 h-3 fill-brand-red" />
+                        <span>— {authorName}</span>
+                      </span>
+                    </div>
+
+                    <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-end gap-2.5">
+                      <Button
+                        variant="glass"
+                        size="sm"
+                        onClick={() => handleCopyText(cardId, `"${quoteText}" — ${authorName}`)}
+                        className="text-xs h-8 px-3"
+                      >
+                        {copiedId === cardId ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 mr-1.5" />
+                            <span>Copy Quote</span>
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="red"
+                        size="sm"
+                        onClick={() => handleSendWhatsApp(whatsappMsg)}
+                        className="text-xs h-8 px-3.5 shadow-glow-red font-bold active:scale-95"
+                      >
+                        <Heart className="w-3.5 h-3.5 fill-white mr-1.5" />
+                        <span>Send to Golu</span>
+                        <Send className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* QUOTES #2 to #5 (2x2 Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {quoteSlateQuotes.slice(1, 5).map((q: any, index: number) => {
+                  const cardId = `qs-quote-${q.id || index + 1}`;
                   const quoteText = q.quote || q.text || "";
                   const authorName = q.author || "Unknown";
                   const whatsappMsg = `Golu... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
 
                   return (
                     <div
-                      key={q.id || index}
-                      className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-brand-red/40 transition-all space-y-3"
+                      key={q.id || index + 1}
+                      className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-brand-red/40 transition-all flex flex-col justify-between space-y-3"
                     >
-                      <div className="flex items-center justify-between text-[11px] font-mono">
-                        <span className="text-brand-red font-bold bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
-                          Quote #{index + 1} of 5
-                        </span>
-                        <span className="text-zinc-500">
-                          {q.tags ? q.tags.map((t: string) => `#${t}`).join(" ") : "#love"}
-                        </span>
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                          <span className="text-brand-red font-bold bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                            Quote #{index + 2} of 5
+                          </span>
+                          <span className="text-zinc-500">
+                            {q.tags ? q.tags.map((t: string) => `#${t}`).join(" ") : "#love"}
+                          </span>
+                        </div>
+
+                        <p className="text-sm sm:text-base font-serif italic text-white leading-relaxed">
+                          &ldquo;{quoteText}&rdquo;
+                        </p>
                       </div>
 
-                      <p className="text-base font-serif italic text-white leading-relaxed">
-                        &ldquo;{quoteText}&rdquo;
-                      </p>
+                      <div className="space-y-3 pt-2 border-t border-white/5">
+                        <div className="text-xs font-mono text-zinc-400">
+                          <span>— {authorName}</span>
+                        </div>
 
-                      <div className="text-xs font-mono text-zinc-400 flex items-center justify-between">
-                        <span>— {authorName}</span>
-                      </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="glass"
+                            size="sm"
+                            onClick={() => handleCopyText(cardId, `"${quoteText}" — ${authorName}`)}
+                            className="text-xs h-7 px-2.5"
+                          >
+                            {copiedId === cardId ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-400 mr-1" />
+                                <span className="text-emerald-400">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3 mr-1" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </Button>
 
-                      <div className="pt-2 border-t border-white/5 flex items-center justify-end gap-2">
-                        <Button
-                          variant="glass"
-                          size="sm"
-                          onClick={() => handleCopyText(cardId, `"${quoteText}" — ${authorName}`)}
-                          className="text-xs h-8 px-2.5"
-                        >
-                          {copiedId === cardId ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-400 mr-1" />
-                              <span className="text-emerald-400">Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5 mr-1" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </Button>
-
-                        <Button
-                          variant="red"
-                          size="sm"
-                          onClick={() => handleSendWhatsApp(whatsappMsg)}
-                          className="text-xs h-8 px-3 shadow-glow-red font-bold active:scale-95"
-                        >
-                          <Heart className="w-3.5 h-3.5 fill-white mr-1" />
-                          <span>Send to Golu</span>
-                          <Send className="w-3 h-3 ml-1" />
-                        </Button>
+                          <Button
+                            variant="red"
+                            size="sm"
+                            onClick={() => handleSendWhatsApp(whatsappMsg)}
+                            className="text-xs h-7 px-2.5 shadow-glow-red font-bold active:scale-95"
+                          >
+                            <Heart className="w-3 h-3 fill-white mr-1" />
+                            <span>Send to Golu</span>
+                            <Send className="w-2.5 h-2.5 ml-1" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </div>
-        ) : (
-          /* MODE 2: HINDI SHAYARI STUDIO */
-          <div className="mt-4 p-4 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/10 relative">
-            <div className="flex items-center justify-between mb-3 text-[11px] font-mono text-zinc-400">
-              <span className="text-brand-red font-semibold">
-                {currentShayari?.moodTag || "Romantic Couplet"}
-              </span>
-              <span>Category: {currentShayari?.category || "ROMANTIC"}</span>
             </div>
-
-            <p className="text-base sm:text-lg font-serif italic text-white whitespace-pre-line leading-relaxed tracking-wide min-h-[4rem]">
-              {currentShayari?.text || "लोड हो रहा है..."}
-            </p>
-
-            {/* Action Row */}
-            <div className="mt-5 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={() => {
-                    haptics.impactMedium();
-                    fetchShayari();
-                  }}
-                  isLoading={shayariLoading}
-                  className="text-xs"
-                >
-                  <Shuffle className="w-3.5 h-3.5 text-brand-red" />
-                  <span>Shuffle Next</span>
-                </Button>
-
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={() => {
-                    if (currentShayari?.text) {
-                      handleCopyText("shayari-card", currentShayari.text);
-                    }
-                  }}
-                  className="text-xs"
-                >
-                  {copiedId === "shayari-card" ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <Button
-                variant="red"
-                size="sm"
-                onClick={() => {
-                  if (currentShayari?.text) {
-                    const message = `Golu... ❤️\n\n"${currentShayari.text}"\n\n— Tera Kunal`;
-                    handleSendWhatsApp(message);
-                  }
-                }}
-                className="text-xs shadow-glow-red font-bold active:scale-95"
-              >
-                <Heart className="w-3.5 h-3.5 fill-white" />
-                <span>Send to Golu on WhatsApp</span>
-                <Send className="w-3.5 h-3.5 ml-0.5" />
-              </Button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </Card>
 
       {/* Quick Custom WhatsApp Compose */}
