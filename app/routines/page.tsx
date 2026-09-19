@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { haptics } from "@/lib/haptics";
@@ -58,13 +59,21 @@ export default function RoutinesPage() {
     }
   };
 
-  const handleDeleteRoutine = async (routineId: string) => {
+  const [routineToDelete, setRoutineToDelete] = useState<any | null>(null);
+  const [isDeletingRoutine, setIsDeletingRoutine] = useState(false);
+
+  const handleExecuteDeleteRoutine = async () => {
+    if (!routineToDelete) return;
+    setIsDeletingRoutine(true);
     haptics.warning();
     try {
-      await fetch(`/api/routines/${routineId}`, { method: "DELETE" });
-      setRoutines((prev) => prev.filter((r) => r.id !== routineId));
+      await fetch(`/api/routines/${routineToDelete.id}`, { method: "DELETE" });
+      setRoutines((prev) => prev.filter((r) => r.id !== routineToDelete.id));
+      setRoutineToDelete(null);
     } catch (err) {
       console.error("Delete routine error:", err);
+    } finally {
+      setIsDeletingRoutine(false);
     }
   };
 
@@ -326,9 +335,12 @@ export default function RoutinesPage() {
                     </div>
 
                     <button
-                      onClick={() => handleDeleteRoutine(routine.id)}
-                      className="text-zinc-600 hover:text-red-400 p-2 transition-colors"
-                      aria-label="Delete"
+                      onClick={() => {
+                        haptics.warning();
+                        setRoutineToDelete(routine);
+                      }}
+                      className="text-zinc-500 hover:text-brand-red p-2 transition-colors active:scale-90"
+                      aria-label="Delete Routine"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -461,6 +473,19 @@ export default function RoutinesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Routine Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(routineToDelete)}
+        onClose={() => setRoutineToDelete(null)}
+        onConfirm={handleExecuteDeleteRoutine}
+        isLoading={isDeletingRoutine}
+        title="Delete Habit & Routine"
+        message={`Are you sure you want to delete "${routineToDelete?.name}"? All streak tracking, habit logs, and 14-day matrices for this routine will be permanently removed.`}
+        confirmText="Delete Routine"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }

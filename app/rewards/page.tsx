@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   Trophy,
   Award,
@@ -27,6 +28,7 @@ import {
   Film,
 } from "lucide-react";
 import { format } from "date-fns";
+import { haptics } from "@/lib/haptics";
 
 export default function RewardsPage() {
   const [data, setData] = useState<any>(null);
@@ -74,14 +76,20 @@ export default function RewardsPage() {
     return () => window.removeEventListener("kunal-os-refresh", fetchRewards);
   }, []);
 
-  const handleQuickDeduct = async (type: "UNHEALTHY_FOOD" | "FAP") => {
-    const isFood = type === "UNHEALTHY_FOOD";
-    const confirmMsg = isFood
-      ? "Log Unhealthy / Junk Food infraction (-50 XP) and reset Clean Diet streak?"
-      : "Log Monk Protocol Relapse (-100 XP) and reset Purity streak to Day 0?";
+  const [confirmDeductType, setConfirmDeductType] = useState<"UNHEALTHY_FOOD" | "FAP" | null>(null);
+  const [isDeducting, setIsDeducting] = useState(false);
+  const [perkToRedeem, setPerkToRedeem] = useState<{ id: string; cost: number; title: string } | null>(null);
+  const [isRedeeming, setIsRedeeming] = useState(false);
 
-    if (!confirm(confirmMsg)) return;
+  const handleQuickDeduct = (type: "UNHEALTHY_FOOD" | "FAP") => {
+    setConfirmDeductType(type);
+  };
 
+  const handleExecuteQuickDeduct = async () => {
+    if (!confirmDeductType) return;
+    const isFood = confirmDeductType === "UNHEALTHY_FOOD";
+    setIsDeducting(true);
+    haptics.warning();
     try {
       const res = await fetch("/api/rewards", {
         method: "POST",
@@ -99,11 +107,14 @@ export default function RewardsPage() {
             : "⚡ 100 XP deducted. Purity streak reset. Stay focused!",
           error: true,
         });
+        setConfirmDeductType(null);
         setTimeout(() => setActionMessage(null), 4000);
         fetchRewards();
       }
     } catch {
       alert("Failed to log infraction");
+    } finally {
+      setIsDeducting(false);
     }
   };
 
@@ -178,16 +189,21 @@ export default function RewardsPage() {
     }
   };
 
-  const handleRedeemPerk = async (itemId: string, cost: number, title: string) => {
-    if (!confirm(`Redeem "${title}" for ${cost} XP?`)) return;
+  const handleRedeemPerk = (itemId: string, cost: number, title: string) => {
+    setPerkToRedeem({ id: itemId, cost, title });
+  };
 
+  const handleExecuteRedeemPerk = async () => {
+    if (!perkToRedeem) return;
+    setIsRedeeming(true);
+    haptics.success();
     try {
       const res = await fetch("/api/rewards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "REDEEM_REWARD",
-          itemId,
+          itemId: perkToRedeem.id,
         }),
       });
 
@@ -195,12 +211,15 @@ export default function RewardsPage() {
       if (!res.ok) {
         alert(json.error || "Failed to redeem perk");
       } else {
-        setActionMessage({ text: `🎉 Unlocked "${title}"! Enjoy guilt-free.` });
+        setActionMessage({ text: `🎉 Unlocked "${perkToRedeem.title}"! Enjoy guilt-free.` });
+        setPerkToRedeem(null);
         setTimeout(() => setActionMessage(null), 4000);
         fetchRewards();
       }
     } catch {
       alert("Redemption error");
+    } finally {
+      setIsRedeeming(false);
     }
   };
 
@@ -851,6 +870,36 @@ export default function RewardsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Quick Deduct Infraction Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(confirmDeductType)}
+        onClose={() => setConfirmDeductType(null)}
+        onConfirm={handleExecuteQuickDeduct}
+        isLoading={isDeducting}
+        title={confirmDeductType === "UNHEALTHY_FOOD" ? "Log Junk Food Infraction" : "Log Protocol Relapse"}
+        message={
+          confirmDeductType === "UNHEALTHY_FOOD"
+            ? "Log an Unhealthy / Junk Food infraction (-50 XP) and reset your Clean Diet streak?"
+            : "Log a Monk Protocol Relapse (-100 XP) and reset your Purity streak to Day 0?"
+        }
+        confirmText={confirmDeductType === "UNHEALTHY_FOOD" ? "Deduct 50 XP" : "Deduct 100 XP"}
+        confirmVariant="red"
+        iconType="danger"
+      />
+
+      {/* Perk Redemption Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(perkToRedeem)}
+        onClose={() => setPerkToRedeem(null)}
+        onConfirm={handleExecuteRedeemPerk}
+        isLoading={isRedeeming}
+        title="Redeem Karma Perk"
+        message={`Redeem "${perkToRedeem?.title}" by spending ${perkToRedeem?.cost} XP from your hard-earned discipline balance?`}
+        confirmText={`Unlock for ${perkToRedeem?.cost} XP`}
+        confirmVariant="red"
+        iconType="warning"
+      />
     </div>
   );
 }

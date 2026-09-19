@@ -50,7 +50,7 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-black text-foreground antialiased selection:bg-brand-red selection:text-white pb-20 md:pb-8 pt-2">
+    <div className="flex flex-col min-h-screen bg-black text-foreground antialiased selection:bg-brand-red selection:text-white pb-28 md:pb-8 pt-2">
       {/* Floating Glass Island Navbar */}
       <Navbar onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
 

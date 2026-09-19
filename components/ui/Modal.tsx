@@ -37,7 +37,7 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Dark frosted backdrop */}
       <div
         className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
@@ -46,14 +46,14 @@ export function Modal({
 
       {/* Glass Dialog / Mobile Bottom Sheet */}
       <div
-        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-black/95 border border-white/15 rounded-t-3xl sm:rounded-3xl shadow-glass-panel overflow-hidden z-10 max-h-[90vh] sm:max-h-[85vh] flex flex-col pb-safe`}
+        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-black/95 border border-white/15 rounded-t-3xl sm:rounded-3xl shadow-glass-panel overflow-hidden z-10 max-h-[88dvh] sm:max-h-[85vh] flex flex-col pb-safe overscroll-contain`}
       >
         {/* Mobile Swipe / Grab Indicator */}
         <div className="pt-2 sm:hidden flex justify-center">
           <div className="w-12 h-1 rounded-full bg-white/20" />
         </div>
 
-        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 bg-white/[0.02] flex-shrink-0">
           <h2 className="text-sm font-bold tracking-wide text-white font-mono uppercase">
             {title}
           </h2>
@@ -64,7 +64,7 @@ export function Modal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-5 sm:p-6 pb-10 sm:pb-6 overflow-y-auto flex-1 overscroll-contain">{children}</div>
       </div>
     </div>
   );

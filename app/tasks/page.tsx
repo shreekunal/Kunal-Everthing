@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InputDate } from "@/components/ui/InputDate";
 import { getDueStatus } from "@/lib/formatters";
 import {
@@ -101,28 +102,37 @@ export default function TasksPage() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const [taskToDelete, setTaskToDelete] = useState<any | null>(null);
+  const [isConfirmClearCompletedOpen, setIsConfirmClearCompletedOpen] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+
+  const handleExecuteDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setIsDeletingTask(true);
     haptics.warning();
     try {
-      await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      await fetch(`/api/tasks/${taskToDelete.id}`, { method: "DELETE" });
+      setTasks((prev) => prev.filter((t) => t.id !== taskToDelete.id));
+      setTaskToDelete(null);
     } catch (err) {
       console.error("Task delete error:", err);
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
-  const handleClearCompleted = async () => {
+  const handleExecuteClearCompleted = async () => {
     const completed = tasks.filter((t) => t.status === "DONE");
     if (completed.length === 0) return;
-    if (!confirm(`Delete / Clear all ${completed.length} completed tasks?`)) return;
 
     haptics.warning();
     try {
       await Promise.all(
         completed.map((t) => fetch(`/api/tasks/${t.id}`, { method: "DELETE" }))
       );
+      setIsConfirmClearCompletedOpen(false);
       fetchTasks();
     } catch (err) {
       console.error("Clear completed error:", err);
@@ -276,7 +286,10 @@ export default function TasksPage() {
 
         {completedCount > 0 && (
           <button
-            onClick={handleClearCompleted}
+            onClick={() => {
+              haptics.warning();
+              setIsConfirmClearCompletedOpen(true);
+            }}
             className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-mono text-red-400 flex items-center gap-1.5 transition-all whitespace-nowrap active:scale-95"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -479,9 +492,12 @@ export default function TasksPage() {
                     </div>
 
                     <button
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-xl text-zinc-500 hover:text-brand-red hover:bg-white/10 transition-all"
-                      aria-label="Delete"
+                      onClick={() => {
+                        haptics.warning();
+                        setTaskToDelete(task);
+                      }}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-xl text-zinc-500 hover:text-brand-red hover:bg-white/10 transition-all active:scale-90"
+                      aria-label="Delete Task"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -648,6 +664,31 @@ export default function TasksPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Single Task Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(taskToDelete)}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleExecuteDeleteTask}
+        isLoading={isDeletingTask}
+        title="Delete Priority Task"
+        message={`Are you sure you want to permanently delete "${taskToDelete?.title}"?`}
+        confirmText="Delete Task"
+        confirmVariant="red"
+        iconType="danger"
+      />
+
+      {/* Clear Completed Tasks Confirmation */}
+      <ConfirmDialog
+        isOpen={isConfirmClearCompletedOpen}
+        onClose={() => setIsConfirmClearCompletedOpen(false)}
+        onConfirm={handleExecuteClearCompleted}
+        title="Clear All Completed Tasks"
+        message="Are you sure you want to permanently delete all completed tasks from your history?"
+        confirmText="Clear Done Tasks"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }

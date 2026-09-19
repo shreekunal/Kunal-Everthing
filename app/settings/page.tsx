@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   Settings,
   Shield,
@@ -74,16 +75,18 @@ export default function SettingsPage() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
-  const handleClearAllData = async () => {
-    if (!confirm("⚠️ Are you sure you want to completely purge and clear ALL data inside Everything? This will wipe all tasks, habits, cards, accounts, and discipline logs for a fresh start.")) {
-      return;
-    }
+  // Destructive Confirmation States
+  const [isConfirmWipeOpen, setIsConfirmWipeOpen] = useState(false);
+  const [isConfirmRemoveBioOpen, setIsConfirmRemoveBioOpen] = useState(false);
 
+  const handleExecuteWipeData = async () => {
     setClearing(true);
+    haptics.warning();
     try {
       const res = await fetch("/api/seed", { method: "DELETE" });
       if (res.ok) {
         setClearSuccess(true);
+        setIsConfirmWipeOpen(false);
         setTimeout(() => setClearSuccess(false), 3000);
         window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
       }
@@ -229,15 +232,13 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRemoveBiometrics = async () => {
-    if (!confirm("Are you sure you want to remove biometric authentication for this device?")) {
-      return;
-    }
+  const handleExecuteRemoveBiometrics = async () => {
     setBioLoading(true);
     try {
       const res = await fetch("/api/auth/biometrics", { method: "DELETE" });
       if (res.ok) {
         setHasBiometrics(false);
+        setIsConfirmRemoveBioOpen(false);
         setBioMessage({ text: "Biometric authentication removed." });
       }
     } catch {
@@ -401,7 +402,10 @@ export default function SettingsPage() {
                 </Button>
                 {hasBiometrics && (
                   <button
-                    onClick={handleRemoveBiometrics}
+                    onClick={() => {
+                      haptics.warning();
+                      setIsConfirmRemoveBioOpen(true);
+                    }}
                     className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/10 transition-colors"
                     title="Remove Biometric Credential"
                   >
@@ -639,7 +643,10 @@ export default function SettingsPage() {
             <Button
               variant="red"
               size="sm"
-              onClick={handleClearAllData}
+              onClick={() => {
+                haptics.warning();
+                setIsConfirmWipeOpen(true);
+              }}
               isLoading={clearing}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -1071,6 +1078,33 @@ export default function SettingsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* High-Security Wipe All Portal Data Confirmation */}
+      <ConfirmDialog
+        isOpen={isConfirmWipeOpen}
+        onClose={() => setIsConfirmWipeOpen(false)}
+        onConfirm={handleExecuteWipeData}
+        isLoading={clearing}
+        title="Purge & Wipe All Portal Data"
+        message="This is a catastrophic destructive operation. All tasks, routines, habit history, credit cards, bank accounts, partner details, and discipline XP will be permanently deleted from the database. This action CANNOT be undone."
+        confirmText="Wipe All Data"
+        requireText="DELETE"
+        confirmVariant="red"
+        iconType="skull"
+      />
+
+      {/* Biometric Credential Removal Confirmation */}
+      <ConfirmDialog
+        isOpen={isConfirmRemoveBioOpen}
+        onClose={() => setIsConfirmRemoveBioOpen(false)}
+        onConfirm={handleExecuteRemoveBiometrics}
+        isLoading={bioLoading}
+        title="Remove Biometric Authentication"
+        message="Are you sure you want to remove fingerprint / biometric credentials for this device? You will need to use your 4-digit PIN to access Everything."
+        confirmText="Remove Biometrics"
+        confirmVariant="red"
+        iconType="warning"
+      />
     </div>
   );
 }

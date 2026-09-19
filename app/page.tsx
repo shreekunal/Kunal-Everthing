@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Calendar,
   Skull,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
@@ -31,6 +32,7 @@ import { haptics } from "@/lib/haptics";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
 import { PixelPet } from "@/components/discipline/PixelPet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -38,6 +40,8 @@ export default function DashboardPage() {
   const [isOffline, setIsOffline] = useState(false);
   const [cacheTime, setCacheTime] = useState<string | null>(null);
   const [isEveningCheckinOpen, setIsEveningCheckinOpen] = useState(false);
+  const [confirmDeductType, setConfirmDeductType] = useState<"UNHEALTHY_FOOD" | "FAP" | null>(null);
+  const [isDeducting, setIsDeducting] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -123,14 +127,14 @@ export default function DashboardPage() {
     }
   };
 
-  const handleQuickDeduct = async (type: "UNHEALTHY_FOOD" | "FAP") => {
-    const isFood = type === "UNHEALTHY_FOOD";
-    const confirmMsg = isFood
-      ? "Log Unhealthy / Junk Food infraction (-50 XP) and reset Clean Diet streak?"
-      : "Log Monk Protocol Relapse (-100 XP) and reset Purity streak to Day 0?";
+  const handleQuickDeduct = (type: "UNHEALTHY_FOOD" | "FAP") => {
+    setConfirmDeductType(type);
+  };
 
-    if (!confirm(confirmMsg)) return;
-
+  const handleExecuteDeduct = async () => {
+    if (!confirmDeductType) return;
+    const isFood = confirmDeductType === "UNHEALTHY_FOOD";
+    setIsDeducting(true);
     haptics.warning();
     try {
       await fetch("/api/rewards", {
@@ -141,9 +145,12 @@ export default function DashboardPage() {
           points: isFood ? 50 : 100,
         }),
       });
+      setConfirmDeductType(null);
       fetchDashboardData();
     } catch (err) {
       console.error("Deduction error:", err);
+    } finally {
+      setIsDeducting(false);
     }
   };
 
@@ -352,7 +359,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Discipline Karma & Streaks Live Bar */}
-      {discipline && (
+      {discipline ? (
         <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/30 shadow-glow-red-subtle p-3.5 sm:p-4">
           {/* Pet Deceased Alert Banner (when monthly XP < 0) */}
           {discipline.isPetDead && (
@@ -504,7 +511,64 @@ export default function DashboardPage() {
             </div>
           </div>
         </Card>
-      )}
+      ) : loading ? (
+        /* Smooth Companion & XP Mode Loading Phase Skeleton */
+        <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/20 shadow-glow-red-subtle p-3.5 sm:p-4 animate-pulse">
+          {/* Header Row Skeleton */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="w-14 h-5 rounded-lg bg-brand-red/20 border border-brand-red/30" />
+              <div className="w-28 h-5 rounded-lg bg-white/10" />
+              <div className="w-24 h-5 rounded-md bg-white/[0.06] border border-white/5" />
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <div className="w-20 h-6 rounded-lg bg-brand-red/10 border border-brand-red/20" />
+              <div className="w-16 h-6 rounded-lg bg-white/5" />
+            </div>
+          </div>
+
+          {/* Interactive Companion Pet Bay Skeleton */}
+          <div className="my-2.5 p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-brand-red/15 border border-brand-red/25 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-brand-red animate-pulse" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="w-32 h-3.5 rounded bg-white/15" />
+                <div className="w-48 h-2.5 rounded bg-white/10" />
+              </div>
+            </div>
+            <div className="w-14 h-3.5 rounded bg-white/10" />
+          </div>
+
+          {/* 4-Pill Telemetry Dock Skeleton */}
+          <div className="grid grid-cols-2 gap-2.5 pt-3">
+            <div className="h-9 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
+              <div className="w-20 h-3 rounded bg-white/10" />
+            </div>
+            <div className="h-9 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
+              <div className="w-20 h-3 rounded bg-white/10" />
+            </div>
+            <div className="h-9 rounded-xl bg-brand-red/5 border border-brand-red/20 flex items-center justify-center">
+              <div className="w-20 h-3 rounded bg-brand-red/20" />
+            </div>
+            <div className="h-9 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
+              <div className="w-20 h-3 rounded bg-white/10" />
+            </div>
+          </div>
+
+          {/* Progress Bar Skeleton */}
+          <div className="mt-3 pt-2.5 border-t border-white/5 space-y-1.5">
+            <div className="flex justify-between items-center">
+              <div className="w-24 h-2.5 rounded bg-white/10" />
+              <div className="w-16 h-2.5 rounded bg-white/10" />
+            </div>
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full w-2/5 bg-brand-red/30 rounded-full animate-pulse" />
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -726,6 +790,23 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Confirm Deduct Modal */}
+      <ConfirmDialog
+        isOpen={Boolean(confirmDeductType)}
+        onClose={() => setConfirmDeductType(null)}
+        onConfirm={handleExecuteDeduct}
+        isLoading={isDeducting}
+        title={confirmDeductType === "UNHEALTHY_FOOD" ? "Log Junk Food Infraction" : "Log Protocol Relapse"}
+        message={
+          confirmDeductType === "UNHEALTHY_FOOD"
+            ? "Log an Unhealthy/Junk Food infraction (-50 XP) and reset your Clean Diet streak?"
+            : "Log a Monk Protocol Relapse (-100 XP) and reset your Purity streak to Day 0?"
+        }
+        confirmText={confirmDeductType === "UNHEALTHY_FOOD" ? "Deduct 50 XP" : "Deduct 100 XP"}
+        confirmVariant="red"
+        iconType="danger"
+      />
 
       {/* Daily Evening Bedtime Monk Reflection Modal */}
       <EveningCheckinModal

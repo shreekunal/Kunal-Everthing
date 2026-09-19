@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InputDate } from "@/components/ui/InputDate";
 import { formatDate, getDueStatus } from "@/lib/formatters";
 import {
@@ -79,12 +80,21 @@ export default function DatesPage() {
     }
   };
 
-  const handleDeleteDate = async (id: string) => {
+  const [dateToDelete, setDateToDelete] = useState<any | null>(null);
+  const [isDeletingDate, setIsDeletingDate] = useState(false);
+
+  const handleExecuteDeleteDate = async () => {
+    if (!dateToDelete) return;
+    setIsDeletingDate(true);
+    haptics.warning();
     try {
-      await fetch(`/api/dates/${id}`, { method: "DELETE" });
-      setDates((prev) => prev.filter((d) => d.id !== id));
+      await fetch(`/api/dates/${dateToDelete.id}`, { method: "DELETE" });
+      setDates((prev) => prev.filter((d) => d.id !== dateToDelete.id));
+      setDateToDelete(null);
     } catch (err) {
       console.error("Delete date error:", err);
+    } finally {
+      setIsDeletingDate(false);
     }
   };
 
@@ -171,9 +181,13 @@ export default function DatesPage() {
             Alerts: {d.reminderDaysBefore}d before
           </span>
           <button
-            onClick={() => handleDeleteDate(d.id)}
-            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-brand-red p-1 transition-all"
+            onClick={() => {
+              haptics.warning();
+              setDateToDelete(d);
+            }}
+            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-zinc-500 hover:text-brand-red p-1 transition-all active:scale-90"
             title="Delete date"
+            aria-label="Delete Event Date"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -409,6 +423,19 @@ export default function DatesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Date Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(dateToDelete)}
+        onClose={() => setDateToDelete(null)}
+        onConfirm={handleExecuteDeleteDate}
+        isLoading={isDeletingDate}
+        title="Delete Important Date"
+        message={`Are you sure you want to delete "${dateToDelete?.name}"? All recurring alerts and annual countdowns for this date will be permanently cancelled.`}
+        confirmText="Delete Date"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }

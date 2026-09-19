@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   ShieldCheck,
   Key,
@@ -161,15 +162,24 @@ export default function VaultPage() {
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const [itemToDelete, setItemToDelete] = useState<any | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
+
+  const handleExecuteDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeletingItem(true);
+    haptics.warning();
     try {
-      await fetch(`/api/vault/${id}`, { method: "DELETE" });
-      setVaultItems((prev) => prev.filter((i) => i.id !== id));
+      await fetch(`/api/vault/${itemToDelete.id}`, { method: "DELETE" });
+      setVaultItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
       const newMap = { ...decryptedMap };
-      delete newMap[id];
+      delete newMap[itemToDelete.id];
       setDecryptedMap(newMap);
+      setItemToDelete(null);
     } catch (err) {
       console.error("Delete vault item error:", err);
+    } finally {
+      setIsDeletingItem(false);
     }
   };
 
@@ -283,9 +293,12 @@ export default function VaultPage() {
                       </div>
 
                       <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 p-1.5 transition-all"
-                        aria-label="Delete"
+                        onClick={() => {
+                          haptics.warning();
+                          setItemToDelete(item);
+                        }}
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-zinc-500 hover:text-brand-red p-1.5 transition-all active:scale-90"
+                        aria-label="Delete Vault Item"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -527,6 +540,19 @@ export default function VaultPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Vault Secret Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={handleExecuteDeleteItem}
+        isLoading={isDeletingItem}
+        title="Delete Encrypted Vault Item"
+        message={`Are you sure you want to permanently delete "${itemToDelete?.title}"? All zero-knowledge encrypted passwords and secure notes will be destroyed and cannot be recovered.`}
+        confirmText="Delete Secret"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }

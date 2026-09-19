@@ -169,38 +169,44 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           </div>
         </div>
 
-        {/* Lower Primary 5-Tab Bar */}
-        <div className="h-16 px-2 flex items-center justify-around pb-safe border-t border-white/5">
+        {/* Lower Primary 5-Tab Bar (Icon-Only Minimalist Mobile Dock) */}
+        <div className="h-16 px-3 flex items-center justify-around pb-safe border-t border-white/5">
           {/* 1. Home */}
           <Link
             href="/"
+            aria-label="Home"
             onClick={() => {
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-              pathname === "/" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              pathname === "/" ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <LayoutDashboard className="w-5 h-5 mb-0.5" />
-            <span>Home</span>
+            <div className={clsx("p-1.5 rounded-xl transition-all", pathname === "/" && "bg-brand-red/15")}>
+              <LayoutDashboard className="w-5 h-5" />
+            </div>
+            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
           {/* 2. Tasks */}
           <Link
             href="/tasks"
+            aria-label="Tasks"
             onClick={() => {
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-              pathname === "/tasks" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              pathname === "/tasks" ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <CheckSquare className="w-5 h-5 mb-0.5" />
-            <span>Tasks</span>
+            <div className={clsx("p-1.5 rounded-xl transition-all", pathname === "/tasks" && "bg-brand-red/15")}>
+              <CheckSquare className="w-5 h-5" />
+            </div>
+            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/tasks" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
           {/* 3. Floating Quick Add Button */}
@@ -211,7 +217,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 if (isDrawerOpen) setIsDrawerOpen(false);
                 onOpenQuickAdd();
               }}
-              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-95 transition-transform"
+              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-90 transition-transform"
               aria-label="Quick Add"
             >
               <Plus className="w-6 h-6 stroke-[2.5]" />
@@ -221,36 +227,42 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           {/* 4. Relationship Hub */}
           <Link
             href="/relationship"
+            aria-label="Relationship"
             onClick={() => {
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-              pathname === "/relationship" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              pathname === "/relationship" ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <Heart className="w-5 h-5 mb-0.5" />
-            <span>Love</span>
+            <div className={clsx("p-1.5 rounded-xl transition-all", pathname === "/relationship" && "bg-brand-red/15")}>
+              <Heart className="w-5 h-5" />
+            </div>
+            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/relationship" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
           {/* 5. More Button (Toggles extending the menu up) */}
           <button
+            aria-label={isDrawerOpen ? "Close Menu" : "More Applications"}
             onClick={() => {
               haptics.impactLight();
               setIsDrawerOpen(!isDrawerOpen);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-all",
-              isDrawerOpen ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              isDrawerOpen ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            {isDrawerOpen ? (
-              <X className="w-5 h-5 mb-0.5 text-brand-red" />
-            ) : (
-              <Menu className="w-5 h-5 mb-0.5" />
-            )}
-            <span>{isDrawerOpen ? "Close" : "More"}</span>
+            <div className={clsx("p-1.5 rounded-xl transition-all", isDrawerOpen && "bg-brand-red/15")}>
+              {isDrawerOpen ? (
+                <X className="w-5 h-5 text-brand-red" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </div>
+            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", isDrawerOpen ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </button>
         </div>
       </div>

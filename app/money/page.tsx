@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { formatINR } from "@/lib/formatters";
 import {
   Wallet,
@@ -144,42 +145,54 @@ export default function MoneyPage() {
     }
   };
 
-  const handleQuickPayFullBalance = async (card: any) => {
+  const [cardToDelete, setCardToDelete] = useState<any | null>(null);
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
+  const [quickPayCard, setQuickPayCard] = useState<any | null>(null);
+  const [isPayingQuick, setIsPayingQuick] = useState(false);
+
+  const handleQuickPay = (card: any) => {
     if (!card.currentOutstanding || card.currentOutstanding <= 0) {
       haptics.impactLight();
       alert("This card has ₹0 outstanding balance!");
       return;
     }
+    setQuickPayCard(card);
+  };
 
-    if (
-      !confirm(
-        `Mark full balance of ${formatINR(card.currentOutstanding)} on ${card.name} as paid?`
-      )
-    )
-      return;
-
+  const handleExecuteQuickPay = async () => {
+    if (!quickPayCard) return;
+    setIsPayingQuick(true);
     haptics.success();
     try {
-      await fetch(`/api/cards/${card.id}/payment`, {
+      await fetch(`/api/cards/${quickPayCard.id}/payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: card.currentOutstanding,
+          amount: quickPayCard.currentOutstanding,
         }),
       });
+      setQuickPayCard(null);
       fetchFinancials();
     } catch (err) {
       console.error("Quick pay error:", err);
+    } finally {
+      setIsPayingQuick(false);
     }
   };
 
-  const handleDeleteCard = async (cardId: string) => {
+  const handleExecuteDeleteCard = async () => {
+    if (!cardToDelete) return;
+    setIsDeletingCard(true);
+    haptics.warning();
     try {
-      await fetch(`/api/cards/${cardId}`, { method: "DELETE" });
-      setCards((prev) => prev.filter((c) => c.id !== cardId));
+      await fetch(`/api/cards/${cardToDelete.id}`, { method: "DELETE" });
+      setCards((prev) => prev.filter((c) => c.id !== cardToDelete.id));
+      setCardToDelete(null);
       fetchFinancials();
     } catch (err) {
       console.error("Delete card error:", err);
+    } finally {
+      setIsDeletingCard(false);
     }
   };
 
@@ -370,9 +383,13 @@ export default function MoneyPage() {
                         {card.dueDateLabel}
                       </Badge>
                       <button
-                        onClick={() => handleDeleteCard(card.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-brand-red transition-all"
+                        onClick={() => {
+                          haptics.warning();
+                          setCardToDelete(card);
+                        }}
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90"
                         title="Delete card"
+                        aria-label="Delete card"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -456,7 +473,7 @@ export default function MoneyPage() {
                         variant="red"
                         size="sm"
                         className="text-[11px] h-7 px-2.5"
-                        onClick={() => handleQuickPayFullBalance(card)}
+                        onClick={() => handleQuickPay(card)}
                       >
                         <CheckCircle className="w-3 h-3" />
                         <span>1-Click Paid</span>
@@ -848,6 +865,32 @@ export default function MoneyPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Credit Card Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(cardToDelete)}
+        onClose={() => setCardToDelete(null)}
+        onConfirm={handleExecuteDeleteCard}
+        isLoading={isDeletingCard}
+        title="Delete Credit Card"
+        message={`Are you sure you want to delete "${cardToDelete?.name}" (${cardToDelete?.bank})? All associated billing cycles, outstandings, and limit trackers will be permanently removed.`}
+        confirmText="Delete Card"
+        confirmVariant="red"
+        iconType="danger"
+      />
+
+      {/* 1-Click Quick Pay Full Balance Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(quickPayCard)}
+        onClose={() => setQuickPayCard(null)}
+        onConfirm={handleExecuteQuickPay}
+        isLoading={isPayingQuick}
+        title="1-Click Mark Balance Paid"
+        message={`Mark full outstanding balance of ${formatINR(quickPayCard?.currentOutstanding || 0)} on ${quickPayCard?.name} as settled & paid in full?`}
+        confirmText="Confirm Settlement"
+        confirmVariant="red"
+        iconType="warning"
+      />
     </div>
   );
 }

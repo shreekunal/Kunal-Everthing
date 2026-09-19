@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InputDate } from "@/components/ui/InputDate";
 import { formatDate } from "@/lib/formatters";
 import {
@@ -167,8 +168,12 @@ export default function RelationshipPage() {
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm("Delete this custom message template?")) return;
+  const [templateToDelete, setTemplateToDelete] = useState<any | null>(null);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+
+  const handleExecuteDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    setIsDeletingTemplate(true);
     haptics.warning();
     try {
       await fetch("/api/relationship", {
@@ -176,12 +181,15 @@ export default function RelationshipPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "DELETE_TEMPLATE",
-          templateId,
+          templateId: templateToDelete.id,
         }),
       });
+      setTemplateToDelete(null);
       fetchRelationshipData();
     } catch (err) {
       console.error("Delete template error:", err);
+    } finally {
+      setIsDeletingTemplate(false);
     }
   };
 
@@ -732,9 +740,13 @@ export default function RelationshipPage() {
                     </Badge>
                     {!tmpl.isDefault && (
                       <button
-                        onClick={() => handleDeleteTemplate(tmpl.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all"
+                        onClick={() => {
+                          haptics.warning();
+                          setTemplateToDelete(tmpl);
+                        }}
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90"
                         title="Delete template"
+                        aria-label="Delete Template"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -951,6 +963,19 @@ export default function RelationshipPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Message Template Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(templateToDelete)}
+        onClose={() => setTemplateToDelete(null)}
+        onConfirm={handleExecuteDeleteTemplate}
+        isLoading={isDeletingTemplate}
+        title="Delete Custom Message Template"
+        message={`Are you sure you want to delete template "${templateToDelete?.title}"?`}
+        confirmText="Delete Template"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }
