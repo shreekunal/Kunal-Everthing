@@ -259,6 +259,7 @@ export default function RelationshipPage() {
   };
 
   const partner = data?.partner;
+  const partnerNicknameDisplay = partner?.nickname || partner?.name || "My Love";
   const templates = data?.templates || [];
 
   return (
@@ -315,7 +316,7 @@ export default function RelationshipPage() {
                       className="px-2 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 transition-all flex items-center gap-1 active:scale-95"
                     >
                       <PhoneCall className="w-2.5 h-2.5" />
-                      <span>Call Golu</span>
+                      <span>Call {partnerNicknameDisplay}</span>
                     </a>
                     <button
                       type="button"
@@ -449,7 +450,7 @@ export default function RelationshipPage() {
               <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
                 <span>Love Quotes Studio</span>
                 <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
-                  For Golu ❤️
+                  For {partnerNicknameDisplay} ❤️
                 </span>
                 <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full hidden sm:inline-block">
                   Live QuoteSlate API
@@ -532,7 +533,7 @@ export default function RelationshipPage() {
                 const cardId = `qs-quote-${q.id || 0}`;
                 const quoteText = q.quote || q.text || "";
                 const authorName = q.author || "Unknown";
-                const whatsappMsg = `Golu... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
+                const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
 
                 return (
                   <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-brand-red/[0.08] via-black to-white/[0.02] border border-brand-red/40 shadow-glow-red-subtle space-y-4">
@@ -584,7 +585,7 @@ export default function RelationshipPage() {
                         className="text-xs h-8 px-3.5 shadow-glow-red font-bold active:scale-95"
                       >
                         <Heart className="w-3.5 h-3.5 fill-white mr-1.5" />
-                        <span>Send to Golu</span>
+                        <span>Send to {partnerNicknameDisplay}</span>
                         <Send className="w-3 h-3 ml-1" />
                       </Button>
                     </div>
@@ -598,7 +599,7 @@ export default function RelationshipPage() {
                   const cardId = `qs-quote-${q.id || index + 1}`;
                   const quoteText = q.quote || q.text || "";
                   const authorName = q.author || "Unknown";
-                  const whatsappMsg = `Golu... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
+                  const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${quoteText}"\n— ${authorName}\n\n— Tera Kunal`;
 
                   return (
                     <div
@@ -652,7 +653,7 @@ export default function RelationshipPage() {
                             className="text-xs h-7 px-2.5 shadow-glow-red font-bold active:scale-95"
                           >
                             <Heart className="w-3 h-3 fill-white mr-1" />
-                            <span>Send to Golu</span>
+                            <span>Send to {partnerNicknameDisplay}</span>
                             <Send className="w-2.5 h-2.5 ml-1" />
                           </Button>
                         </div>
@@ -928,7 +929,7 @@ export default function RelationshipPage() {
             <textarea
               required
               rows={3}
-              placeholder="e.g. I love you so much Golu ❤️ Have a great day!"
+              placeholder="e.g. I love you so much ❤️ Have a great day!"
               value={newTemplateContent}
               onChange={(e) => setNewTemplateContent(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"

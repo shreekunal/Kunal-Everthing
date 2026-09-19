@@ -11,7 +11,6 @@ import {
   Moon,
   Globe,
   Download,
-  RotateCcw,
   Smartphone,
   Key,
   CheckCircle2,
@@ -21,6 +20,12 @@ import {
   AlertCircle,
   Bell,
   Clock,
+  Sparkles,
+  Layers,
+  Wallet,
+  CreditCard as CreditCardIcon,
+  Heart,
+  CheckSquare,
 } from "lucide-react";
 import { generateEmergencyRecoveryKey } from "@/lib/crypto/vault";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
@@ -32,11 +37,37 @@ import {
 } from "@/lib/notifications";
 
 export default function SettingsPage() {
-  const [seeding, setSeeding] = useState(false);
-  const [seedSuccess, setSeedSuccess] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState("");
+
+  // Quick Setup Modal & Form states
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [setupSubmitting, setSetupSubmitting] = useState(false);
+  const [setupSuccess, setSetupSuccess] = useState(false);
+  const [setupError, setSetupError] = useState("");
+
+  const [setupForm, setSetupForm] = useState({
+    bankName: "",
+    bankBalance: "",
+    investmentName: "",
+    investmentBalance: "",
+    cardName: "",
+    cardBank: "",
+    cardNumber: "",
+    cardCvv: "",
+    cardLimit: "",
+    cardOutstanding: "",
+    cardDueDate: "",
+    partnerName: "",
+    partnerNickname: "",
+    partnerPhone: "",
+    partnerBirthday: "",
+    partnerAnniversary: "",
+    partnerPreferences: "",
+    taskTitles: "",
+    routineNames: "",
+  });
 
   // Notification states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -224,17 +255,35 @@ export default function SettingsPage() {
     }
   };
 
-  const handleReSeed = async () => {
-    setSeeding(true);
-    setSeedSuccess(false);
+  const handleSaveSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetupSubmitting(true);
+    setSetupError("");
     try {
-      const res = await fetch("/api/seed", { method: "POST" });
-      if (res.ok) {
-        setSeedSuccess(true);
-        setTimeout(() => setSeedSuccess(false), 3000);
+      const res = await fetch("/api/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(setupForm),
+      });
+
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Failed to feed setup data");
       }
+
+      setSetupSuccess(true);
+      haptics.success();
+      setTimeout(() => {
+        setSetupSuccess(false);
+        setIsSetupModalOpen(false);
+        window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+      }, 1500);
+    } catch (err: any) {
+      console.error("Setup error:", err);
+      setSetupError(err.message || "Failed to save setup data");
+      haptics.warning();
     } finally {
-      setSeeding(false);
+      setSetupSubmitting(false);
     }
   };
 
@@ -554,27 +603,35 @@ export default function SettingsPage() {
             </Button>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-brand-red/[0.03] rounded-xl border border-brand-red/30 shadow-glow-red-subtle">
             <div>
-              <p className="font-semibold text-white">Reset Default System Presets</p>
+              <p className="font-semibold text-white flex items-center gap-2">
+                <span>Quick Setup &amp; One-Form Feeder</span>
+                <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                  Fast Feed
+                </span>
+              </p>
               <p className="text-zinc-400 text-[11px] mt-0.5">
-                Populate standard Indian card presets, habits, and default templates.
+                Feed your bank accounts, credit card, partner details, tasks, and routines in a single unified form.
               </p>
             </div>
             <Button
-              variant="glass"
+              variant="red"
               size="sm"
-              onClick={handleReSeed}
-              isLoading={seeding}
+              onClick={() => {
+                haptics.selection();
+                setIsSetupModalOpen(true);
+              }}
+              className="shadow-glow-red whitespace-nowrap"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-brand-red" />
-              <span>Re-seed Data</span>
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
+              <span>Open Setup Form</span>
             </Button>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-red-500/[0.03] rounded-xl border border-red-500/20">
             <div>
-              <p className="font-semibold text-red-400">Purge & Wipe All Portal Data</p>
+              <p className="font-semibold text-red-400">Purge &amp; Wipe All Portal Data</p>
               <p className="text-zinc-400 text-[11px] mt-0.5">
                 Clear all tasks, routines, credit cards, bank accounts, and reward logs for a clean personal start.
               </p>
@@ -596,15 +653,334 @@ export default function SettingsPage() {
               <span>All portal data has been completely wiped clean!</span>
             </div>
           )}
-
-          {seedSuccess && (
-            <div className="p-3 bg-white/[0.04] border border-brand-red/30 rounded-xl flex items-center justify-center gap-2 text-xs text-brand-red font-mono">
-              <CheckCircle2 className="w-4 h-4 text-brand-red" />
-              <span>Presets and sample records successfully initialized!</span>
-            </div>
-          )}
         </div>
       </Card>
+
+      {/* Unified One-Form Setup Modal */}
+      <Modal
+        isOpen={isSetupModalOpen}
+        onClose={() => {
+          setIsSetupModalOpen(false);
+          setSetupError("");
+          setSetupSuccess(false);
+        }}
+        title="Everything Portal — Quick Setup Feeder"
+        maxWidth="xl"
+      >
+        <form onSubmit={handleSaveSetup} className="space-y-5 font-sans text-xs max-h-[75vh] overflow-y-auto px-1 pr-2 scrollbar-thin">
+          {setupError && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-brand-red font-mono flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{setupError}</span>
+            </div>
+          )}
+
+          {setupSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>Data successfully saved across all modules!</span>
+            </div>
+          )}
+
+          {/* Section 1: Financial Accounts */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
+              <Wallet className="w-4 h-4" />
+              <span>1. BANK &amp; INVESTMENT ACCOUNTS</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Primary Bank Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC Salary Account"
+                  value={setupForm.bankName}
+                  onChange={(e) => setSetupForm({ ...setupForm, bankName: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Bank Balance (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={setupForm.bankBalance}
+                  onChange={(e) => setSetupForm({ ...setupForm, bankBalance: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Investment / Mutual Funds
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Zerodha Portfolio"
+                  value={setupForm.investmentName}
+                  onChange={(e) => setSetupForm({ ...setupForm, investmentName: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Investment Value (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 150000"
+                  value={setupForm.investmentBalance}
+                  onChange={(e) => setSetupForm({ ...setupForm, investmentBalance: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Credit Card */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
+              <CreditCardIcon className="w-4 h-4" />
+              <span>2. PRIMARY CREDIT CARD</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Card Nickname
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Millennia / Amazon Pay"
+                  value={setupForm.cardName}
+                  onChange={(e) => setSetupForm({ ...setupForm, cardName: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HDFC Bank"
+                  value={setupForm.cardBank}
+                  onChange={(e) => setSetupForm({ ...setupForm, cardBank: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Card Number (16 Digits)
+                </label>
+                <input
+                  type="text"
+                  maxLength={19}
+                  placeholder="4111 2222 3333 4444"
+                  value={setupForm.cardNumber}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                    const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ");
+                    setSetupForm({ ...setupForm, cardNumber: formatted });
+                  }}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono tracking-widest focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  CVV (3 or 4 digits)
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  placeholder="•••"
+                  value={setupForm.cardCvv}
+                  onChange={(e) => setSetupForm({ ...setupForm, cardCvv: e.target.value.replace(/\D/g, "") })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono tracking-widest focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Credit Limit (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 100000"
+                  value={setupForm.cardLimit}
+                  onChange={(e) => setSetupForm({ ...setupForm, cardLimit: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Current Outstanding (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 5420"
+                  value={setupForm.cardOutstanding}
+                  onChange={(e) => setSetupForm({ ...setupForm, cardOutstanding: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Partner & Love */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
+              <Heart className="w-4 h-4 fill-brand-red" />
+              <span>3. RELATIONSHIP &amp; PARTNER PROFILE</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Partner Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Partner Name"
+                  value={setupForm.partnerName}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerName: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Sweet Nickname
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Meri Jaan / Babu ❤️"
+                  value={setupForm.partnerNickname}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerNickname: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  WhatsApp Phone Number (with Country Code)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. +919876543210"
+                  value={setupForm.partnerPhone}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerPhone: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Anniversary Date
+                </label>
+                <input
+                  type="date"
+                  value={setupForm.partnerAnniversary}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerAnniversary: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Birthday
+                </label>
+                <input
+                  type="date"
+                  value={setupForm.partnerBirthday}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerBirthday: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Preferences &amp; Favorites
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Dark chocolate, tulips, surprise dates"
+                  value={setupForm.partnerPreferences}
+                  onChange={(e) => setSetupForm({ ...setupForm, partnerPreferences: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Tasks & Habits */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
+              <CheckSquare className="w-4 h-4" />
+              <span>4. INITIAL TASKS &amp; DAILY HABITS</span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Priority Tasks (One per line or comma-separated)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Review quarterly targets&#10;Deploy production hotfix&#10;Pay electricity bill"
+                  value={setupForm.taskTitles}
+                  onChange={(e) => setSetupForm({ ...setupForm, taskTitles: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
+                  Daily Habits / Routines (One per line or comma-separated)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Morning Meditation&#10;Gym Workout (45m)&#10;Zero Sugar Diet&#10;Deep Work Block (90m)"
+                  value={setupForm.routineNames}
+                  onChange={(e) => setSetupForm({ ...setupForm, routineNames: e.target.value })}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
+            <Button
+              type="button"
+              variant="glass"
+              onClick={() => setIsSetupModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="red"
+              isLoading={setupSubmitting}
+              className="shadow-glow-red font-bold"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
+              <span>Save &amp; Feed Everything</span>
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Change Master PIN Modal */}
       <Modal
