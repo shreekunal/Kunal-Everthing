@@ -281,7 +281,7 @@ export default function RewardsPage() {
             className="text-xs shadow-glow-red"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>Relapse / Fap (-100 XP)</span>
+            <span>Relapse  (-100 XP)</span>
           </Button>
 
           <Button
@@ -299,11 +299,10 @@ export default function RewardsPage() {
       {/* Global Alert Notification Banner */}
       {actionMessage && (
         <div
-          className={`p-3.5 rounded-2xl border flex items-center justify-between gap-2 text-xs font-mono transition-all animate-in ${
-            actionMessage.error
+          className={`p-3.5 rounded-2xl border flex items-center justify-between gap-2 text-xs font-mono transition-all animate-in ${actionMessage.error
               ? "bg-red-500/10 border-red-500/30 text-brand-red"
               : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {actionMessage.error ? (
@@ -388,7 +387,7 @@ export default function RewardsPage() {
               <span className="font-bold text-brand-red">-50 XP</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Relapse / Fap Penalty</span>
+              <span className="text-zinc-300">Relapse  Penalty</span>
               <span className="font-bold text-brand-red">-100 XP</span>
             </div>
           </div>
@@ -557,11 +556,10 @@ export default function RewardsPage() {
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-medium transition-colors ${
-                  activeFilter === filter
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-medium transition-colors ${activeFilter === filter
                     ? "bg-brand-red text-white font-bold"
                     : "text-zinc-400 hover:text-white"
-                }`}
+                  }`}
               >
                 {filter}
               </button>
@@ -584,11 +582,10 @@ export default function RewardsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        isReward
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isReward
                           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                           : "bg-red-500/10 text-brand-red border border-red-500/20"
-                      }`}
+                        }`}
                     >
                       {isReward ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                     </div>
@@ -606,11 +603,10 @@ export default function RewardsPage() {
                   </div>
 
                   <span
-                    className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border ${
-                      isReward
+                    className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border ${isReward
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                         : "bg-red-500/10 text-brand-red border-red-500/20"
-                    }`}
+                      }`}
                   >
                     {isReward ? `+${log.points}` : `${log.points}`} XP
                   </span>
@@ -639,11 +635,10 @@ export default function RewardsPage() {
                   setDeductType("UNHEALTHY_FOOD");
                   setDeductPoints("50");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
-                  deductType === "UNHEALTHY_FOOD"
+                className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "UNHEALTHY_FOOD"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 🍔 Junk Food
               </button>
@@ -653,11 +648,10 @@ export default function RewardsPage() {
                   setDeductType("FAP");
                   setDeductPoints("100");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
-                  deductType === "FAP"
+                className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "FAP"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 ⚡ Relapse
               </button>
@@ -667,11 +661,10 @@ export default function RewardsPage() {
                   setDeductType("CUSTOM");
                   setDeductPoints("30");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
-                  deductType === "CUSTOM"
+                className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "CUSTOM"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 ⚠️ Custom
               </button>

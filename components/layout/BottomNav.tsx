@@ -100,7 +100,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
             <span className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-brand-red" />
-              Extended Navigation
+              Everthing
             </span>
             <button
               onClick={() => {

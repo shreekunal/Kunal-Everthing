@@ -155,7 +155,7 @@ export async function deductPoints({
     });
   }
 
-  // If Relapse / Fap penalty -> reset PURITY_NOFAP streak
+  // If Relapse  penalty -> reset PURITY_NOFAP streak
   if (type === "PENALTY_FAP" || type === "PENALTY_RELAPSE") {
     await prisma.disciplineStreak.upsert({
       where: { userId_type: { userId, type: "PURITY_NOFAP" } },

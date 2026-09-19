@@ -79,7 +79,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
           setPartnerPhone(data.partner.phone);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [isOpen]);
 
 
@@ -324,11 +324,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                 setActiveTab(tab.id as TabType);
                 setSuccessMessage("");
               }}
-              className={`flex items-center justify-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
-                isActive
+              className={`flex items-center justify-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${isActive
                   ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
                   : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
-              }`}
+                }`}
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
@@ -421,11 +420,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   type="button"
                   key={chip.id}
                   onClick={() => setTaskReminderPreset(chip.id)}
-                  className={`px-2 py-1.5 rounded-xl text-[10px] font-mono font-medium transition-all ${
-                    taskReminderPreset === chip.id
+                  className={`px-2 py-1.5 rounded-xl text-[10px] font-mono font-medium transition-all ${taskReminderPreset === chip.id
                       ? "bg-brand-red text-white shadow-glow-red-subtle font-bold"
                       : "bg-white/[0.04] text-zinc-400 hover:text-white border border-white/5"
-                  }`}
+                    }`}
                 >
                   {chip.label}
                 </button>
@@ -655,11 +653,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                       haptics.impactLight();
                       setMessageText(tmpl.content);
                     }}
-                    className={`text-left p-3 rounded-2xl border transition-all ${
-                      isSelected
+                    className={`text-left p-3 rounded-2xl border transition-all ${isSelected
                         ? "bg-brand-red/15 border-brand-red text-white shadow-glow-red-subtle"
                         : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-zinc-300"
-                    }`}
+                      }`}
                   >
                     <span className="font-semibold block text-white text-xs font-mono">
                       &quot;{tmpl.content}&quot;
@@ -716,11 +713,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   setDisciplineAction("UNHEALTHY_FOOD");
                   setDisciplinePoints("50");
                 }}
-                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
-                  disciplineAction === "UNHEALTHY_FOOD"
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "UNHEALTHY_FOOD"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
                     : "bg-white/[0.03] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span>🍔 Ate Junk Food</span>
@@ -735,14 +731,13 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   setDisciplineAction("FAP");
                   setDisciplinePoints("100");
                 }}
-                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
-                  disciplineAction === "FAP"
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "FAP"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
                     : "bg-white/[0.03] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
-                  <span>⚡ Relapse / Fap</span>
+                  <span>⚡ Relapse </span>
                   <span className="text-brand-red font-bold">-100 XP</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Resets Purity to Day 0</span>
@@ -754,11 +749,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   setDisciplineAction("CUSTOM_PENALTY");
                   setDisciplinePoints("30");
                 }}
-                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
-                  disciplineAction === "CUSTOM_PENALTY"
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "CUSTOM_PENALTY"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
                     : "bg-white/[0.03] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span>⚠️ Other Penalty</span>
@@ -773,11 +767,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   setDisciplineAction("CUSTOM_REWARD");
                   setDisciplinePoints("30");
                 }}
-                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${
-                  disciplineAction === "CUSTOM_REWARD"
+                className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "CUSTOM_REWARD"
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold"
                     : "bg-white/[0.03] text-zinc-400 border-white/10"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span>🌟 Habit / Deed</span>

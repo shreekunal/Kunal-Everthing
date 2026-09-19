@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         points: deduction,
         type: "PENALTY_FAP",
-        title: title || "Monk Protocol Breach: Relapse / Fap",
+        title: title || "Monk Protocol Breach: Relapse ",
         reason: notes || reason || "Discipline relapse logged. Resetting purity streak to Day 0.",
         category: "PURITY",
       });
