@@ -72,7 +72,7 @@ export async function enrollDeviceBiometrics(): Promise<{ success: boolean; isNa
 /**
  * Authenticate and unlock using device biometrics (Fingerprint / Face ID)
  */
-export async function authenticateDeviceBiometrics(): Promise<boolean> {
+export async function authenticateDeviceBiometrics(userId?: string): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
     // 1. Trigger native Android system BiometricPrompt
     await NativeBiometric.authenticate({
@@ -87,6 +87,7 @@ export async function authenticateDeviceBiometrics(): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "verify",
+        userId: userId || undefined,
         credential: {
           id: "native_android_device",
           type: "native_biometric",
@@ -103,5 +104,5 @@ export async function authenticateDeviceBiometrics(): Promise<boolean> {
   }
 
   // Web fallback: Browser WebAuthn assertion
-  return await authenticateWebAuthn();
+  return await authenticateWebAuthn(userId);
 }

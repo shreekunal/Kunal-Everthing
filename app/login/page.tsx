@@ -179,8 +179,10 @@ function LoginContent() {
   // Handle Biometric Unlock
   const handleBiometricAuth = async () => {
     if (isVerifying) return;
-    if (!hasBiometrics) {
-      setError("No fingerprint enrolled yet. Enter PIN, then enroll in Settings.");
+    const isEnrolled = selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics;
+    if (!isEnrolled) {
+      const name = selectedProfile ? selectedProfile.name : "this profile";
+      setError(`No fingerprint enrolled yet for ${name}. Enter PIN, then enroll in Settings.`);
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -189,7 +191,7 @@ function LoginContent() {
     setError("");
 
     try {
-      const ok = await authenticateDeviceBiometrics();
+      const ok = await authenticateDeviceBiometrics(selectedProfile?.id);
       if (ok) {
         haptics.success();
         setSuccess(true);
@@ -389,7 +391,7 @@ function LoginContent() {
                 disabled={isVerifying}
                 title="Unlock with Fingerprint / Biometrics"
                 className={`h-14 rounded-2xl border flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${
-                  hasBiometrics
+                  (selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics)
                     ? isMradulSelected
                       ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-400"
                       : "bg-white/[0.06] hover:bg-brand-red/20 hover:border-brand-red/40 border-white/15 text-brand-red shadow-glow-red-subtle"
@@ -424,7 +426,7 @@ function LoginContent() {
             </div>
 
             {/* Quick Biometrics Button if configured */}
-            {hasBiometrics && (
+            {(selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics) && (
               <button
                 type="button"
                 onClick={handleBiometricAuth}

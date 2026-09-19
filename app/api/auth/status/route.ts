@@ -31,13 +31,15 @@ export async function GET() {
       }
     }
 
+    const anyProfileHasBiometrics = profiles.some((p) => p.hasBiometrics);
+
     return NextResponse.json({
       authenticated,
       authMethod,
       userId: currentUser?.id || null,
       userName: currentUser?.name || null,
       userEmail: currentUser?.email || null,
-      hasBiometrics: currentUser ? !!currentUser.biometricCredential : false,
+      hasBiometrics: currentUser ? !!currentUser.biometricCredential : anyProfileHasBiometrics,
       profiles,
     });
   } catch (error: any) {

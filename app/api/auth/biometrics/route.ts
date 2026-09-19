@@ -9,16 +9,28 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
+    const { searchParams } = new URL(req.url);
+    const targetUserId = searchParams.get("userId");
+
+    let targetUser: any = user;
+    if (targetUserId) {
+      targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+    } else if (!targetUser) {
+      targetUser = await prisma.user.findFirst({
+        where: { biometricCredential: { not: null } },
+      });
+    }
+
     let credentialData = null;
 
-    if (user?.biometricCredential) {
+    if (targetUser?.biometricCredential) {
       try {
-        credentialData = JSON.parse(user.biometricCredential);
+        credentialData = JSON.parse(targetUser.biometricCredential);
       } catch {
-        credentialData = { id: user.biometricCredential };
+        credentialData = { id: targetUser.biometricCredential };
       }
     }
 
@@ -26,14 +38,14 @@ export async function GET() {
     const challenge = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
 
     return NextResponse.json({
-      hasBiometrics: !!user?.biometricCredential,
+      hasBiometrics: !!targetUser?.biometricCredential,
       credentialId: credentialData?.id || null,
       challenge,
-      user: user
+      user: targetUser
         ? {
-            id: user.id,
-            name: user.name,
-            email: user.email,
+            id: targetUser.id,
+            name: targetUser.name,
+            email: targetUser.email,
           }
         : null,
     });

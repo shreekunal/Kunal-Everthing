@@ -133,19 +133,23 @@ export async function registerWebAuthnCredential(username: string = "Kunal"): Pr
 /**
  * Authenticate via Biometric WebAuthn (Touch ID, Windows Hello, Fingerprint)
  */
-export async function authenticateWithBiometrics(credentialId?: string): Promise<boolean> {
+export async function authenticateWithBiometrics(targetUserId?: string): Promise<boolean> {
   if (typeof window === "undefined" || !navigator.credentials) {
     throw new Error("Biometric authentication is not supported on this browser.");
   }
 
   // Fetch status and challenge from backend
-  const statusRes = await fetch("/api/auth/biometrics");
+  const statusRes = await fetch(
+    targetUserId
+      ? `/api/auth/biometrics?userId=${encodeURIComponent(targetUserId)}`
+      : "/api/auth/biometrics"
+  );
   if (!statusRes.ok) {
     throw new Error("Unable to connect to authentication server.");
   }
   const { challenge, credentialId: serverCredId } = await statusRes.json();
 
-  const targetCredId = credentialId || serverCredId;
+  const targetCredId = serverCredId;
   if (!targetCredId) {
     throw new Error("No fingerprint enrolled yet. Log in with Master PIN and enroll in Settings.");
   }
@@ -207,6 +211,7 @@ export async function authenticateWithBiometrics(credentialId?: string): Promise
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "verify",
+      userId: targetUserId || undefined,
       credential: assertionData,
     }),
   });
