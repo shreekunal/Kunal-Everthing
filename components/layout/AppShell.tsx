@@ -6,6 +6,7 @@ import { Navbar } from "./Navbar";
 import { BottomNav } from "./BottomNav";
 import { QuickAddModal } from "../quick-add/QuickAddModal";
 import { CommandPalette } from "../search/CommandPalette";
+import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
@@ -20,6 +21,9 @@ export function AppShell({ children }: AppShellProps) {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddInitialTab, setQuickAddInitialTab] = useState<any>("task");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
   const [exitToast, setExitToast] = useState<string | null>(null);
 
   // Initialize Auto-Lock Manager (mobile backgrounding & web inactivity)
@@ -30,6 +34,23 @@ export function AppShell({ children }: AppShellProps) {
       cleanup();
     };
   }, [pathname]);
+
+  // Fetch current user status & listen for global profile switcher requests
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.userId) setCurrentUserId(data.userId);
+        if (data?.userName) setCurrentUserName(data.userName);
+      })
+      .catch(() => {});
+
+    const handleOpenProfileSwitcher = () => setIsProfileSwitcherOpen(true);
+    window.addEventListener("open-profile-switcher", handleOpenProfileSwitcher);
+    return () => {
+      window.removeEventListener("open-profile-switcher", handleOpenProfileSwitcher);
+    };
+  }, []);
 
   // Initialize Intelligent Android Back Button & Popstate Navigation
   useEffect(() => {
@@ -66,6 +87,15 @@ export function AppShell({ children }: AppShellProps) {
       return true; // consumed back action
     });
   }, [isSearchOpen]);
+
+  // Register Profile Switcher modal with back-button manager
+  useEffect(() => {
+    if (!isProfileSwitcherOpen) return;
+    return backButton.register(() => {
+      setIsProfileSwitcherOpen(false);
+      return true; // consumed back action
+    });
+  }, [isProfileSwitcherOpen]);
 
   // Deep-link / App Shortcut listener (?action=quickadd&tab=...)
   useEffect(() => {
@@ -114,6 +144,7 @@ export function AppShell({ children }: AppShellProps) {
       <Navbar
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
       />
 
       {/* Full-Width Main Content */}
@@ -122,7 +153,10 @@ export function AppShell({ children }: AppShellProps) {
       </main>
 
       {/* Mobile Floating Bottom Dock */}
-      <BottomNav onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+      <BottomNav
+        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
+      />
 
       {/* Global Command Palette (Cmd + K / Mobile Search) */}
       <CommandPalette
@@ -132,6 +166,15 @@ export function AppShell({ children }: AppShellProps) {
           if (tab) setQuickAddInitialTab(tab);
           setIsQuickAddOpen(true);
         }}
+        onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
+      />
+
+      {/* Global Profile Switcher Modal (Root z-index above all navigation) */}
+      <ProfileSwitcherModal
+        isOpen={isProfileSwitcherOpen}
+        onClose={() => setIsProfileSwitcherOpen(false)}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
       />
 
       {/* Global Quick Add Modal */}

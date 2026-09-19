@@ -22,18 +22,17 @@ import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
 import { ProfileAvatar } from "../ui/ProfileAvatar";
-import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
+  onOpenProfileSwitcher?: () => void;
 }
 
-export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
+export function BottomNav({ onOpenQuickAdd, onOpenProfileSwitcher }: BottomNavProps) {
   const pathname = usePathname();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
-  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   React.useEffect(() => {
     fetch("/api/auth/status")
@@ -53,15 +52,6 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
       return true;
     });
   }, [isDrawerOpen]);
-
-  // Back Button integration: close profile switcher modal if open
-  React.useEffect(() => {
-    if (!isProfileSwitcherOpen) return;
-    return backButton.register(() => {
-      setIsProfileSwitcherOpen(false);
-      return true;
-    });
-  }, [isProfileSwitcherOpen]);
 
   const handleLockPortal = async () => {
     try {
@@ -128,7 +118,11 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
               onClick={() => {
                 haptics.impactMedium();
                 setIsDrawerOpen(false);
-                setIsProfileSwitcherOpen(true);
+                if (onOpenProfileSwitcher) {
+                  onOpenProfileSwitcher();
+                } else {
+                  window.dispatchEvent(new CustomEvent("open-profile-switcher"));
+                }
               }}
               className="text-xs font-bold text-white uppercase tracking-wider font-mono hover:text-brand-red transition-colors flex items-center gap-2"
               title="Switch Profile"
@@ -291,14 +285,6 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           </button>
         </div>
       </div>
-
-      {/* Profile Switcher Modal */}
-      <ProfileSwitcherModal
-        isOpen={isProfileSwitcherOpen}
-        onClose={() => setIsProfileSwitcherOpen(false)}
-        currentUserId={currentUserId}
-        currentUserName={currentUserName}
-      />
     </>
   );
 }

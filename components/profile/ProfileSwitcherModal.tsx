@@ -141,7 +141,7 @@ export function ProfileSwitcherModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Switch Workspace">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-6 sm:pb-2">
         {!targetProfile ? (
           /* ============================================================
              1. PRIME VIDEO DUAL PROFILE SELECTION CARDS
@@ -287,7 +287,7 @@ export function ProfileSwitcherModal({
             )}
 
             {/* Keypad Grid (3 columns) */}
-            <div className="grid grid-cols-3 gap-2.5 w-full max-w-[240px] my-2">
+            <div className="grid grid-cols-3 gap-2.5 w-full max-w-[240px] my-2 pb-6 sm:pb-2">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
                 <button
                   key={digit}

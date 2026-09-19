@@ -30,14 +30,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { ProfileAvatar } from "../ui/ProfileAvatar";
-import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
   onOpenSearch?: () => void;
+  onOpenProfileSwitcher?: () => void;
 }
 
-export function Navbar({ onOpenQuickAdd, onOpenSearch }: NavbarProps) {
+export function Navbar({ onOpenQuickAdd, onOpenSearch, onOpenProfileSwitcher }: NavbarProps) {
   const pathname = usePathname();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -46,7 +46,6 @@ export function Navbar({ onOpenQuickAdd, onOpenSearch }: NavbarProps) {
   // Active User Profile State
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
-  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   const handleLockPortal = async () => {
     try {
@@ -251,7 +250,13 @@ export function Navbar({ onOpenQuickAdd, onOpenSearch }: NavbarProps) {
           {/* Active Profile Switcher Trigger */}
           <button
             type="button"
-            onClick={() => setIsProfileSwitcherOpen(true)}
+            onClick={() => {
+              if (onOpenProfileSwitcher) {
+                onOpenProfileSwitcher();
+              } else {
+                window.dispatchEvent(new CustomEvent("open-profile-switcher"));
+              }
+            }}
             className="flex items-center gap-1.5 p-1 sm:pr-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 transition-all cursor-pointer active:scale-95 group"
             title={`Active Workspace: ${currentUserName}. Click to switch.`}
           >
@@ -277,14 +282,6 @@ export function Navbar({ onOpenQuickAdd, onOpenSearch }: NavbarProps) {
           </button>
         </div>
       </div>
-
-      {/* Profile Switcher Modal */}
-      <ProfileSwitcherModal
-        isOpen={isProfileSwitcherOpen}
-        onClose={() => setIsProfileSwitcherOpen(false)}
-        currentUserId={currentUserId}
-        currentUserName={currentUserName}
-      />
     </header>
   );
 }

@@ -40,7 +40,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
-import { ProfileSwitcherModal } from "@/components/profile/ProfileSwitcherModal";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { autoLock } from "@/lib/autoLock";
 import { haptics } from "@/lib/haptics";
@@ -126,7 +125,6 @@ export default function SettingsPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
   const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
-  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   // Auto-Lock State
   const [autoLockMinutes, setAutoLockMinutes] = useState<number>(1);
@@ -502,7 +500,7 @@ export default function SettingsPage() {
             <Button
               variant="glass"
               size="sm"
-              onClick={() => setIsProfileSwitcherOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent("open-profile-switcher"))}
               className="text-xs gap-1.5"
             >
               <span>Switch Profile (PIN Required)</span>
@@ -1313,14 +1311,6 @@ export default function SettingsPage() {
         confirmText="Remove Biometrics"
         confirmVariant="red"
         iconType="warning"
-      />
-
-      {/* Profile Switcher Modal */}
-      <ProfileSwitcherModal
-        isOpen={isProfileSwitcherOpen}
-        onClose={() => setIsProfileSwitcherOpen(false)}
-        currentUserId={currentUserId}
-        currentUserName={currentUserName}
       />
 
       {/* Zero-Loss Restore Preview Modal */}

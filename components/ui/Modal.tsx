@@ -37,7 +37,7 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Dark frosted backdrop */}
       <div
         className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
@@ -64,7 +64,7 @@ export function Modal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-5 sm:p-6 pb-10 sm:pb-6 overflow-y-auto flex-1 overscroll-contain">{children}</div>
+        <div className="p-5 sm:p-6 pb-12 sm:pb-6 overflow-y-auto flex-1 overscroll-contain">{children}</div>
       </div>
     </div>
   );
