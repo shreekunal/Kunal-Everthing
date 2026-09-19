@@ -95,7 +95,7 @@ export const DEFAULT_MESSAGE_TEMPLATES = [
   {
     category: "LOVE",
     title: "I love you so much ❤️",
-    content: "I love you so much ❤️ Have an amazing day!",
+    content: "I love you so much ❤️",
   },
   {
     category: "AFFECTION",

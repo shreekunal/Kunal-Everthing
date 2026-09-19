@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    const { name, nickname, birthday, anniversary, phone, preferredChannel, preferences, notes } = body;
+    const { name, nickname, birthday, anniversary, phone, callLink, preferredChannel, preferences, notes } = body;
 
     const partner = await prisma.partner.upsert({
       where: { userId: user.id },
@@ -98,6 +98,7 @@ export async function POST(request: Request) {
         birthday: birthday || null,
         anniversary: anniversary || null,
         phone: phone || null,
+        callLink: callLink || null,
         preferredChannel: preferredChannel || "WHATSAPP",
         preferences: preferences || null,
         notes: notes || null,
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
         birthday: birthday || null,
         anniversary: anniversary || null,
         phone: phone || null,
+        callLink: callLink || null,
         preferredChannel: preferredChannel || "WHATSAPP",
         preferences: preferences || null,
         notes: notes || null,

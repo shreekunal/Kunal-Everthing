@@ -219,6 +219,7 @@ model Partner {
   birthday         String?             // YYYY-MM-DD
   anniversary      String?             // YYYY-MM-DD
   phone            String?             // e.g. +919876543210
+  callLink         String?             // WhatsApp call link (e.g. https://call.whatsapp.com/voice/...)
   preferredChannel String              @default("WHATSAPP") // WHATSAPP, CALL, TELEGRAM, OTHER
   preferences      String?             // Favorite food, flowers, wishes, etc.
   notes            String?
