@@ -2,6 +2,8 @@
 
 import React from "react";
 import { clsx } from "clsx";
+import maleAvatar from "@/public/male-avatar.png";
+import femaleAvatar from "@/public/female-avatar.png";
 
 export type Gender = "MALE" | "FEMALE";
 
@@ -29,7 +31,8 @@ export function ProfileAvatar({
     name.toLowerCase().includes("mradul") ||
     name.toLowerCase().includes("golu");
 
-  const avatarSrc = isFemale ? "/female-avatar.png" : "/male-avatar.png";
+  // Use hashed static import to prevent any mobile browser caching of old icons
+  const avatarSrc = isFemale ? femaleAvatar.src : maleAvatar.src;
 
   // Size configurations
   const sizeClasses = {
