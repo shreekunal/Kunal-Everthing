@@ -25,8 +25,8 @@ export async function middleware(request: NextRequest) {
     pathname === "/manifest.json" ||
     pathname === "/BrandLogo.png" ||
     pathname === "/BrandLogo.svg" ||
-    pathname === "/male-avatar.svg" ||
-    pathname === "/female-avatar.svg" ||
+    pathname === "/male-avatar.png" ||
+    pathname === "/female-avatar.png" ||
     pathname.startsWith("/icons/") ||
     pathname === "/sw.js"
   ) {
