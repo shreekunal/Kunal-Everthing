@@ -36,6 +36,7 @@ import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal
 import { PixelPet } from "@/components/discipline/PixelPet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
+import { offlineCache } from "@/lib/offlineCache";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -48,36 +49,25 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch("/api/dashboard", { cache: "no-store" });
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      await offlineCache.swr(
+        "dashboard",
+        async () => {
+          const res = await fetch("/api/dashboard", { cache: "no-store" });
+          if (!res.ok) throw new Error("Failed to fetch dashboard data");
+          return res.json();
+        },
+        (cached) => {
+          setData(cached);
+          setLoading(false);
+          setIsOffline(false);
+        }
+      ).then((fresh) => {
+        setData(fresh);
         setIsOffline(false);
-        if (typeof window !== "undefined") {
-          localStorage.setItem(
-            "everything_dashboard_cache",
-            JSON.stringify({
-              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-              data: json,
-            })
-          );
-        }
-      } else {
-        throw new Error("Failed to fetch dashboard data");
-      }
+      });
     } catch (err) {
-      console.warn("Using offline dashboard cache if available:", err);
-      if (typeof window !== "undefined") {
-        const cached = localStorage.getItem("everything_dashboard_cache");
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            setData(parsed.data);
-            setCacheTime(parsed.timestamp);
-            setIsOffline(true);
-          } catch {}
-        }
-      }
+      console.warn("Using offline dashboard fallback:", err);
+      setIsOffline(true);
     } finally {
       setLoading(false);
     }

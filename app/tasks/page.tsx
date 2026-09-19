@@ -28,6 +28,7 @@ import { format, addHours, setHours, setMinutes, addDays } from "date-fns";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
+import { offlineCache } from "@/lib/offlineCache";
 import {
   Select,
   SelectContent,
@@ -73,11 +74,20 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch("/api/tasks");
-      if (res.ok) {
-        const data = await res.json();
-        setTasks(data.tasks || []);
-      }
+      await offlineCache.swr(
+        "tasks",
+        async () => {
+          const res = await fetch("/api/tasks");
+          if (!res.ok) throw new Error("Failed to fetch tasks");
+          return res.json();
+        },
+        (cached) => {
+          setTasks(cached.tasks || []);
+          setLoading(false);
+        }
+      ).then((fresh) => {
+        setTasks(fresh.tasks || []);
+      });
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
     } finally {

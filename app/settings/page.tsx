@@ -29,10 +29,20 @@ import {
   Heart,
   CheckSquare,
   Users,
+  Upload,
+  FileCheck,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { ProfileSwitcherModal } from "@/components/profile/ProfileSwitcherModal";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
+import { autoLock } from "@/lib/autoLock";
 import { haptics } from "@/lib/haptics";
 import {
   scheduleCoreDailyNotifications,
@@ -118,6 +128,18 @@ export default function SettingsPage() {
   const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
   const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
+  // Auto-Lock State
+  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(5);
+  const [autoLockSavedMessage, setAutoLockSavedMessage] = useState("");
+
+  // Backup & Restore State
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const [restorePreview, setRestorePreview] = useState<any | null>(null);
+  const [restoreFilePayload, setRestoreFilePayload] = useState<any | null>(null);
+  const [restoreMessage, setRestoreMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Fetch initial security status
   useEffect(() => {
     async function loadSecurityStatus() {
@@ -132,6 +154,14 @@ export default function SettingsPage() {
           if (data.userId) setCurrentUserId(data.userId);
           if (data.userName) setCurrentUserName(data.userName);
           if (data.profiles) setAvailableProfiles(data.profiles);
+        }
+
+        const setRes = await fetch("/api/settings");
+        if (setRes.ok) {
+          const setData = await setRes.json();
+          if (setData.settings?.vaultAutoLockMinutes !== undefined) {
+            setAutoLockMinutes(setData.settings.vaultAutoLockMinutes);
+          }
         }
 
         if (typeof window !== "undefined") {
@@ -298,38 +328,102 @@ export default function SettingsPage() {
     }
   };
 
-  const handleExportData = async () => {
+  const handleUpdateAutoLock = async (val: string) => {
+    const mins = parseInt(val, 10);
+    setAutoLockMinutes(mins);
+    autoLock.setMinutes(mins);
+    haptics.selection();
     try {
-      const [dash, tasks, routines, money, dates] = await Promise.all([
-        fetch("/api/dashboard").then((r) => r.json()),
-        fetch("/api/tasks").then((r) => r.json()),
-        fetch("/api/routines").then((r) => r.json()),
-        fetch("/api/money").then((r) => r.json()),
-        fetch("/api/dates").then((r) => r.json()),
-      ]);
+      await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaultAutoLockMinutes: mins }),
+      });
+      setAutoLockSavedMessage("Auto-lock schedule updated");
+      setTimeout(() => setAutoLockSavedMessage(""), 2500);
+    } catch {
+      // Ignore
+    }
+  };
 
-      const exportBlob = {
-        exportDate: new Date().toISOString(),
-        version: "2.0",
-        data: {
-          dashboard: dash,
-          tasks: tasks.tasks,
-          routines: routines.routines,
-          finances: money,
-          importantDates: dates.dates,
-        },
-      };
-
-      const jsonStr = JSON.stringify(exportBlob, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
+  const handleExportBackup = async () => {
+    setExportingBackup(true);
+    haptics.selection();
+    try {
+      const res = await fetch("/api/backup?download=true");
+      if (!res.ok) throw new Error("Failed to generate backup");
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `kunal-os-backup-${new Date().toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Failed to export backup data.");
+      haptics.success();
+    } catch (err: any) {
+      alert(err.message || "Failed to download backup");
+    } finally {
+      setExportingBackup(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || !parsed.data) {
+        alert("Invalid backup file: missing required data envelope.");
+        return;
+      }
+      // Dry-run verification with API
+      const dryRunRes = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ backup: parsed, dryRun: true }),
+      });
+      const dryRunData = await dryRunRes.json();
+      if (!dryRunRes.ok) {
+        alert(dryRunData.error || "Failed to verify backup file.");
+        return;
+      }
+      setRestoreFilePayload(parsed);
+      setRestorePreview(dryRunData);
+      haptics.selection();
+    } catch (err: any) {
+      alert("Failed to parse backup JSON file: " + err.message);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreFilePayload) return;
+    setRestoringBackup(true);
+    haptics.warning();
+    try {
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ backup: restoreFilePayload, dryRun: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to restore backup");
+
+      haptics.success();
+      setRestorePreview(null);
+      setRestoreFilePayload(null);
+      setRestoreMessage({ text: "Zero-loss restore completed successfully!" });
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+      setTimeout(() => {
+        setRestoreMessage(null);
+        window.location.reload();
+      }, 1200);
+    } catch (err: any) {
+      alert(err.message || "Restore failed");
+    } finally {
+      setRestoringBackup(false);
     }
   };
 
@@ -514,6 +608,41 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* Autonomous Auto-Lock & Backgrounding Timeout */}
+          <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-zinc-500 font-mono block mb-0.5 uppercase text-[10px]">
+                Autonomous Auto-Lock &amp; Inactivity Timeout
+              </span>
+              <p className="text-xs text-zinc-400">
+                Lock portal when the app is backgrounded on mobile or left idle.
+              </p>
+              {autoLockSavedMessage && (
+                <span className="text-[10px] font-mono text-emerald-400 mt-1 block">
+                  ✓ {autoLockSavedMessage}
+                </span>
+              )}
+            </div>
+            <div className="w-full sm:w-56 flex-shrink-0">
+              <Select
+                value={autoLockMinutes.toString()}
+                onValueChange={handleUpdateAutoLock}
+              >
+                <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Select Auto-Lock Timer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">⚡ Immediate (On App Background)</SelectItem>
+                  <SelectItem value="1">⏱️ 1 Minute Inactivity</SelectItem>
+                  <SelectItem value="5">⏱️ 5 Minutes (Default)</SelectItem>
+                  <SelectItem value="15">⏱️ 15 Minutes</SelectItem>
+                  <SelectItem value="30">⏱️ 30 Minutes</SelectItem>
+                  <SelectItem value="-1">🛡️ Never (Manual Lock Only)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Quick Lock Button */}
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
             <span className="text-zinc-400">Lock your portal immediately:</span>
@@ -612,18 +741,77 @@ export default function SettingsPage() {
         </CardHeader>
 
         <div className="space-y-4 text-xs">
+          {/* Export Backup */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
             <div>
-              <p className="font-semibold text-white">Download Full JSON Backup</p>
+              <p className="font-semibold text-white flex items-center gap-2">
+                <span>Download Cryptographic Backup</span>
+                <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                  SHA-256 Verified
+                </span>
+              </p>
               <p className="text-zinc-400 text-[11px] mt-0.5">
-                Export all tasks, routines, credit cards, bank accounts, and dates to an offline JSON file.
+                Export complete encrypted vault, tasks, habits, finances, cards, and relationship logs to a tamper-proof JSON.
               </p>
             </div>
-            <Button variant="red" size="sm" onClick={handleExportData}>
+            <Button
+              variant="red"
+              size="sm"
+              onClick={handleExportBackup}
+              isLoading={exportingBackup}
+              className="shadow-glow-red whitespace-nowrap"
+            >
               <Download className="w-3.5 h-3.5" />
-              <span>Export Backup</span>
+              <span>Export Full Backup</span>
             </Button>
           </div>
+
+          {/* Zero-Loss Restore */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
+            <div>
+              <p className="font-semibold text-white flex items-center gap-2">
+                <span>Restore From Backup</span>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  Zero-Loss Sync
+                </span>
+              </p>
+              <p className="text-zinc-400 text-[11px] mt-0.5">
+                Import an existing Everything OS backup JSON. Atomic database transaction prevents any corrupted writes.
+              </p>
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                variant="glass"
+                size="sm"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="whitespace-nowrap"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Select Backup File</span>
+              </Button>
+            </div>
+          </div>
+
+          {restoreMessage && (
+            <div
+              className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-mono ${
+                restoreMessage.error
+                  ? "bg-red-500/10 border-red-500/30 text-brand-red"
+                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>{restoreMessage.text}</span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-brand-red/[0.03] rounded-xl border border-brand-red/30 shadow-glow-red-subtle">
             <div>
@@ -1134,6 +1322,86 @@ export default function SettingsPage() {
         currentUserId={currentUserId}
         currentUserName={currentUserName}
       />
+
+      {/* Zero-Loss Restore Preview Modal */}
+      <Modal
+        isOpen={!!restorePreview}
+        onClose={() => {
+          setRestorePreview(null);
+          setRestoreFilePayload(null);
+        }}
+        title="📥 Confirm Zero-Loss Restore"
+      >
+        <div className="space-y-4 text-xs font-mono">
+          <p className="text-zinc-300">
+            A valid backup has been parsed and verified. Review the items to be synchronized:
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 p-3 bg-white/[0.03] border border-white/10 rounded-xl">
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Tasks</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.tasks ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Routines</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.routines ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Bank Accounts</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.accounts ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Credit Cards</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.creditCards ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Debit Cards</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.debitCards ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Vault Items</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.vaultItems ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Important Dates</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.importantDates ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
+              <span className="text-zinc-400">Work Sessions</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.workSessions ?? 0}</span>
+            </div>
+          </div>
+
+          {restorePreview?.exportDate && (
+            <p className="text-[11px] text-zinc-500">
+              Backup created on: {new Date(restorePreview.exportDate).toLocaleString()}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
+            <Button
+              type="button"
+              variant="glass"
+              onClick={() => {
+                setRestorePreview(null);
+                setRestoreFilePayload(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="red"
+              isLoading={restoringBackup}
+              onClick={handleConfirmRestore}
+              className="shadow-glow-red font-bold"
+            >
+              <Upload className="w-3.5 h-3.5 mr-1" />
+              <span>Confirm &amp; Restore</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

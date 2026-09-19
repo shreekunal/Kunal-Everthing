@@ -5,7 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { Navbar } from "./Navbar";
 import { BottomNav } from "./BottomNav";
 import { QuickAddModal } from "../quick-add/QuickAddModal";
+import { CommandPalette } from "../search/CommandPalette";
+import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
+import { autoLock } from "@/lib/autoLock";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -16,7 +19,17 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddInitialTab, setQuickAddInitialTab] = useState<any>("task");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [exitToast, setExitToast] = useState<string | null>(null);
+
+  // Initialize Auto-Lock Manager (mobile backgrounding & web inactivity)
+  useEffect(() => {
+    if (pathname === "/login") return;
+    const cleanup = autoLock.init();
+    return () => {
+      cleanup();
+    };
+  }, [pathname]);
 
   // Initialize Intelligent Android Back Button & Popstate Navigation
   useEffect(() => {
@@ -45,6 +58,15 @@ export function AppShell({ children }: AppShellProps) {
     });
   }, [isQuickAddOpen]);
 
+  // Register Command Palette modal with back-button manager
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    return backButton.register(() => {
+      setIsSearchOpen(false);
+      return true; // consumed back action
+    });
+  }, [isSearchOpen]);
+
   // Deep-link / App Shortcut listener (?action=quickadd&tab=...)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -61,10 +83,14 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, []);
 
-  // Global Ctrl+N / Cmd+N listener
+  // Global Keyboard Shortcuts (Cmd+K / Ctrl+K for search, Cmd+N / Ctrl+N for quick add)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === "n") {
         e.preventDefault();
         setQuickAddInitialTab("task");
         setIsQuickAddOpen(true);
@@ -81,8 +107,14 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-foreground antialiased selection:bg-brand-red selection:text-white pb-28 md:pb-8 pt-2">
+      {/* Offline Mode Banner */}
+      <OfflineBanner />
+
       {/* Floating Glass Island Navbar */}
-      <Navbar onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+      <Navbar
+        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onOpenSearch={() => setIsSearchOpen(true)}
+      />
 
       {/* Full-Width Main Content */}
       <main className="flex-1 px-4 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto mt-5">
@@ -91,6 +123,16 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Mobile Floating Bottom Dock */}
       <BottomNav onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+
+      {/* Global Command Palette (Cmd + K / Mobile Search) */}
+      <CommandPalette
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onOpenQuickAdd={(tab) => {
+          if (tab) setQuickAddInitialTab(tab);
+          setIsQuickAddOpen(true);
+        }}
+      />
 
       {/* Global Quick Add Modal */}
       <QuickAddModal

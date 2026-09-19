@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { offlineCache } from "@/lib/offlineCache";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -40,13 +41,24 @@ export default function RoutinesPage() {
 
   const fetchRoutines = async () => {
     try {
-      const res = await fetch("/api/routines");
-      if (res.ok) {
-        const data = await res.json();
-        setRoutines(data.routines || []);
-        setPast14Days(data.past14Days || []);
-        setPast30Days(data.past30Days || data.past14Days || []);
-      }
+      await offlineCache.swr(
+        "routines",
+        async () => {
+          const res = await fetch("/api/routines");
+          if (!res.ok) throw new Error("Failed to fetch routines");
+          return res.json();
+        },
+        (cached) => {
+          setRoutines(cached.routines || []);
+          setPast14Days(cached.past14Days || []);
+          setPast30Days(cached.past30Days || cached.past14Days || []);
+          setLoading(false);
+        }
+      ).then((fresh) => {
+        setRoutines(fresh.routines || []);
+        setPast14Days(fresh.past14Days || []);
+        setPast30Days(fresh.past30Days || fresh.past14Days || []);
+      });
     } catch (err) {
       console.error("Failed to fetch routines:", err);
     } finally {

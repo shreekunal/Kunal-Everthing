@@ -24,6 +24,8 @@ import {
   Zap,
   UtensilsCrossed,
   ShieldAlert,
+  Wallet,
+  CreditCard,
 } from "lucide-react";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
 import { haptics } from "@/lib/haptics";
@@ -35,7 +37,7 @@ interface QuickAddModalProps {
   initialTab?: TabType;
 }
 
-type TabType = "task" | "routine" | "session" | "date" | "message" | "discipline";
+type TabType = "task" | "expense" | "routine" | "session" | "date" | "message" | "discipline";
 
 export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: QuickAddModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab || "task");
@@ -71,6 +73,17 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
   const [disciplineTitle, setDisciplineTitle] = useState("");
   const [disciplineNotes, setDisciplineNotes] = useState("");
 
+  // Expense states
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseSourceType, setExpenseSourceType] = useState<"ACCOUNT" | "CARD">("ACCOUNT");
+  const [expenseSourceId, setExpenseSourceId] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("Food & Dining");
+  const [expenseNotes, setExpenseNotes] = useState("");
+  const [financeData, setFinanceData] = useState<{
+    accounts: Array<{ id: string; name: string; balance: number; type: string }>;
+    creditCards: Array<{ id: string; name: string; currentOutstanding: number; last4: string }>;
+  }>({ accounts: [], creditCards: [] });
+
   React.useEffect(() => {
     if (initialTab) {
       setActiveTab(initialTab);
@@ -84,6 +97,22 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
       .then((data) => {
         if (data?.partner?.phone) {
           setPartnerPhone(data.partner.phone);
+        }
+      })
+      .catch(() => { });
+
+    fetch("/api/money")
+      .then((res) => res.json())
+      .then((data) => {
+        const accs = data.accounts || [];
+        const cards = data.creditCards || [];
+        setFinanceData({ accounts: accs, creditCards: cards });
+        if (accs.length > 0) {
+          setExpenseSourceType("ACCOUNT");
+          setExpenseSourceId(accs[0].id);
+        } else if (cards.length > 0) {
+          setExpenseSourceType("CARD");
+          setExpenseSourceId(cards[0].id);
         }
       })
       .catch(() => { });
@@ -306,8 +335,62 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
     }
   };
 
+  const handleCreateExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(expenseAmount);
+    if (isNaN(amt) || amt <= 0) {
+      alert("Please enter a valid expense amount");
+      return;
+    }
+    if (!expenseSourceId) {
+      alert("Please select a bank account or card");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (expenseSourceType === "ACCOUNT") {
+        const res = await fetch(`/api/money/${expenseSourceId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            adjustmentType: "DEBIT",
+            adjustmentAmount: amt,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to deduct from account balance");
+      } else {
+        const targetCard = financeData.creditCards.find((c) => c.id === expenseSourceId);
+        const currentOutstanding = targetCard ? targetCard.currentOutstanding : 0;
+        const res = await fetch(`/api/cards/${expenseSourceId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            currentOutstanding: currentOutstanding + amt,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to update card outstanding");
+      }
+
+      haptics.success();
+      setSuccessMessage("💸 Expense recorded & balance updated!");
+      setExpenseAmount("");
+      setExpenseNotes("");
+      if (onItemAdded) onItemAdded();
+      setTimeout(() => {
+        setSuccessMessage("");
+        onClose();
+      }, 750);
+    } catch (err: any) {
+      alert(err.message || "Failed to record expense");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
     { id: "task", label: "Task", icon: CheckSquare },
+    { id: "expense", label: "Expense", icon: Wallet },
     { id: "routine", label: "Routine", icon: Flame },
     { id: "discipline", label: "Discipline", icon: Trophy },
     { id: "session", label: "Work/Study", icon: BarChart3 },
@@ -315,11 +398,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
     { id: "message", label: "WhatsApp", icon: Heart },
   ];
 
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="⚡ Quick Add">
       {/* Mobile-Optimized Tab Switcher */}
-      <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 p-1.5 bg-black/80 border border-white/10 rounded-2xl mb-5">
+      <div className="grid grid-cols-4 sm:flex sm:items-center gap-1.5 p-1.5 bg-black/80 border border-white/10 rounded-2xl mb-5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -457,6 +539,114 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
             </Button>
             <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
               Create Task
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Expense Form */}
+      {activeTab === "expense" && (
+        <form onSubmit={handleCreateExpense} className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Amount (₹) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 font-mono font-bold text-sm">₹</span>
+              <input
+                type="number"
+                step="any"
+                min="0.01"
+                required
+                placeholder="0.00"
+                value={expenseAmount}
+                onChange={(e) => setExpenseAmount(e.target.value)}
+                className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 font-mono"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Payment Source / Account *
+              </label>
+              <Select
+                value={expenseSourceId ? `${expenseSourceType}:${expenseSourceId}` : ""}
+                onValueChange={(val) => {
+                  const [type, id] = val.split(":");
+                  setExpenseSourceType(type as "ACCOUNT" | "CARD");
+                  setExpenseSourceId(id);
+                }}
+              >
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Select Account or Card" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financeData.accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={`ACCOUNT:${acc.id}`}>
+                      🏦 {acc.name} (₹{acc.balance.toLocaleString("en-IN")})
+                    </SelectItem>
+                  ))}
+                  {financeData.creditCards.map((card) => (
+                    <SelectItem key={card.id} value={`CARD:${card.id}`}>
+                      💳 {card.name} •• {card.last4}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Category
+              </label>
+              <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Food & Dining">🍔 Food & Dining</SelectItem>
+                  <SelectItem value="Groceries">🛒 Groceries & Essentials</SelectItem>
+                  <SelectItem value="Travel & Fuel">⛽ Travel & Fuel</SelectItem>
+                  <SelectItem value="Shopping">🛍️ Shopping</SelectItem>
+                  <SelectItem value="Bills & Utilities">⚡ Bills & Utilities</SelectItem>
+                  <SelectItem value="Date Night">🌹 Date Night</SelectItem>
+                  <SelectItem value="Tech & Tools">💻 Tech & Subscriptions</SelectItem>
+                  <SelectItem value="Entertainment">🎬 Entertainment</SelectItem>
+                  <SelectItem value="Other">📦 Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+              Description / Notes (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Swiggy, Petrol, Groceries, Netflix"
+              value={expenseNotes}
+              onChange={(e) => setExpenseNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+            />
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
+              Cancel
+            </Button>
+            <Button
+              variant="red"
+              size="sm"
+              type="submit"
+              isLoading={loading}
+              className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red"
+            >
+              <Wallet className="w-3.5 h-3.5 mr-1.5" />
+              <span>Log Expense</span>
             </Button>
           </div>
         </form>
