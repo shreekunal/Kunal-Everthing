@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="femBg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stopColor="#1c1917" />
+      <stop offset="60%" stopColor="#0f0714" />
+      <stop offset="100%" stopColor="#000000" />
+    </radialGradient>
+
+    <!-- Rose Rim Lighting -->
+    <radialGradient id="roseAura" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.38" />
+      <stop offset="100%" stopColor="#f43f5e" stopOpacity="0" />
+    </radialGradient>
+
+    <!-- Hair Gradient -->
+    <linearGradient id="femHair" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#3f1422" />
+      <stop offset="50%" stopColor="#881337" />
+      <stop offset="100%" stopColor="#f43f5e" />
+    </linearGradient>
+
+    <!-- Face Gradient -->
+    <linearGradient id="femFace" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#fff5f5" />
+      <stop offset="100%" stopColor="#ffe4e6" />
+    </linearGradient>
+
+    <!-- Top / Dress Gradient -->
+    <linearGradient id="femDress" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#be123c" />
+      <stop offset="100%" stopColor="#4c0519" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="60" cy="60" r="58" fill="url(#femBg)" stroke="#f43f5e" stroke-width="1.5" stroke-opacity="0.4" />
+  <circle cx="60" cy="60" r="50" fill="url(#roseAura)" />
+
+  <!-- Flowing Hair Back Strands -->
+  <path d="M38 46 C28 60, 26 84, 38 106 C44 94, 46 80, 44 60 Z" fill="#881337" opacity="0.85" />
+  <path d="M82 46 C92 60, 94 84, 82 106 C76 94, 74 80, 76 60 Z" fill="#881337" opacity="0.85" />
+
+  <!-- Dress / Shoulders -->
+  <path d="M26 115 C28 94, 42 84, 60 84 C78 84, 92 94, 94 115 Z" fill="url(#femDress)" stroke="#9f1239" stroke-width="1.2" />
+
+  <!-- Elegant Rose Collarline -->
+  <path d="M46 85 C52 93, 68 93, 74 85 C78 95, 74 115, 74 115 L46 115 Z" fill="#ffe4e6" opacity="0.2" />
+
+  <!-- Neck -->
+  <path d="M53 69 L53 86 L67 86 L67 69 Z" fill="#ffe4e6" />
+  <path d="M53 77 C57 80, 63 80, 67 77 L67 86 L53 86 Z" fill="#fecdd3" opacity="0.6" />
+
+  <!-- Delicate Head / Face -->
+  <ellipse cx="60" cy="54" rx="19" ry="22" fill="url(#femFace)" />
+
+  <!-- Ears & Cute Stud Earrings -->
+  <ellipse cx="40" cy="55" rx="3" ry="5.5" fill="#ffe4e6" />
+  <ellipse cx="80" cy="55" rx="3" ry="5.5" fill="#ffe4e6" />
+  <circle cx="39" cy="58" r="1.8" fill="#fda4af" />
+  <circle cx="81" cy="58" r="1.8" fill="#fda4af" />
+
+  <!-- Hair Crown & Stylish Ponytail Top Bun -->
+  <circle cx="60" cy="20" r="10" fill="url(#femHair)" />
+  <circle cx="60" cy="20" r="6" fill="#f43f5e" opacity="0.9" />
+  <circle cx="60" cy="20" r="3" fill="#fda4af" />
+
+  <!-- Hair Front Bangs & Parting -->
+  <path d="M38 52 C35 30, 48 20, 60 20 C72 20, 85 30, 82 52 C78 38, 70 34, 60 34 C50 34, 42 38, 38 52 Z" fill="url(#femHair)" />
+  <!-- Sweeping Side Bangs -->
+  <path d="M40 40 C45 48, 52 50, 56 46 C52 40, 46 36, 40 40 Z" fill="#881337" opacity="0.7" />
+  <path d="M80 40 C75 48, 68 50, 64 46 C68 40, 74 36, 80 40 Z" fill="#881337" opacity="0.7" />
+
+  <!-- Eyebrows -->
+  <path d="M47 46 Q52 43 56 46" stroke="#4c0519" stroke-width="1.6" stroke-linecap="round" fill="none" />
+  <path d="M64 46 Q68 43 73 46" stroke="#4c0519" stroke-width="1.6" stroke-linecap="round" fill="none" />
+
+  <!-- Eyes with Eyelashes -->
+  <ellipse cx="51" cy="52" rx="3.5" ry="2.2" fill="#1c1917" />
+  <circle cx="52" cy="51" r="1.2" fill="#ffffff" />
+  <path d="M47 50 Q52 47 56 50" stroke="#881337" stroke-width="1.8" stroke-linecap="round" fill="none" />
+  <path d="M55 49 L58 48" stroke="#881337" stroke-width="1.2" stroke-linecap="round" />
+
+  <ellipse cx="69" cy="52" rx="3.5" ry="2.2" fill="#1c1917" />
+  <circle cx="70" cy="51" r="1.2" fill="#ffffff" />
+  <path d="M64 50 Q68 47 73 50" stroke="#881337" stroke-width="1.8" stroke-linecap="round" fill="none" />
+  <path d="M72 49 L75 48" stroke="#881337" stroke-width="1.2" stroke-linecap="round" />
+
+  <!-- Cute Rosy Blush -->
+  <ellipse cx="46" cy="58" rx="4" ry="2.2" fill="#f43f5e" opacity="0.45" />
+  <ellipse cx="74" cy="58" rx="4" ry="2.2" fill="#f43f5e" opacity="0.45" />
+
+  <!-- Cute Nose -->
+  <path d="M60 56 Q59 60 61 60" stroke="#fda4af" stroke-width="1.3" stroke-linecap="round" fill="none" />
+
+  <!-- Sweet Smile -->
+  <path d="M55 64 Q60 68 65 64" stroke="#e11d48" stroke-width="1.8" stroke-linecap="round" fill="none" />
+</svg>

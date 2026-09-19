@@ -112,30 +112,20 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mb-2.5 cursor-pointer transition-colors"
           />
 
-          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
-            <div
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 px-1">
+            <button
+              type="button"
               onClick={() => {
                 haptics.impactMedium();
                 setIsDrawerOpen(false);
                 setIsProfileSwitcherOpen(true);
               }}
-              className="flex items-center gap-2 cursor-pointer p-1 rounded-xl hover:bg-white/[0.05] transition-colors"
-              title="Click to switch profile"
+              className="text-xs font-bold text-white uppercase tracking-wider font-mono hover:text-brand-red transition-colors flex items-center gap-2"
+              title="Switch Profile"
             >
-              <ProfileAvatar
-                name={currentUserName || "Kunal"}
-                gender={currentUserName.toLowerCase().includes("mradul") ? "FEMALE" : "MALE"}
-                size="sm"
-                isSelected
-              />
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-white font-mono leading-none flex items-center gap-1.5">
-                  <span>{currentUserName || "Kunal"}</span>
-                  <span className="text-[9px] text-zinc-500 font-mono">(Switch)</span>
-                </span>
-                <span className="text-[9px] text-zinc-400 font-mono mt-0.5">Active Workspace</span>
-              </div>
-            </div>
+              <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
+              <span>{currentUserName || "Kunal"}</span>
+            </button>
             <button
               onClick={() => {
                 haptics.impactLight();
