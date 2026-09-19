@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { InputDate } from "@/components/ui/InputDate";
 import { formatDate } from "@/lib/formatters";
 import {
   Heart,
@@ -370,22 +371,20 @@ export default function RelationshipPage() {
               <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
                 Birthday
               </label>
-              <input
-                type="date"
+              <InputDate
                 value={partnerBirthday}
                 onChange={(e) => setPartnerBirthday(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                placeholder="Pick birthday..."
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
                 Anniversary Date
               </label>
-              <input
-                type="date"
+              <InputDate
                 value={partnerAnniversary}
                 onChange={(e) => setPartnerAnniversary(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                placeholder="Pick anniversary..."
               />
             </div>
           </div>

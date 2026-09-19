@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { InputDate } from "@/components/ui/InputDate";
 import { getDueStatus } from "@/lib/formatters";
 import {
   CheckSquare,
@@ -451,11 +452,10 @@ export default function TasksPage() {
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Due Date
               </label>
-              <input
-                type="date"
+              <InputDate
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                placeholder="Pick due date..."
               />
             </div>
             <div>
@@ -511,14 +511,14 @@ export default function TasksPage() {
               <label className="block text-[10px] font-mono text-zinc-500 mb-1 uppercase">
                 Or Custom Date & Time
               </label>
-              <input
+              <InputDate
                 type="datetime-local"
                 value={customRemindAt}
+                placeholder="Pick custom reminder time..."
                 onChange={(e) => {
                   setCustomRemindAt(e.target.value);
                   setReminderPreset(e.target.value ? "CUSTOM" : "NONE");
                 }}
-                className="w-full px-3 py-1.5 rounded-xl bg-black border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
               />
             </div>
           </div>

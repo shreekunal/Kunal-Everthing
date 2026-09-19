@@ -18,6 +18,7 @@ import {
   Settings,
   Lock,
   Trophy,
+  ChevronDown,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
@@ -57,36 +58,60 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
-      {isDrawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-40 md:hidden"
-          onClick={() => setIsDrawerOpen(false)}
-        />
-      )}
-
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Backdrop when extended */}
       <div
         className={clsx(
-          "fixed bottom-20 left-4 right-4 bg-black/95 backdrop-blur-3xl border border-white/15 rounded-3xl p-4 z-40 md:hidden shadow-glass-panel transition-all duration-200 transform",
+          "fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300",
+          isDrawerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => {
+          haptics.impactLight();
+          setIsDrawerOpen(false);
+        }}
+      />
+
+      {/* Unified Bottom Menu Container - Smoothly Extends Up */}
+      <div
+        className={clsx(
+          "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black/95 backdrop-blur-3xl border-t border-white/10 transition-all duration-300 ease-in-out shadow-2xl flex flex-col",
           isDrawerOpen
-            ? "translate-y-0 opacity-100 scale-100"
-            : "translate-y-8 opacity-0 pointer-events-none scale-95"
+            ? "rounded-t-3xl border-brand-red/30 shadow-glow-red-subtle max-h-[85vh]"
+            : "rounded-t-none max-h-20"
         )}
       >
-        <div className="flex items-center justify-between pb-3 mb-2 border-b border-white/10">
-          <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-            Navigation Menu
-          </span>
-          <button
-            onClick={() => setIsDrawerOpen(false)}
-            className="text-zinc-400 hover:text-white p-1"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Upper Extended Drawer Section */}
+        <div
+          className={clsx(
+            "transition-all duration-300 ease-in-out overflow-y-auto px-4",
+            isDrawerOpen
+              ? "max-h-[65vh] opacity-100 pt-3 pb-3"
+              : "max-h-0 opacity-0 p-0 pointer-events-none"
+          )}
+        >
+          {/* Grab Handle */}
+          <div
+            onClick={() => {
+              haptics.impactLight();
+              setIsDrawerOpen(false);
+            }}
+            className="w-12 h-1.5 bg-white/25 hover:bg-white/40 rounded-full mx-auto mb-3 cursor-pointer transition-colors"
+          />
 
-        <div className="grid grid-cols-1 gap-1">
+          <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-white/10">
+            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              Extended Navigation
+            </span>
+            <button
+              onClick={() => {
+                haptics.impactLight();
+                setIsDrawerOpen(false);
+              }}
+              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           <div className="space-y-1">
             {drawerNav.map((item) => {
               const Icon = item.icon;
@@ -125,83 +150,97 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
               haptics.warning();
               handleLockPortal();
             }}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-1 border-t border-white/5 pt-3"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium text-red-400 hover:bg-red-500/10 transition-colors w-full text-left mt-2 border-t border-white/5 pt-3"
           >
             <Lock className="w-4 h-4 text-red-400" />
             <span>Lock Everything Portal</span>
           </button>
         </div>
-      </div>
 
-      {/* Bottom Floating Glass Navigation Dock */}
-      <div className="fixed bottom-3 left-4 right-4 h-16 bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl z-30 md:hidden flex items-center justify-around px-2 shadow-glass-panel pb-safe">
-        {/* 1. Home */}
-        <Link
-          href="/"
-          onClick={() => haptics.selection()}
-          className={clsx(
-            "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
-          )}
-        >
-          <LayoutDashboard className="w-5 h-5 mb-0.5" />
-          <span>Home</span>
-        </Link>
+        {/* Lower Primary 5-Tab Bar */}
+        <div className="h-16 px-2 flex items-center justify-around pb-safe border-t border-white/5">
+          {/* 1. Home */}
+          <Link
+            href="/"
+            onClick={() => {
+              haptics.selection();
+              if (isDrawerOpen) setIsDrawerOpen(false);
+            }}
+            className={clsx(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
+              pathname === "/" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <LayoutDashboard className="w-5 h-5 mb-0.5" />
+            <span>Home</span>
+          </Link>
 
-        {/* 2. Tasks */}
-        <Link
-          href="/tasks"
-          onClick={() => haptics.selection()}
-          className={clsx(
-            "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/tasks" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
-          )}
-        >
-          <CheckSquare className="w-5 h-5 mb-0.5" />
-          <span>Tasks</span>
-        </Link>
+          {/* 2. Tasks */}
+          <Link
+            href="/tasks"
+            onClick={() => {
+              haptics.selection();
+              if (isDrawerOpen) setIsDrawerOpen(false);
+            }}
+            className={clsx(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
+              pathname === "/tasks" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <CheckSquare className="w-5 h-5 mb-0.5" />
+            <span>Tasks</span>
+          </Link>
 
-        {/* 3. Floating Quick Add Button */}
-        <div className="flex-1 flex justify-center -mt-6">
+          {/* 3. Floating Quick Add Button */}
+          <div className="flex-1 flex justify-center -mt-5">
+            <button
+              onClick={() => {
+                haptics.impactMedium();
+                if (isDrawerOpen) setIsDrawerOpen(false);
+                onOpenQuickAdd();
+              }}
+              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-95 transition-transform"
+              aria-label="Quick Add"
+            >
+              <Plus className="w-6 h-6 stroke-[2.5]" />
+            </button>
+          </div>
+
+          {/* 4. Relationship Hub */}
+          <Link
+            href="/relationship"
+            onClick={() => {
+              haptics.selection();
+              if (isDrawerOpen) setIsDrawerOpen(false);
+            }}
+            className={clsx(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
+              pathname === "/relationship" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <Heart className="w-5 h-5 mb-0.5" />
+            <span>Love</span>
+          </Link>
+
+          {/* 5. More Button (Toggles extending the menu up) */}
           <button
             onClick={() => {
-              haptics.impactMedium();
-              onOpenQuickAdd();
+              haptics.impactLight();
+              setIsDrawerOpen(!isDrawerOpen);
             }}
-            className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-95 transition-transform"
-            aria-label="Quick Add"
+            className={clsx(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-all",
+              isDrawerOpen ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
+            )}
           >
-            <Plus className="w-6 h-6 stroke-[2.5]" />
+            {isDrawerOpen ? (
+              <ChevronDown className="w-5 h-5 mb-0.5 animate-bounce" />
+            ) : (
+              <Menu className="w-5 h-5 mb-0.5" />
+            )}
+            <span>{isDrawerOpen ? "Close" : "More"}</span>
           </button>
         </div>
-
-        {/* 4. Relationship Hub */}
-        <Link
-          href="/relationship"
-          onClick={() => haptics.selection()}
-          className={clsx(
-            "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            pathname === "/relationship" ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
-          )}
-        >
-          <Heart className="w-5 h-5 mb-0.5" />
-          <span>Love</span>
-        </Link>
-
-        {/* 5. More Drawer */}
-        <button
-          onClick={() => {
-            haptics.impactLight();
-            setIsDrawerOpen(!isDrawerOpen);
-          }}
-          className={clsx(
-            "flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-mono transition-colors",
-            isDrawerOpen ? "text-brand-red font-bold" : "text-zinc-400 hover:text-white"
-          )}
-        >
-          <Menu className="w-5 h-5 mb-0.5" />
-          <span>More</span>
-        </button>
       </div>
     </>
   );

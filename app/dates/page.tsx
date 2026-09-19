@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { InputDate } from "@/components/ui/InputDate";
 import { formatDate, getDueStatus } from "@/lib/formatters";
 import {
   Calendar as CalendarIcon,
@@ -248,12 +249,11 @@ export default function DatesPage() {
               <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
                 Date *
               </label>
-              <input
-                type="date"
+              <InputDate
                 required
                 value={dateVal}
                 onChange={(e) => setDateVal(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                placeholder="Select date..."
               />
             </div>
             <div>

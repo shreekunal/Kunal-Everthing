@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { InputDate } from "../ui/InputDate";
 import {
   CheckSquare,
   Flame,
@@ -379,11 +380,10 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Due Date
               </label>
-              <input
-                type="date"
+              <InputDate
                 value={taskDueDate}
                 onChange={(e) => setTaskDueDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
+                placeholder="Pick due date..."
               />
             </div>
           </div>
@@ -433,14 +433,14 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
             </div>
 
             <div className="pt-0.5">
-              <input
+              <InputDate
                 type="datetime-local"
                 value={taskCustomRemindAt}
+                placeholder="Pick custom reminder time..."
                 onChange={(e) => {
                   setTaskCustomRemindAt(e.target.value);
                   setTaskReminderPreset(e.target.value ? "CUSTOM" : "NONE");
                 }}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-black border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
               />
             </div>
           </div>
@@ -617,12 +617,11 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Date *
               </label>
-              <input
-                type="date"
+              <InputDate
                 required
                 value={dateValue}
                 onChange={(e) => setDateValue(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
+                placeholder="Select event date..."
               />
             </div>
           </div>
