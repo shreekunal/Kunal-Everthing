@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GROQ_API_KEY =
-  process.env.GROQ_API_KEY || "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";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
 const SYSTEM_PROMPT = `You are a deeply romantic, tender, and heartfelt writer crafting personal love messages from Kunal to his girlfriend/love.
 Generate exactly 5 unique, short, deeply affectionate love messages (1 to 2 sentences each).
@@ -44,9 +43,10 @@ export async function POST(req: NextRequest) {
       ? `Generate 5 fresh, deeply sweet, affectionate love messages for my love specifically tailored for: "${topic}". Keep the tone tender, loving, personal, and supportive from Kunal to his love (Golu). Return JSON array.`
       : "Generate 5 fresh, deeply sweet and affectionate love messages for my love. Return JSON array.";
 
-    for (const model of modelsToTry) {
-      try {
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    if (GROQ_API_KEY) {
+      for (const model of modelsToTry) {
+        try {
+          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${GROQ_API_KEY}`,
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
         console.warn(`Attempt with ${model} failed:`, err);
       }
     }
+  }
 
     if (!resultJson || !Array.isArray(resultJson) || resultJson.length === 0) {
       // Fallback to high-quality preset examples if network or API error occurs

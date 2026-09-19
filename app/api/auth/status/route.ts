@@ -9,12 +9,12 @@ export async function GET() {
   try {
     const cookieStore = cookies();
     const token = cookieStore.get("kunal_os_token")?.value;
-    const { kunal, mradul } = await ensureDualProfiles();
+    await ensureDualProfiles();
     const profiles = await getAvailableProfiles();
 
     let authenticated = false;
-    let authMethod = null;
-    let currentUser = kunal;
+    let authMethod: string | null = null;
+    let currentUser: any = null;
 
     if (token) {
       const payload = await verifySessionToken(token);
@@ -34,10 +34,10 @@ export async function GET() {
     return NextResponse.json({
       authenticated,
       authMethod,
-      userId: currentUser.id,
-      userName: currentUser.name || "Kunal",
-      userEmail: currentUser.email,
-      hasBiometrics: !!currentUser.biometricCredential,
+      userId: currentUser?.id || null,
+      userName: currentUser?.name || null,
+      userEmail: currentUser?.email || null,
+      hasBiometrics: currentUser ? !!currentUser.biometricCredential : false,
       profiles,
     });
   } catch (error: any) {

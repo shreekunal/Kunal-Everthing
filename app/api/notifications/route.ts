@@ -7,6 +7,9 @@ import { format } from "date-fns";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const todayStr = format(new Date(), "yyyy-MM-dd");
 
     // Dynamic Notifications Generator
@@ -82,6 +85,9 @@ export async function GET() {
 export async function PATCH() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     await prisma.notification.updateMany({
       where: { userId: user.id, isRead: false },
       data: { isRead: true },

@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // PASSWORD, CARD, NOTE, API_KEY, RECOVERY
 
@@ -39,6 +42,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
 
     const { type, title, category, iv, ciphertext, salt } = body;

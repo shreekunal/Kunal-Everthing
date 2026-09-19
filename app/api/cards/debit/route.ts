@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const debitCards = await prisma.debitCard.findMany({
       where: { userId: user.id, isArchived: false },
@@ -20,6 +23,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
 
     const { name, cardNumber, expiryDate, cvv, network, notes } = body;

@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const summary = await getDisciplineSummary(user.id);
     return NextResponse.json(summary);
   } catch (error: any) {
@@ -23,6 +26,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
     const { action, points, title, reason, notes, itemId } = body;
 

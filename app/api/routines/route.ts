@@ -6,6 +6,9 @@ import { format, subDays } from "date-fns";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const todayStr = format(new Date(), "yyyy-MM-dd");
 
     // Fetch last 30 days for monthly matrix & heatmap
@@ -55,6 +58,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
     const { name, category, targetDays, targetDurationMinutes } = body;
 

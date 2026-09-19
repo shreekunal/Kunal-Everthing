@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "kunal-os-ultra-secure-jwt-secret-key-2026"
-);
+import { verifySessionToken, TOKEN_COOKIE_NAME } from "@/lib/jwt";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,16 +30,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("kunal_os_token")?.value;
+  const token = request.cookies.get(TOKEN_COOKIE_NAME)?.value;
   let isAuthenticated = false;
 
   if (token) {
-    try {
-      await jwtVerify(token, JWT_SECRET);
-      isAuthenticated = true;
-    } catch {
-      isAuthenticated = false;
-    }
+    const session = await verifySessionToken(token);
+    isAuthenticated = !!session?.userId;
   }
 
   // 2. If authenticated and on login page, redirect to home

@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
 
     const {
@@ -170,6 +173,9 @@ export async function POST(req: NextRequest) {
 export async function DELETE() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     await prisma.task.deleteMany({ where: { userId: user.id } });
     await prisma.routineCompletion.deleteMany({ where: { userId: user.id } });

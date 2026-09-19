@@ -6,6 +6,9 @@ import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // 1. Get partner profile
     let partner = await prisma.partner.findFirst({
@@ -61,6 +64,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
 
     if (body.action === "CREATE_TEMPLATE") {

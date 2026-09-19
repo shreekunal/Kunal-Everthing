@@ -11,6 +11,9 @@ export async function PATCH(
 ) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id } = params;
     const body = await request.json();
     const targetDate = body.date || format(new Date(), "yyyy-MM-dd");
@@ -137,6 +140,9 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id } = params;
 
     await prisma.routine.delete({

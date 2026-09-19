@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getCurrentUser,
-  getOrCreateDefaultUser,
   saveBiometricCredential,
   removeBiometricCredential,
   createSessionToken,
 } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await getCurrentUser();
     let credentialData = null;
 
-    if (user.biometricCredential) {
+    if (user?.biometricCredential) {
       try {
         credentialData = JSON.parse(user.biometricCredential);
       } catch {
@@ -27,14 +26,16 @@ export async function GET() {
     const challenge = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
 
     return NextResponse.json({
-      hasBiometrics: !!user.biometricCredential,
+      hasBiometrics: !!user?.biometricCredential,
       credentialId: credentialData?.id || null,
       challenge,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
+      user: user
+        ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          }
+        : null,
     });
   } catch (error: any) {
     console.error("Biometrics GET error:", error);
@@ -45,13 +46,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, credential } = body;
-
-    const user = await getOrCreateDefaultUser();
+    const { action, credential, userId } = body;
 
     if (action === "register") {
-      const token = req.cookies.get("kunal_os_token")?.value;
-      if (!token) {
+      const user = await getCurrentUser();
+      if (!user) {
         return NextResponse.json(
           { error: "Authentication required to enroll biometrics. Please log in first." },
           { status: 401 }
@@ -71,18 +70,39 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "verify") {
-      if (!user.biometricCredential) {
+      let targetUser = null;
+
+      if (userId) {
+        targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      } else {
+        // Look up registered biometric across profiles
+        const usersWithBio = await prisma.user.findMany({
+          where: { biometricCredential: { not: null } },
+        });
+
+        targetUser =
+          usersWithBio.find((u) => {
+            try {
+              const parsed = JSON.parse(u.biometricCredential!);
+              return parsed.id === credential?.id;
+            } catch {
+              return u.biometricCredential === credential?.id;
+            }
+          }) || usersWithBio[0] || null;
+      }
+
+      if (!targetUser || !targetUser.biometricCredential) {
         return NextResponse.json(
-          { error: "No biometric credential registered on this device." },
+          { error: "No biometric credential registered for this profile." },
           { status: 400 }
         );
       }
 
       let storedCred;
       try {
-        storedCred = JSON.parse(user.biometricCredential);
+        storedCred = JSON.parse(targetUser.biometricCredential);
       } catch {
-        storedCred = { id: user.biometricCredential };
+        storedCred = { id: targetUser.biometricCredential };
       }
 
       // If credential ID matches or is an authenticated native biometric hardware confirmation
@@ -96,14 +116,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const token = await createSessionToken(user.id, user.email, "biometric");
+      const token = await createSessionToken(targetUser.id, targetUser.email, "biometric");
 
       const response = NextResponse.json({
         success: true,
         user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
         },
       });
 

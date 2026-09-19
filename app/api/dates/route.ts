@@ -5,6 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const dates = await prisma.importantDate.findMany({
       where: { userId: user.id },
       orderBy: { date: "asc" },
@@ -19,6 +22,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
     const { name, date, category, repeatPattern, reminderDaysBefore, notes } = body;
 

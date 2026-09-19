@@ -1,13 +1,19 @@
-import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
+import {
+  createSessionToken,
+  verifySessionToken,
+  TOKEN_COOKIE_NAME,
+  getJwtSecretKey,
+} from "./jwt";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "kunal-os-ultra-secure-jwt-secret-key-2026"
-);
-
-const TOKEN_COOKIE_NAME = "kunal_os_token";
+export {
+  createSessionToken,
+  verifySessionToken,
+  TOKEN_COOKIE_NAME,
+  getJwtSecretKey,
+};
 
 export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 10);
@@ -23,27 +29,6 @@ export async function hashPin(pin: string): Promise<string> {
 
 export async function verifyPin(pin: string, hash: string): Promise<boolean> {
   return await bcrypt.compare(pin, hash);
-}
-
-export async function createSessionToken(userId: string, email: string, authMethod: string = "pin"): Promise<string> {
-  return await new SignJWT({ userId, email, authMethod })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("30d")
-    .sign(JWT_SECRET);
-}
-
-export async function verifySessionToken(token: string): Promise<{ userId: string; email: string; authMethod?: string } | null> {
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return {
-      userId: payload.userId as string,
-      email: payload.email as string,
-      authMethod: payload.authMethod as string,
-    };
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -283,27 +268,43 @@ export async function removeBiometricCredential(userId: string): Promise<boolean
 }
 
 /**
- * Get current authenticated user from cookie, or fallback to default single user
+ * Get current authenticated user from session cookie.
+ * In production, NO FALLBACK is permitted. Returns null if unauthenticated or invalid session.
  */
 export async function getCurrentUser() {
   try {
     const cookieStore = cookies();
     const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
 
-    if (token) {
-      const payload = await verifySessionToken(token);
-      if (payload?.userId) {
-        const user = await prisma.user.findUnique({
-          where: { id: payload.userId },
-          include: { settings: true },
-        });
-        if (user) return user;
-      }
+    if (!token) {
+      return null;
     }
 
-    return await getOrCreateDefaultUser();
-  } catch {
-    return await getOrCreateDefaultUser();
+    const payload = await verifySessionToken(token);
+    if (!payload?.userId) {
+      return null;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { settings: true },
+    });
+
+    return user;
+  } catch (error) {
+    console.error("getCurrentUser error:", error);
+    return null;
   }
+}
+
+/**
+ * Ensures an authenticated user exists, throwing an error if unauthenticated.
+ */
+export async function requireUser() {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error("Unauthorized: Valid session required");
+  }
+  return user;
 }
 

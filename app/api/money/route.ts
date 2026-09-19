@@ -6,6 +6,9 @@ import { format } from "date-fns";
 export async function GET() {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const accounts = await prisma.financialAccount.findMany({
       where: { userId: user.id, isArchived: false },
@@ -86,6 +89,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await request.json();
     const { name, type, category, balance } = body;
 
