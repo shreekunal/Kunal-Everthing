@@ -129,7 +129,7 @@ export default function SettingsPage() {
   const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   // Auto-Lock State
-  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(5);
+  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(1);
   const [autoLockSavedMessage, setAutoLockSavedMessage] = useState("");
 
   // Backup & Restore State
@@ -633,8 +633,8 @@ export default function SettingsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">⚡ Immediate (On App Background)</SelectItem>
-                  <SelectItem value="1">⏱️ 1 Minute Inactivity</SelectItem>
-                  <SelectItem value="5">⏱️ 5 Minutes (Default)</SelectItem>
+                  <SelectItem value="1">⏱️ 1 Minute (Default)</SelectItem>
+                  <SelectItem value="5">⏱️ 5 Minutes</SelectItem>
                   <SelectItem value="15">⏱️ 15 Minutes</SelectItem>
                   <SelectItem value="30">⏱️ 30 Minutes</SelectItem>
                   <SelectItem value="-1">🛡️ Never (Manual Lock Only)</SelectItem>

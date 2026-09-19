@@ -7,7 +7,7 @@ const STORAGE_KEY_BG_TS = "kunal_os_background_timestamp";
 
 class AutoLockManager {
   private inactivityTimer: NodeJS.Timeout | null = null;
-  private autoLockMinutes = 5; // Default 5 mins
+  private autoLockMinutes = 1; // Default 1 min
   private isInitialized = false;
 
   public getMinutes(): number {

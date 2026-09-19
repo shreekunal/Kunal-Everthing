@@ -15,7 +15,7 @@ export async function GET() {
       where: { userId: user.id },
       create: {
         userId: user.id,
-        vaultAutoLockMinutes: 5,
+        vaultAutoLockMinutes: 1,
         theme: "pitch-black",
         currency: "INR",
         timezone: "Asia/Kolkata",
