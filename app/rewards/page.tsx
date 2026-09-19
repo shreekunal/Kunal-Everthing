@@ -378,6 +378,7 @@ export default function RewardsPage() {
             <CardTitle>Discipline Matrix</CardTitle>
             <Badge variant="glass" size="sm">Rulebook</Badge>
           </CardHeader>
+          <div className="space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Deep Work / Focus Session</span>
               <span className="font-bold text-emerald-400">+1 XP / min</span>
