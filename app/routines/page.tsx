@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { haptics } from "@/lib/haptics";
+import { backButton } from "@/lib/backButton";
 import {
   Select,
   SelectContent,
@@ -57,17 +58,54 @@ export default function RoutinesPage() {
     fetchRoutines();
   }, []);
 
+  // Back Button integration: close open modals first
+  useEffect(() => {
+    if (!isAddModalOpen && !routineToDelete) return;
+    return backButton.register(() => {
+      if (isAddModalOpen) {
+        setIsAddModalOpen(false);
+        return true;
+      }
+      if (routineToDelete) {
+        setRoutineToDelete(null);
+        return true;
+      }
+      return false;
+    });
+  }, [isAddModalOpen, routineToDelete]);
+
   const handleToggleCompletion = async (routineId: string, date?: string) => {
     haptics.success();
+
+    // 1. Instant 0ms Optimistic UI update
+    setRoutines((prev) =>
+      prev.map((r) => {
+        if (r.id !== routineId) return r;
+        const willBeCompleted = !r.completedToday;
+        return {
+          ...r,
+          completedToday: willBeCompleted,
+          currentStreak: willBeCompleted
+            ? (r.currentStreak || 0) + 1
+            : Math.max(0, (r.currentStreak || 1) - 1),
+          pastHistory: r.pastHistory?.map((h: any) =>
+            h.date === date ? { ...h, completed: !h.completed } : h
+          ),
+        };
+      })
+    );
+
+    // 2. Silent background sync
     try {
       await fetch(`/api/routines/${routineId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date }),
       });
-      fetchRoutines();
     } catch (err) {
       console.error("Toggle routine error:", err);
+      // Revert from server on network failure
+      fetchRoutines();
     }
   };
 

@@ -14,6 +14,7 @@ import {
 import { authenticateDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { haptics } from "@/lib/haptics";
+import { backButton } from "@/lib/backButton";
 
 interface ProfileItem {
   id: string;
@@ -86,6 +87,15 @@ function LoginContent() {
     setPin("");
     setError("");
   };
+
+  // Back Button integration: if PIN pad is open, return to profile selector
+  useEffect(() => {
+    if (!selectedProfile) return;
+    return backButton.register(() => {
+      handleBackToProfiles();
+      return true;
+    });
+  }, [selectedProfile]);
 
   // Handle PIN verification for selected profile
   const handleVerifyPin = useCallback(

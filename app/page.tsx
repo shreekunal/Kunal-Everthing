@@ -35,6 +35,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
 import { PixelPet } from "@/components/discipline/PixelPet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { backButton } from "@/lib/backButton";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -81,6 +82,22 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  // Back Button integration: close open modal or dialog first
+  useEffect(() => {
+    if (!isEveningCheckinOpen && !confirmDeductType) return;
+    return backButton.register(() => {
+      if (isEveningCheckinOpen) {
+        setIsEveningCheckinOpen(false);
+        return true;
+      }
+      if (confirmDeductType) {
+        setConfirmDeductType(null);
+        return true;
+      }
+      return false;
+    });
+  }, [isEveningCheckinOpen, confirmDeductType]);
 
   useEffect(() => {
     // 1. Instant Cache Hydration: Render Pet, XP, and stats immediately (0ms)

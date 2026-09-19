@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Navbar } from "./Navbar";
 import { BottomNav } from "./BottomNav";
 import { QuickAddModal } from "../quick-add/QuickAddModal";
+import { backButton } from "@/lib/backButton";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -12,8 +13,37 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddInitialTab, setQuickAddInitialTab] = useState<any>("task");
+  const [exitToast, setExitToast] = useState<string | null>(null);
+
+  // Initialize Intelligent Android Back Button & Popstate Navigation
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const cleanup = backButton.init(
+      router,
+      () => window.location.pathname,
+      (msg) => {
+        setExitToast(msg);
+        clearTimeout(timer);
+        timer = setTimeout(() => setExitToast(null), 2000);
+      }
+    );
+    return () => {
+      cleanup();
+      clearTimeout(timer);
+    };
+  }, [router]);
+
+  // Register Quick Add modal with back-button manager
+  useEffect(() => {
+    if (!isQuickAddOpen) return;
+    return backButton.register(() => {
+      setIsQuickAddOpen(false);
+      return true; // consumed back action
+    });
+  }, [isQuickAddOpen]);
 
   // Deep-link / App Shortcut listener (?action=quickadd&tab=...)
   useEffect(() => {
@@ -71,7 +101,13 @@ export function AppShell({ children }: AppShellProps) {
           window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
         }}
       />
+
+      {/* Double-tap Back Button Toast Pill */}
+      {exitToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] px-4 py-2 rounded-full bg-zinc-900/95 border border-white/20 text-white text-xs font-mono font-medium shadow-2xl backdrop-blur-md pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {exitToast}
+        </div>
+      )}
     </div>
   );
 }
-

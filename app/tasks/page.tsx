@@ -27,6 +27,7 @@ import {
 import { format, addHours, setHours, setMinutes, addDays } from "date-fns";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
+import { backButton } from "@/lib/backButton";
 import {
   Select,
   SelectContent,
@@ -88,6 +89,30 @@ export default function TasksPage() {
     fetchTasks();
   }, []);
 
+  // Back Button integration: close open modals or dialogs first
+  useEffect(() => {
+    if (!isAddModalOpen && !taskToDelete && !isConfirmClearCompletedOpen && !quickReminderTaskId) return;
+    return backButton.register(() => {
+      if (isAddModalOpen) {
+        setIsAddModalOpen(false);
+        return true;
+      }
+      if (taskToDelete) {
+        setTaskToDelete(null);
+        return true;
+      }
+      if (isConfirmClearCompletedOpen) {
+        setIsConfirmClearCompletedOpen(false);
+        return true;
+      }
+      if (quickReminderTaskId) {
+        setQuickReminderTaskId(null);
+        return true;
+      }
+      return false;
+    });
+  }, [isAddModalOpen, taskToDelete, isConfirmClearCompletedOpen, quickReminderTaskId]);
+
   const calculateRemindAt = (preset: string, customVal: string): string | null => {
     const now = new Date();
     if (preset === "1_HOUR") {
@@ -114,15 +139,25 @@ export default function TasksPage() {
     } else {
       haptics.impactLight();
     }
+
+    // 1. Instant 0ms Optimistic Update (Immediate visual feedback)
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+
+    // 2. Silent background sync
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      fetchTasks();
     } catch (err) {
       console.error("Task toggle error:", err);
+      // Revert if network error
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: currentStatus } : t))
+      );
     }
   };
 

@@ -18,6 +18,26 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Mobile Touch Responsiveness & Elimination of 300ms Tap Delay */
+html,
+body,
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent accidental text selection on UI controls & navigation */
+nav,
+button,
+[role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Custom Sleek Dark Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

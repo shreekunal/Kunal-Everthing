@@ -17,11 +17,10 @@ import {
   Settings,
   Lock,
   Trophy,
-  ChevronDown,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
-
+import { backButton } from "@/lib/backButton";
 import { ProfileAvatar } from "../ui/ProfileAvatar";
 import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 
@@ -46,6 +45,24 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
       .catch(() => {});
   }, []);
 
+  // Back Button integration: close extended drawer if open
+  React.useEffect(() => {
+    if (!isDrawerOpen) return;
+    return backButton.register(() => {
+      setIsDrawerOpen(false);
+      return true;
+    });
+  }, [isDrawerOpen]);
+
+  // Back Button integration: close profile switcher modal if open
+  React.useEffect(() => {
+    if (!isProfileSwitcherOpen) return;
+    return backButton.register(() => {
+      setIsProfileSwitcherOpen(false);
+      return true;
+    });
+  }, [isProfileSwitcherOpen]);
+
   const handleLockPortal = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -53,13 +70,6 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
       window.location.href = "/login";
     }
   };
-
-  const mainNav = [
-    { name: "Home", href: "/", icon: LayoutDashboard },
-    { name: "Tasks", href: "/tasks", icon: CheckSquare },
-    { name: "Money", href: "/money", icon: Wallet },
-    { name: "Habits", href: "/routines", icon: Flame },
-  ];
 
   const extendedNav = [
     { name: "Money", href: "/money", icon: Wallet },
@@ -88,7 +98,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
       {/* Unified Bottom Menu Container - Smoothly Extends Up */}
       <div
         className={clsx(
-          "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black/95 backdrop-blur-3xl border-t border-white/10 transition-all duration-300 ease-in-out shadow-2xl flex flex-col",
+          "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black/95 backdrop-blur-3xl border-t border-white/10 transition-all duration-300 ease-in-out shadow-2xl flex flex-col select-none",
           isDrawerOpen
             ? "rounded-t-3xl border-brand-red/30 shadow-glow-red-subtle max-h-[85vh]"
             : "rounded-t-none max-h-20"
@@ -146,6 +156,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={true}
                   title={item.name}
                   aria-label={item.name}
                   onClick={() => {
@@ -180,11 +191,12 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           </div>
         </div>
 
-        {/* Lower Primary 5-Tab Bar (Icon-Only Minimalist Mobile Dock) */}
+        {/* Lower Primary 5-Tab Bar (Icon-Only Minimalist Mobile Dock with Eager Prefetching) */}
         <div className="h-16 px-3 flex items-center justify-around pb-safe border-t border-white/5">
           {/* 1. Home */}
           <Link
             href="/"
+            prefetch={true}
             aria-label="Home"
             onClick={() => {
               haptics.selection();
@@ -204,6 +216,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           {/* 2. Tasks */}
           <Link
             href="/tasks"
+            prefetch={true}
             aria-label="Tasks"
             onClick={() => {
               haptics.selection();
@@ -238,6 +251,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           {/* 4. Relationship Hub */}
           <Link
             href="/relationship"
+            prefetch={true}
             aria-label="Relationship"
             onClick={() => {
               haptics.selection();
