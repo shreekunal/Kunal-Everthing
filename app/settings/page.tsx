@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InputDate } from "@/components/ui/InputDate";
 import {
   Settings,
   Shield,
@@ -28,7 +29,6 @@ import {
   Heart,
   CheckSquare,
 } from "lucide-react";
-import { generateEmergencyRecoveryKey } from "@/lib/crypto/vault";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { haptics } from "@/lib/haptics";
 import {
@@ -40,7 +40,6 @@ import {
 export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
-  const [recoveryKey, setRecoveryKey] = useState("");
 
   // Quick Setup Modal & Form states
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
@@ -54,7 +53,7 @@ export default function SettingsPage() {
     investmentName: "",
     investmentBalance: "",
     cardName: "",
-    cardBank: "",
+    cardExpiry: "",
     cardNumber: "",
     cardCvv: "",
     cardLimit: "",
@@ -329,10 +328,10 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
           <Settings className="w-5 h-5 text-brand-red" />
-          System Settings & Vault Controls
+          System Settings & Security Controls
         </h2>
         <p className="text-xs text-zinc-400 font-mono mt-1">
-          App configuration, PIN & biometric lock, zero-knowledge encryption parameters, and full-stack data backups
+          App configuration, PIN & biometric lock, account preferences, and full-stack data backups
         </p>
       </div>
 
@@ -521,69 +520,6 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* Vault Security Parameters */}
-      <Card glow="red">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-brand-red" />
-            <CardTitle>Zero-Knowledge Vault Parameters</CardTitle>
-          </div>
-          <Badge variant="red" size="sm">
-            AES-256-GCM Active
-          </Badge>
-        </CardHeader>
-
-        <div className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="p-3 bg-white/[0.02] rounded-xl border border-white/10">
-              <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">
-                Clipboard Auto-Purge
-              </span>
-              <span className="font-bold text-white font-mono text-sm">
-                30 Seconds Countdown
-              </span>
-            </div>
-            <div className="p-3 bg-white/[0.02] rounded-xl border border-white/10">
-              <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">
-                Encryption Standard
-              </span>
-              <span className="font-bold text-brand-red font-mono text-sm">
-                PBKDF2-SHA256 + AES-GCM
-              </span>
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-300">Generate 24-character Emergency Recovery Kit:</span>
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={() => {
-                const key = generateEmergencyRecoveryKey();
-                setRecoveryKey(key);
-              }}
-            >
-              <Key className="w-3.5 h-3.5 text-brand-red" />
-              <span>Generate Recovery Key</span>
-            </Button>
-          </div>
-
-          {recoveryKey && (
-            <div className="p-4 bg-brand-red/5 border border-brand-red/30 rounded-xl text-center space-y-1">
-              <span className="text-[10px] text-zinc-400 uppercase font-mono block tracking-wider">
-                Emergency Zero-Knowledge Master Recovery Token
-              </span>
-              <span className="font-mono font-bold text-brand-red text-base select-all tracking-widest block">
-                {recoveryKey}
-              </span>
-              <span className="text-[10px] text-zinc-500 font-mono block">
-                Store offline in a secure physical location.
-              </span>
-            </div>
-          )}
-        </div>
-      </Card>
-
       {/* Backup & Presets */}
       <Card>
         <CardHeader>
@@ -761,11 +697,11 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Card Nickname
+                  Card Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Millennia / Amazon Pay"
+                  placeholder="e.g. HDFC Millennia / ICICI Amazon Pay"
                   value={setupForm.cardName}
                   onChange={(e) => setSetupForm({ ...setupForm, cardName: e.target.value })}
                   className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
@@ -774,14 +710,19 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Bank Name
+                  Expiry Date (MM/YY)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. HDFC Bank"
-                  value={setupForm.cardBank}
-                  onChange={(e) => setSetupForm({ ...setupForm, cardBank: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                  maxLength={5}
+                  placeholder="MM/YY (e.g. 08/29)"
+                  value={setupForm.cardExpiry}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    const formatted = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+                    setSetupForm({ ...setupForm, cardExpiry: formatted });
+                  }}
+                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
                 />
               </div>
 
@@ -896,11 +837,10 @@ export default function SettingsPage() {
                 <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
                   Anniversary Date
                 </label>
-                <input
-                  type="date"
+                <InputDate
                   value={setupForm.partnerAnniversary}
                   onChange={(e) => setSetupForm({ ...setupForm, partnerAnniversary: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+                  placeholder="Pick anniversary date..."
                 />
               </div>
 
@@ -908,11 +848,10 @@ export default function SettingsPage() {
                 <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
                   Birthday
                 </label>
-                <input
-                  type="date"
+                <InputDate
                   value={setupForm.partnerBirthday}
                   onChange={(e) => setSetupForm({ ...setupForm, partnerBirthday: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+                  placeholder="Pick birthday..."
                 />
               </div>
 

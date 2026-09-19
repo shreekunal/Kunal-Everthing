@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   CheckSquare,
   Wallet,
-  ShieldCheck,
   Plus,
   Menu,
   X,
@@ -43,12 +42,12 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
     { name: "Home", href: "/", icon: LayoutDashboard },
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Money", href: "/money", icon: Wallet },
-    { name: "Vault", href: "/vault", icon: ShieldCheck },
+    { name: "Habits", href: "/routines", icon: Flame },
   ];
 
   const extendedNav = [
-    { name: "Vault", href: "/vault", icon: ShieldCheck },
     { name: "Money", href: "/money", icon: Wallet },
+    { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Habits", href: "/routines", icon: Flame },
     { name: "Focus", href: "/progress", icon: BarChart3 },
     { name: "Discipline", href: "/rewards", icon: Trophy },
@@ -113,8 +112,8 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             </button>
           </div>
 
-          {/* 4x2 App Launcher Buttons Grid */}
-          <div className="grid grid-cols-4 gap-2 py-1">
+          {/* 4x2 App Launcher Buttons Grid - Sleek Single-Tile Design */}
+          <div className="grid grid-cols-4 gap-2.5 py-2">
             {extendedNav.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -122,49 +121,36 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  title={item.name}
+                  aria-label={item.name}
                   onClick={() => {
                     haptics.selection();
                     setIsDrawerOpen(false);
                   }}
                   className={clsx(
-                    "flex flex-col items-center justify-center p-2 rounded-2xl border transition-all active:scale-95 text-center group",
+                    "h-12 sm:h-13 rounded-2xl border flex items-center justify-center transition-all active:scale-90",
                     isActive
-                      ? "bg-brand-red/20 border-brand-red/50 text-white shadow-glow-red-subtle font-bold"
-                      : "bg-white/[0.03] hover:bg-white/[0.07] border-white/10 text-zinc-300 hover:text-white"
+                      ? "bg-brand-red border-brand-red text-white shadow-glow-red"
+                      : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
                   )}
                 >
-                  <div
-                    className={clsx(
-                      "w-10 h-10 rounded-xl flex items-center justify-center mb-1.5 transition-transform group-active:scale-90",
-                      isActive
-                        ? "bg-brand-red text-white shadow-glow-red"
-                        : "bg-white/[0.05] border border-white/10 text-zinc-200 group-hover:text-white group-hover:bg-white/10"
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-mono font-medium truncate w-full text-center">
-                    {item.name}
-                  </span>
+                  <Icon className="w-5 h-5" />
                 </Link>
               );
             })}
 
-            {/* 8th Button: Lock OS */}
+            {/* 8th Button: Lock OS - Single Sleek Tile */}
             <button
               type="button"
+              title="Lock Everything"
+              aria-label="Lock Everything"
               onClick={() => {
                 haptics.warning();
                 handleLockPortal();
               }}
-              className="flex flex-col items-center justify-center p-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-center transition-all active:scale-95 group"
+              className="h-12 sm:h-13 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-all active:scale-90"
             >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-1.5 bg-red-500/20 border border-red-500/40 text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                <Lock className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-mono font-medium text-red-400 truncate w-full text-center">
-                Lock Everything
-              </span>
+              <Lock className="w-5 h-5" />
             </button>
           </div>
         </div>

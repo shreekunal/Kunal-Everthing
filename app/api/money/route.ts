@@ -17,6 +17,11 @@ export async function GET() {
       orderBy: { currentOutstanding: "desc" },
     });
 
+    const debitCards = await prisma.debitCard.findMany({
+      where: { userId: user.id, isArchived: false },
+      orderBy: { createdAt: "desc" },
+    });
+
     const totalAssets = accounts
       .filter((a) => a.type === "ASSET")
       .reduce((acc, a) => acc + a.balance, 0);
@@ -70,6 +75,7 @@ export async function GET() {
       totalCardOutstanding,
       accounts,
       creditCards,
+      debitCards,
       snapshots,
     });
   } catch (error: any) {

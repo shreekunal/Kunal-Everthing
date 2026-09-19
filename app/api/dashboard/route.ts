@@ -11,18 +11,58 @@ export async function GET() {
   try {
     const user = await getCurrentUser();
     const todayStr = format(new Date(), "yyyy-MM-dd");
+    const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-    // Discipline & Rewards summary
-    const discipline = await getDisciplineSummary(user.id);
-
-    // 1. Fetch Today's Tasks + Overdue Tasks
-    const allTasks = await prisma.task.findMany({
-      where: {
-        userId: user.id,
-        isArchived: false,
-      },
-      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-    });
+    // Execute all queries in parallel to drastically cut down network round trips
+    const [
+      discipline,
+      allTasks,
+      routines,
+      creditCards,
+      accounts,
+      weekSessions,
+      importantDates,
+      partner,
+    ] = await Promise.all([
+      getDisciplineSummary(user.id, false),
+      prisma.task.findMany({
+        where: {
+          userId: user.id,
+          isArchived: false,
+        },
+        orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      }),
+      prisma.routine.findMany({
+        where: { userId: user.id, isArchived: false },
+        include: {
+          completions: {
+            where: { date: todayStr },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.creditCard.findMany({
+        where: { userId: user.id, isArchived: false },
+      }),
+      prisma.financialAccount.findMany({
+        where: { userId: user.id, isArchived: false },
+      }),
+      prisma.workSession.findMany({
+        where: {
+          userId: user.id,
+          date: { gte: weekStart, lte: weekEnd },
+        },
+      }),
+      prisma.importantDate.findMany({
+        where: { userId: user.id },
+        take: 3,
+        orderBy: { date: "asc" },
+      }),
+      prisma.partner.findFirst({
+        where: { userId: user.id },
+      }),
+    ]);
 
     const todayTasks = allTasks.filter((t) => {
       if (t.status === "DONE") return t.dueDate === todayStr;
@@ -32,17 +72,6 @@ export async function GET() {
 
     const completedTasksCount = allTasks.filter((t) => t.status === "DONE").length;
     const totalTasksCount = allTasks.length;
-
-    // 2. Fetch Routines & Today's Completions
-    const routines = await prisma.routine.findMany({
-      where: { userId: user.id, isArchived: false },
-      include: {
-        completions: {
-          where: { date: todayStr },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    });
 
     const routinesWithStatus = routines.map((r) => ({
       id: r.id,
@@ -54,11 +83,6 @@ export async function GET() {
     }));
 
     const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
-
-    // 3. Credit Cards & Next Payment Dues
-    const creditCards = await prisma.creditCard.findMany({
-      where: { userId: user.id, isArchived: false },
-    });
 
     const totalCardOutstanding = creditCards.reduce((acc, c) => acc + c.currentOutstanding, 0);
 
@@ -80,11 +104,6 @@ export async function GET() {
 
     const nextPaymentDue = upcomingCardDues.length > 0 ? upcomingCardDues[0] : null;
 
-    // 4. Accounts & Net Worth
-    const accounts = await prisma.financialAccount.findMany({
-      where: { userId: user.id, isArchived: false },
-    });
-
     const totalAssets = accounts
       .filter((a) => a.type === "ASSET")
       .reduce((acc, a) => acc + a.balance, 0);
@@ -96,17 +115,6 @@ export async function GET() {
     const totalLiabilities = totalCardOutstanding + otherLiabilities;
     const netWorth = totalAssets - totalLiabilities;
 
-    // 5. Work & Study Progress This Week
-    const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
-    const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
-
-    const weekSessions = await prisma.workSession.findMany({
-      where: {
-        userId: user.id,
-        date: { gte: weekStart, lte: weekEnd },
-      },
-    });
-
     const workMinutesWeek = weekSessions
       .filter((s) => s.type === "WORK")
       .reduce((acc, s) => acc + s.durationMinutes, 0);
@@ -114,17 +122,6 @@ export async function GET() {
     const studyMinutesWeek = weekSessions
       .filter((s) => s.type === "STUDY")
       .reduce((acc, s) => acc + s.durationMinutes, 0);
-
-    // 6. Important Upcoming Dates (Birthdays, Anniversaries)
-    const importantDates = await prisma.importantDate.findMany({
-      where: { userId: user.id },
-      take: 3,
-      orderBy: { date: "asc" },
-    });
-
-    const partner = await prisma.partner.findFirst({
-      where: { userId: user.id },
-    });
 
     return NextResponse.json({
       user: {

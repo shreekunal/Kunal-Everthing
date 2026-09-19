@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
       cardName,
       cardBank,
       cardNumber,
+      cardExpiry,
+      expiryDate,
       cardCvv,
       cardLimit,
       cardOutstanding,
@@ -64,9 +66,10 @@ export async function POST(req: NextRequest) {
         data: {
           userId: user.id,
           name: cardName,
-          bank: cardBank || "Bank",
+          bank: cardBank || "",
           network: "VISA",
           cardNumber: cleanNum || null,
+          expiryDate: cardExpiry || expiryDate || null,
           cvv: cardCvv || null,
           last4: derivedLast4,
           creditLimit: Number(cardLimit) || 100000,
@@ -174,6 +177,7 @@ export async function DELETE() {
     await prisma.workSession.deleteMany({ where: { userId: user.id } });
     await prisma.creditCardPayment.deleteMany({ where: { userId: user.id } });
     await prisma.creditCard.deleteMany({ where: { userId: user.id } });
+    await prisma.debitCard.deleteMany({ where: { userId: user.id } });
     await prisma.financialAccount.deleteMany({ where: { userId: user.id } });
     await prisma.netWorthSnapshot.deleteMany({ where: { userId: user.id } });
     await prisma.importantDate.deleteMany({ where: { userId: user.id } });

@@ -25,6 +25,7 @@ model User {
   workSessions      WorkSession[]
   accounts          FinancialAccount[]
   creditCards       CreditCard[]
+  debitCards        DebitCard[]
   cardPayments      CreditCardPayment[]
   netWorthSnapshots NetWorthSnapshot[]
   importantDates    ImportantDate[]
@@ -134,10 +135,11 @@ model CreditCard {
   userId             String
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name               String
-  bank               String
+  bank               String?             @default("")
   network            String              @default("VISA") // VISA, MASTERCARD, AMEX, RUPAY, OTHER
   last4              String
   cardNumber         String?             // Full 16-digit card number
+  expiryDate         String?             // MM/YY (e.g. 08/29)
   cvv                String?             // 3 or 4-digit security code
   creditLimit        Float               @default(100000.0)
   statementDate      Int                 @default(12)     // Day of month (1-31)
@@ -150,6 +152,22 @@ model CreditCard {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   payments           CreditCardPayment[]
+}
+
+model DebitCard {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  cardNumber String?  // Full 16-digit card number
+  last4      String?  // Last 4 digits
+  expiryDate String?  // MM/YY
+  cvv        String?  // 3-digit CVV
+  network    String   @default("VISA") // VISA, MASTERCARD, RUPAY, OTHER
+  notes      String?
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model CreditCardPayment {

@@ -37,6 +37,7 @@ export async function GET() {
         statementDate: c.statementDate,
         dueDate: c.dueDate,
         cardNumber: c.cardNumber,
+        expiryDate: c.expiryDate,
         cvv: c.cvv,
         autopay: c.autopay,
         daysRemaining: dueInfo.daysRemaining,
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       network,
       last4,
       cardNumber,
+      expiryDate,
       cvv,
       creditLimit,
       statementDate,
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return NextResponse.json(
         { error: "Card name is required" },
         { status: 400 }
@@ -89,11 +91,12 @@ export async function POST(request: Request) {
     const card = await prisma.creditCard.create({
       data: {
         userId: user.id,
-        name,
-        bank: bank || "Bank",
+        name: name.trim(),
+        bank: bank ? bank.trim() : "",
         network: network || "VISA",
         last4: computedLast4,
         cardNumber: cardNumber ? cardNumber.trim() : null,
+        expiryDate: expiryDate ? expiryDate.trim() : null,
         cvv: cvv ? cvv.trim() : null,
         creditLimit: parseFloat(creditLimit) || 100000.0,
         statementDate: parseInt(statementDate, 10) || 12,
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
         currentOutstanding: parseFloat(currentOutstanding) || 0.0,
         minDue: parseFloat(minDue) || (parseFloat(currentOutstanding) || 0) * 0.05,
         autopay: Boolean(autopay),
-        notes: notes || null,
+        notes: notes ? notes.trim() : null,
       },
     });
 

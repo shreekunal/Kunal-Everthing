@@ -5,6 +5,13 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { InputDate } from "../ui/InputDate";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   CheckSquare,
   Flame,
   BarChart3,
@@ -365,15 +372,16 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Priority
               </label>
-              <select
-                value={taskPriority}
-                onChange={(e) => setTaskPriority(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High (Urgent)</option>
-              </select>
+              <Select value={taskPriority} onValueChange={setTaskPriority}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High (Urgent)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
@@ -477,33 +485,35 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Category
               </label>
-              <select
-                value={routineCategory}
-                onChange={(e) => setRoutineCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="Health">Health</option>
-                <option value="Study">Study</option>
-                <option value="Work">Work</option>
-                <option value="Mindset">Mindset</option>
-                <option value="Finance">Finance</option>
-              </select>
+              <Select value={routineCategory} onValueChange={setRoutineCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Health">Health</SelectItem>
+                  <SelectItem value="Study">Study</SelectItem>
+                  <SelectItem value="Work">Work</SelectItem>
+                  <SelectItem value="Mindset">Mindset</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Frequency
               </label>
-              <select
-                value={routineDays}
-                onChange={(e) => setRoutineDays(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="DAILY">Daily</option>
-                <option value="MON_SAT">Mon - Sat</option>
-                <option value="WEEKDAYS">Weekdays only</option>
-                <option value="WEEKENDS">Weekends</option>
-                <option value="SUNDAY">Every Sunday</option>
-              </select>
+              <Select value={routineDays} onValueChange={setRoutineDays}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAILY">Daily</SelectItem>
+                  <SelectItem value="MON_SAT">Mon - Sat</SelectItem>
+                  <SelectItem value="WEEKDAYS">Weekdays only</SelectItem>
+                  <SelectItem value="WEEKENDS">Weekends</SelectItem>
+                  <SelectItem value="SUNDAY">Every Sunday</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -541,15 +551,16 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Type
               </label>
-              <select
-                value={sessionType}
-                onChange={(e) => setSessionType(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red font-mono"
-              >
-                <option value="WORK">Work</option>
-                <option value="STUDY">Study</option>
-                <option value="PERSONAL">Personal</option>
-              </select>
+              <Select value={sessionType} onValueChange={setSessionType}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORK">Work</SelectItem>
+                  <SelectItem value="STUDY">Study</SelectItem>
+                  <SelectItem value="PERSONAL">Personal</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
@@ -576,12 +587,12 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
         </form>
       )}
 
-      {/* Date Form */}
+      {/* Important Date Form */}
       {activeTab === "date" && (
         <form onSubmit={handleCreateDate} className="space-y-4">
           <div>
             <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Event Title *
+              Event / Date Name *
             </label>
             <input
               type="text"
@@ -599,17 +610,18 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Category
               </label>
-              <select
-                value={dateCategory}
-                onChange={(e) => setDateCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="BIRTHDAY">Birthday</option>
-                <option value="ANNIVERSARY">Anniversary</option>
-                <option value="BILL_DUE">Bill / Card Due</option>
-                <option value="DOCUMENT_EXPIRY">Doc Expiry</option>
-                <option value="CUSTOM">Custom</option>
-              </select>
+              <Select value={dateCategory} onValueChange={setDateCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BIRTHDAY">Birthday</SelectItem>
+                  <SelectItem value="ANNIVERSARY">Anniversary</SelectItem>
+                  <SelectItem value="BILL_DUE">Bill / Card Due</SelectItem>
+                  <SelectItem value="DOCUMENT_EXPIRY">Doc Expiry</SelectItem>
+                  <SelectItem value="CUSTOM">Custom</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">

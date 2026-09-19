@@ -29,6 +29,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { haptics } from "@/lib/haptics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RewardsPage() {
   const [data, setData] = useState<any>(null);
@@ -848,16 +855,17 @@ export default function RewardsPage() {
             <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
               Category
             </label>
-            <select
-              value={newPerkCategory}
-              onChange={(e) => setNewPerkCategory(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-            >
-              <option value="LEISURE">Leisure & Relax</option>
-              <option value="ENTERTAINMENT">Entertainment & Movies</option>
-              <option value="FOOD">Cheat Meal & Treats</option>
-              <option value="BUY">Purchase / Shopping</option>
-            </select>
+            <Select value={newPerkCategory} onValueChange={setNewPerkCategory}>
+              <SelectTrigger className="w-full h-10 rounded-xl bg-black/60 border-white/10 text-xs text-white font-mono">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LEISURE">Leisure & Relax</SelectItem>
+                <SelectItem value="ENTERTAINMENT">Entertainment & Movies</SelectItem>
+                <SelectItem value="FOOD">Cheat Meal & Treats</SelectItem>
+                <SelectItem value="BUY">Purchase / Shopping</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-white/10">

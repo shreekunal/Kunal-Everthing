@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -18,8 +18,17 @@ import {
   FileText,
   Clock,
   Sparkles,
+  Repeat,
+  AlertCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function DatesPage() {
   const [dates, setDates] = useState<any[]>([]);
@@ -35,6 +44,10 @@ export default function DatesPage() {
   const [repeatPattern, setRepeatPattern] = useState("YEARLY");
   const [reminderDays, setReminderDays] = useState("14,7,1,0");
   const [notes, setNotes] = useState("");
+
+  // Delete state
+  const [dateToDelete, setDateToDelete] = useState<any | null>(null);
+  const [isDeletingDate, setIsDeletingDate] = useState(false);
 
   const fetchDates = async () => {
     try {
@@ -63,25 +76,24 @@ export default function DatesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          name: name.trim(),
           date: dateVal,
           category,
           repeatPattern,
           reminderDaysBefore: reminderDays,
-          notes,
+          notes: notes ? notes.trim() : null,
         }),
       });
+      haptics.success();
       setName("");
       setDateVal("");
+      setNotes("");
       setIsAddModalOpen(false);
       fetchDates();
     } catch (err) {
       console.error("Create date error:", err);
     }
   };
-
-  const [dateToDelete, setDateToDelete] = useState<any | null>(null);
-  const [isDeletingDate, setIsDeletingDate] = useState(false);
 
   const handleExecuteDeleteDate = async () => {
     if (!dateToDelete) return;
@@ -99,12 +111,12 @@ export default function DatesPage() {
   };
 
   const CATEGORIES = [
-    { id: "ALL", label: "All" },
-    { id: "BIRTHDAY", label: "Birthdays" },
-    { id: "ANNIVERSARY", label: "Anniversaries" },
-    { id: "DOCUMENT_EXPIRY", label: "Documents" },
-    { id: "EXAM_DEADLINE", label: "Exams & Deadlines" },
-    { id: "CUSTOM", label: "Custom" },
+    { id: "ALL", label: "All", icon: Sparkles },
+    { id: "BIRTHDAY", label: "Birthdays", icon: Cake },
+    { id: "ANNIVERSARY", label: "Anniversaries", icon: Heart },
+    { id: "DOCUMENT_EXPIRY", label: "Docs", icon: FileText },
+    { id: "BILL_DUE", label: "Bills", icon: Bell },
+    { id: "CUSTOM", label: "Custom", icon: CalendarIcon },
   ];
 
   const filteredDates = dates.filter((d) => {
@@ -122,195 +134,234 @@ export default function DatesPage() {
     return !dueInfo.isOverdue && dueInfo.daysDiff > 30;
   });
 
+  const getCategoryIcon = (cat: string) => {
+    switch (cat) {
+      case "BIRTHDAY":
+        return <Cake className="w-4 h-4 text-brand-red" />;
+      case "ANNIVERSARY":
+        return <Heart className="w-4 h-4 text-brand-red fill-brand-red" />;
+      case "DOCUMENT_EXPIRY":
+        return <FileText className="w-4 h-4 text-amber-400" />;
+      case "BILL_DUE":
+        return <Bell className="w-4 h-4 text-red-400" />;
+      default:
+        return <CalendarIcon className="w-4 h-4 text-zinc-300" />;
+    }
+  };
+
   const renderDateCard = (d: any) => {
     const dueInfo = getDueStatus(d.date);
     const isUrgent = dueInfo.isOverdue || dueInfo.daysDiff <= 3;
+    const isWarning = dueInfo.daysDiff > 3 && dueInfo.daysDiff <= 14;
 
     return (
-      <Card
+      <div
         key={d.id}
-        glow={isUrgent ? "red" : undefined}
-        className="p-5 flex flex-col justify-between group"
+        className={`p-4 rounded-2xl border transition-all ${
+          isUrgent
+            ? "bg-red-500/[0.04] border-red-500/30 shadow-glow-red-subtle"
+            : isWarning
+            ? "bg-amber-500/[0.02] border-amber-500/20"
+            : "bg-white/[0.03] border-white/10 hover:border-white/20"
+        }`}
       >
-        <div>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red">
-                {d.category === "BIRTHDAY" && <Cake className="w-4 h-4 text-brand-red" />}
-                {d.category === "ANNIVERSARY" && <Heart className="w-4 h-4 text-brand-red fill-brand-red" />}
-                {d.category === "DOCUMENT_EXPIRY" && <FileText className="w-4 h-4 text-white" />}
-                {d.category !== "BIRTHDAY" &&
-                  d.category !== "ANNIVERSARY" &&
-                  d.category !== "DOCUMENT_EXPIRY" && (
-                    <CalendarIcon className="w-4 h-4 text-white" />
-                  )}
+        <div className="flex items-start gap-3">
+          {/* Category Avatar */}
+          <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center flex-shrink-0">
+            {getCategoryIcon(d.category)}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {/* Header: Title & Due Status Pill */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-white truncate">{d.name}</h4>
+                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-zinc-500 font-mono">
+                  <span>{d.category}</span>
+                  <span>•</span>
+                  <span>{d.repeatPattern}</span>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">{d.name}</h4>
-                <span className="text-[10px] text-zinc-500 font-mono">
-                  {d.category} • {d.repeatPattern}
-                </span>
-              </div>
+
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border flex-shrink-0 ${
+                  dueInfo.isOverdue
+                    ? "bg-red-500/20 border-red-500/40 text-red-400 animate-pulse"
+                    : dueInfo.isToday
+                    ? "bg-amber-500/20 border-amber-500/40 text-amber-300 font-bold"
+                    : isUrgent
+                    ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
+                    : "bg-white/[0.04] border-white/10 text-zinc-300"
+                }`}
+              >
+                {dueInfo.label}
+              </span>
             </div>
 
-            <Badge
-              variant={isUrgent ? "red" : "glass"}
-              size="sm"
-            >
-              {dueInfo.label}
-            </Badge>
+            {/* Target Date Box */}
+            <div className="mt-2.5 px-3 py-2 rounded-xl bg-black/50 border border-white/5 flex items-center justify-between text-xs font-mono">
+              <span className="text-zinc-500 text-[11px]">Event Date:</span>
+              <span className="font-bold text-white">{formatDate(d.date)}</span>
+            </div>
+
+            {d.notes && (
+              <p className="text-xs text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
+                {d.notes}
+              </p>
+            )}
+
+            {/* Bottom Meta & Delete */}
+            <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
+              <span className="flex items-center gap-1 text-zinc-400 text-[10px]">
+                <Bell className="w-3 h-3 text-brand-red" />
+                <span>Alerts: {d.reminderDaysBefore}d before</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.warning();
+                  setDateToDelete(d);
+                }}
+                className="p-1.5 text-zinc-500 hover:text-brand-red active:scale-90 transition-colors"
+                aria-label="Delete Date"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-
-          <div className="mt-4 p-3 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between text-xs font-mono">
-            <span className="text-zinc-400">Target Date:</span>
-            <span className="font-bold text-white">
-              {formatDate(d.date)}
-            </span>
-          </div>
-
-          {d.notes && (
-            <p className="text-xs text-zinc-400 mt-2.5 line-clamp-2">
-              {d.notes}
-            </p>
-          )}
         </div>
-
-        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-          <span className="flex items-center gap-1.5 text-zinc-400">
-            <Bell className="w-3 h-3 text-brand-red" />
-            Alerts: {d.reminderDaysBefore}d before
-          </span>
-          <button
-            onClick={() => {
-              haptics.warning();
-              setDateToDelete(d);
-            }}
-            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-zinc-500 hover:text-brand-red p-1 transition-all active:scale-90"
-            title="Delete date"
-            aria-label="Delete Event Date"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </Card>
+      </div>
     );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 pb-20 sm:pb-6">
+      {/* Mobile-Optimized Top Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-brand-red" />
             Important Dates & Reminders
           </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            Central schedule for birthdays, anniversaries, document renewals, and exams
+          <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+            {upcomingDates.length} upcoming in next 30 days • {dates.length} total scheduled
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              haptics.selection();
-              setProximityView(!proximityView);
-            }}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-mono transition-all ${
-              proximityView
-                ? "bg-white/10 border-white/20 text-white"
-                : "bg-white/[0.02] border-white/5 text-zinc-400 hover:text-white"
-            }`}
-          >
-            {proximityView ? "Grouped: 30d Proximity" : "Flat View"}
-          </button>
-          <Button variant="red" size="sm" onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            <span>New Date</span>
-          </Button>
+        <Button
+          variant="red"
+          size="sm"
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-9 px-3 text-xs font-bold shadow-glow-red flex items-center gap-1.5 flex-shrink-0"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>New</span>
+        </Button>
+      </div>
+
+      {/* Proximity View Mode Toggle */}
+      <div className="flex items-center justify-between gap-2 p-1 bg-black/80 border border-white/10 rounded-2xl">
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setProximityView(true);
+          }}
+          className={`flex-1 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+            proximityView
+              ? "bg-brand-red text-white font-bold shadow-glow-red"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          📅 Next 30 Days Focus
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setProximityView(false);
+          }}
+          className={`flex-1 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+            !proximityView
+              ? "bg-brand-red text-white font-bold shadow-glow-red"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          All Scheduled ({dates.length})
+        </button>
+      </div>
+
+      {/* Category Filter Row (No Horizontal Scroller) */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+          <Sparkles className="w-3.5 h-3.5 text-zinc-500" />
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">Event Type:</span>
         </div>
+
+        <Select
+          value={selectedCategory}
+          onValueChange={(val) => {
+            haptics.selection();
+            setSelectedCategory(val);
+          }}
+        >
+          <SelectTrigger className="w-[170px] h-8 bg-black/80 rounded-xl border-white/10 text-xs font-mono">
+            <SelectValue placeholder="Event Type" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {CATEGORIES.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.label} (
+                {cat.id === "ALL"
+                  ? dates.length
+                  : dates.filter((d) => d.category === cat.id).length}
+                )
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Category Pills Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {CATEGORIES.map((cat) => {
-          const count =
-            cat.id === "ALL"
-              ? dates.length
-              : dates.filter((d) => d.category === cat.id).length;
-          const isSelected = selectedCategory === cat.id;
-
-          return (
-            <button
-              key={cat.id}
-              onClick={() => {
-                haptics.selection();
-                setSelectedCategory(cat.id);
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
-                isSelected
-                  ? "bg-brand-red text-white border-brand-red shadow-glow-red"
-                  : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-              }`}
-            >
-              <span>{cat.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  isSelected ? "bg-black/30 text-white" : "bg-white/10 text-zinc-400"
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Dates Content */}
+      {/* Dates Feed */}
       {loading ? (
         <div className="p-12 text-center text-xs text-zinc-500 font-mono">
           Loading scheduled dates...
         </div>
       ) : filteredDates.length === 0 ? (
-        <div className="p-12 text-center text-xs text-zinc-500 font-mono border border-white/5 rounded-2xl bg-white/[0.02]">
-          No dates found for this category. Click &apos;New Date&apos; to schedule!
+        <div className="p-10 text-center text-xs text-zinc-500 font-mono bg-white/[0.02] border border-white/5 rounded-2xl">
+          No dates found in this category. Tap &apos;+ New&apos; to schedule!
         </div>
       ) : proximityView ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Upcoming Next 30 Days */}
           {upcomingDates.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 px-1">
                 <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
                 <h3 className="text-xs font-bold text-white tracking-wider uppercase font-mono">
-                  Upcoming (Next 30 Days) — {upcomingDates.length}
+                  Upcoming Within 30 Days ({upcomingDates.length})
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {upcomingDates.map(renderDateCard)}
-              </div>
+              <div className="space-y-2.5">{upcomingDates.map(renderDateCard)}</div>
             </div>
           )}
 
           {/* Later Dates */}
           {laterDates.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center gap-2 px-1">
                 <Clock className="w-3.5 h-3.5 text-zinc-500" />
                 <h3 className="text-xs font-bold text-zinc-400 tracking-wider uppercase font-mono">
-                  Later & Future Dates — {laterDates.length}
+                  Later Dates ({laterDates.length})
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {laterDates.map(renderDateCard)}
-              </div>
+              <div className="space-y-2.5">{laterDates.map(renderDateCard)}</div>
             </div>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDates.map(renderDateCard)}
-        </div>
+        <div className="space-y-2.5">{filteredDates.map(renderDateCard)}</div>
       )}
 
       {/* New Date Modal */}
@@ -321,57 +372,59 @@ export default function DatesPage() {
       >
         <form onSubmit={handleCreateDate} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
               Event Name *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Passport Expiry, Car Insurance, Mom Birthday"
+              placeholder="e.g. Passport Renewal, Car Insurance, Birthday"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all font-sans"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-mono"
               autoFocus
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Category
               </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
-              >
-                <option value="BIRTHDAY" className="bg-black text-white">Birthday</option>
-                <option value="ANNIVERSARY" className="bg-black text-white">Anniversary</option>
-                <option value="DOCUMENT_EXPIRY" className="bg-black text-white">Document Expiry</option>
-                <option value="BILL_DUE" className="bg-black text-white">Bill Due Date</option>
-                <option value="EXAM" className="bg-black text-white">Exam / Assessment</option>
-                <option value="CUSTOM" className="bg-black text-white">Custom Event</option>
-              </select>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BIRTHDAY">Birthday</SelectItem>
+                  <SelectItem value="ANNIVERSARY">Anniversary</SelectItem>
+                  <SelectItem value="DOCUMENT_EXPIRY">Doc Expiry</SelectItem>
+                  <SelectItem value="BILL_DUE">Bill Due Date</SelectItem>
+                  <SelectItem value="EXAM">Exam / Assessment</SelectItem>
+                  <SelectItem value="CUSTOM">Custom Event</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Repeat Pattern
               </label>
-              <select
-                value={repeatPattern}
-                onChange={(e) => setRepeatPattern(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
-              >
-                <option value="YEARLY" className="bg-black text-white">Every Year</option>
-                <option value="MONTHLY" className="bg-black text-white">Every Month</option>
-                <option value="ONCE" className="bg-black text-white">One-time only</option>
-              </select>
+              <Select value={repeatPattern} onValueChange={setRepeatPattern}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Repeat" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="YEARLY">Every Year</SelectItem>
+                  <SelectItem value="MONTHLY">Every Month</SelectItem>
+                  <SelectItem value="ONCE">One-time only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Date *
               </label>
               <InputDate
@@ -382,21 +435,21 @@ export default function DatesPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
-                Reminder Triggers (Days before)
+              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                Alert Days Before
               </label>
               <input
                 type="text"
                 value={reminderDays}
                 onChange={(e) => setReminderDays(e.target.value)}
                 placeholder="14,7,1,0"
-                className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
+            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
               Notes
             </label>
             <textarea
@@ -404,7 +457,7 @@ export default function DatesPage() {
               placeholder="Any key details or reminders..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all font-sans"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
             />
           </div>
 
@@ -431,7 +484,7 @@ export default function DatesPage() {
         onConfirm={handleExecuteDeleteDate}
         isLoading={isDeletingDate}
         title="Delete Important Date"
-        message={`Are you sure you want to delete "${dateToDelete?.name}"? All recurring alerts and annual countdowns for this date will be permanently cancelled.`}
+        message={`Are you sure you want to delete "${dateToDelete?.name}"? All recurring alerts for this date will be cancelled.`}
         confirmText="Delete Date"
         confirmVariant="red"
         iconType="danger"

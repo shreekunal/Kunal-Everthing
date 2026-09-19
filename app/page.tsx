@@ -81,6 +81,23 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    // 1. Instant Cache Hydration: Render Pet, XP, and stats immediately (0ms)
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("everything_dashboard_cache");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed?.data) {
+            setData(parsed.data);
+            setCacheTime(parsed.timestamp);
+            setLoading(false);
+          }
+        } catch (e) {
+          console.warn("Failed to parse cached dashboard data:", e);
+        }
+      }
+    }
+
     fetchDashboardData();
     const handleOnline = () => fetchDashboardData();
     const handleOffline = () => setIsOffline(true);

@@ -19,15 +19,33 @@ import {
   Tag,
   Bell,
   Clock,
+  Flame,
+  Filter,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { format, addHours, setHours, setMinutes, addDays } from "date-fns";
 import { haptics } from "@/lib/haptics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "COMPLETED" | "HIGH">("ACTIVE");
+  const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "HIGH" | "COMPLETED">("ACTIVE");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form states
@@ -45,6 +63,11 @@ export default function TasksPage() {
 
   // Inline Quick Reminder state
   const [quickReminderTaskId, setQuickReminderTaskId] = useState<string | null>(null);
+
+  // Delete states
+  const [taskToDelete, setTaskToDelete] = useState<any | null>(null);
+  const [isConfirmClearCompletedOpen, setIsConfirmClearCompletedOpen] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -102,10 +125,6 @@ export default function TasksPage() {
     }
   };
 
-  const [taskToDelete, setTaskToDelete] = useState<any | null>(null);
-  const [isConfirmClearCompletedOpen, setIsConfirmClearCompletedOpen] = useState(false);
-  const [isDeletingTask, setIsDeletingTask] = useState(false);
-
   const handleExecuteDeleteTask = async () => {
     if (!taskToDelete) return;
     setIsDeletingTask(true);
@@ -120,8 +139,6 @@ export default function TasksPage() {
       setIsDeletingTask(false);
     }
   };
-
-  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
 
   const handleExecuteClearCompleted = async () => {
     const completed = tasks.filter((t) => t.status === "DONE");
@@ -205,6 +222,7 @@ export default function TasksPage() {
       });
 
       if (res.ok) {
+        haptics.success();
         setTitle("");
         setDescription("");
         setDueDate("");
@@ -221,6 +239,10 @@ export default function TasksPage() {
 
   const TASK_CATEGORIES = ["ALL", "Work", "Study", "Health", "Personal", "Finance"];
 
+  const activeCount = tasks.filter((t) => t.status !== "DONE").length;
+  const completedCount = tasks.filter((t) => t.status === "DONE").length;
+  const urgentCount = tasks.filter((t) => t.priority === "HIGH" && t.status !== "DONE").length;
+
   const filteredTasks = tasks.filter((task) => {
     if (filter === "ACTIVE" && task.status === "DONE") return false;
     if (filter === "COMPLETED" && task.status !== "DONE") return false;
@@ -233,283 +255,302 @@ export default function TasksPage() {
     return true;
   });
 
-  const activeCount = tasks.filter((t) => t.status !== "DONE").length;
-  const completedCount = tasks.filter((t) => t.status === "DONE").length;
-
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 pb-20 sm:pb-6">
+      {/* Mobile-Optimized Top Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
             <CheckSquare className="w-5 h-5 text-brand-red" />
-            Task Management & Reminders
+            Tasks & Priorities
           </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            {activeCount} active tasks • {completedCount} completed • Smart recurrence & alerts
-          </p>
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono mt-0.5">
+            <span className="text-white font-bold">{activeCount} active</span>
+            <span>•</span>
+            <span className={urgentCount > 0 ? "text-red-400 font-bold" : "text-zinc-500"}>
+              {urgentCount} urgent
+            </span>
+            <span>•</span>
+            <span>{completedCount} done</span>
+          </div>
         </div>
 
-        <Button variant="red" size="sm" onClick={() => setIsAddModalOpen(true)}>
+        <Button
+          variant="red"
+          size="sm"
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-9 px-3 text-xs font-bold shadow-glow-red flex items-center gap-1.5 flex-shrink-0"
+        >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>New Task</span>
+          <span>New</span>
         </Button>
       </div>
 
-      {/* Filter Tabs & Archive/Clear */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { id: "ACTIVE", label: `Active (${activeCount})` },
-              { id: "HIGH", label: "Urgent (High)" },
-              { id: "ALL", label: `All (${tasks.length})` },
-              { id: "COMPLETED", label: `Completed (${completedCount})` },
-            ] as const
-          ).map((tab) => (
+      {/* Mobile-Optimized Segmented Status Bar */}
+      <div className="grid grid-cols-4 gap-1 p-1 bg-black/80 border border-white/10 rounded-2xl">
+        {[
+          { id: "ACTIVE" as const, label: "Active", count: activeCount },
+          { id: "HIGH" as const, label: "Urgent", count: urgentCount },
+          { id: "ALL" as const, label: "All", count: tasks.length },
+          { id: "COMPLETED" as const, label: "Done", count: completedCount },
+        ].map((tab) => {
+          const isActive = filter === tab.id;
+          return (
             <button
               key={tab.id}
               onClick={() => {
                 haptics.selection();
                 setFilter(tab.id);
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-colors whitespace-nowrap ${
-                filter === tab.id
+              className={`py-2 px-1 rounded-xl text-xs font-mono font-medium transition-all flex flex-col items-center justify-center text-center ${
+                isActive
                   ? "bg-brand-red text-white shadow-glow-red font-bold"
-                  : "bg-white/[0.03] text-zinc-400 hover:text-white border border-white/5"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {completedCount > 0 && (
-          <button
-            onClick={() => {
-              haptics.warning();
-              setIsConfirmClearCompletedOpen(true);
-            }}
-            className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[11px] font-mono text-red-400 flex items-center gap-1.5 transition-all whitespace-nowrap active:scale-95"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Done ({completedCount})</span>
-          </button>
-        )}
-      </div>
-
-      {/* Category Pills Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {TASK_CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat;
-          const count =
-            cat === "ALL"
-              ? tasks.length
-              : tasks.filter(
-                  (t) => (t.category || "").toLowerCase() === cat.toLowerCase()
-                ).length;
-          return (
-            <button
-              key={cat}
-              onClick={() => {
-                haptics.selection();
-                setSelectedCategory(cat);
-              }}
-              className={`px-3 py-1 rounded-xl text-xs font-mono font-medium transition-all whitespace-nowrap flex items-center gap-1.5 border ${
-                isSelected
-                  ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                  : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-              }`}
-            >
-              <span>{cat === "ALL" ? "All Categories" : cat}</span>
+              <span>{tab.label}</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  isSelected ? "bg-black/30 text-white" : "bg-white/10 text-zinc-400"
+                className={`text-[10px] font-bold ${
+                  isActive ? "text-white/90" : "text-zinc-500"
                 }`}
               >
-                {count}
+                {tab.count}
               </span>
             </button>
           );
         })}
       </div>
 
-      {/* Task List */}
-      <Card className="p-0 overflow-hidden">
-        <div className="divide-y divide-white/5">
-          {loading ? (
-            <div className="p-12 text-center text-xs text-zinc-500 font-mono">
-              Loading tasks...
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="p-12 text-center text-xs text-zinc-500 font-mono">
-              No tasks found in this view.
-            </div>
-          ) : (
-            filteredTasks.map((task) => {
-              const isDone = task.status === "DONE";
-              const dueInfo = getDueStatus(task.dueDate);
-              const hasReminder = Boolean(task.remindAt);
-              const isQuickOpen = quickReminderTaskId === task.id;
+      {/* Category Filter & Actions Row (No Horizontal Scroller) */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+          <Tag className="w-3.5 h-3.5 text-zinc-500" />
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">Category:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={selectedCategory}
+            onValueChange={(val) => {
+              haptics.selection();
+              setSelectedCategory(val);
+            }}
+          >
+            <SelectTrigger className="w-[165px] h-8 bg-black/80 rounded-xl border-white/10 text-xs font-mono">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {TASK_CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat === "ALL" ? "All Categories" : cat} (
+                  {cat === "ALL"
+                    ? tasks.length
+                    : tasks.filter(
+                        (t) => (t.category || "").toLowerCase() === cat.toLowerCase()
+                      ).length}
+                  )
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-              return (
-                <div
-                  key={task.id}
-                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group transition-colors ${
-                    isDone ? "bg-white/[0.01] opacity-60" : "hover:bg-white/[0.02]"
-                  }`}
-                >
-                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                    <button
-                      onClick={() => handleToggleTask(task.id, task.status)}
-                      className="mt-0.5 text-zinc-500 hover:text-brand-red transition-colors flex-shrink-0"
+          {completedCount > 0 && filter === "COMPLETED" && (
+            <button
+              onClick={() => {
+                haptics.warning();
+                setIsConfirmClearCompletedOpen(true);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-[10px] font-mono text-red-400 flex items-center gap-1 transition-all active:scale-95"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Clear Done</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Task Card Feed */}
+      <div className="space-y-2.5">
+        {loading ? (
+          <div className="p-12 text-center text-xs text-zinc-500 font-mono">
+            Loading your tasks...
+          </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="p-10 text-center text-xs text-zinc-500 font-mono bg-white/[0.02] border border-white/5 rounded-2xl">
+            No tasks found in this view. Tap &apos;+ New&apos; to create one!
+          </div>
+        ) : (
+          filteredTasks.map((task) => {
+            const isDone = task.status === "DONE";
+            const dueInfo = getDueStatus(task.dueDate);
+            const hasReminder = Boolean(task.remindAt);
+            const isQuickOpen = quickReminderTaskId === task.id;
+
+            return (
+              <div
+                key={task.id}
+                className={`p-3.5 sm:p-4 rounded-2xl border transition-all relative ${
+                  isDone
+                    ? "bg-white/[0.01] border-white/5 opacity-55"
+                    : task.priority === "HIGH"
+                    ? "bg-red-500/[0.03] border-red-500/25 shadow-glow-red-subtle"
+                    : "bg-white/[0.03] border-white/10 hover:border-white/20"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Big Touch-Friendly Toggle Circle */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTask(task.id, task.status)}
+                    className="p-1.5 -m-1 text-zinc-400 hover:text-brand-red active:scale-90 transition-transform flex-shrink-0"
+                    aria-label={isDone ? "Mark todo" : "Mark done"}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 className="w-5 h-5 text-brand-red" />
+                    ) : (
+                      <Circle className="w-5 h-5 hover:border-white" />
+                    )}
+                  </button>
+
+                  <div className="min-w-0 flex-1">
+                    {/* Task Title */}
+                    <p
+                      className={`text-sm font-semibold leading-tight ${
+                        isDone ? "line-through text-zinc-500" : "text-white"
+                      }`}
                     >
-                      {isDone ? (
-                        <CheckCircle2 className="w-5 h-5 text-brand-red" />
-                      ) : (
-                        <Circle className="w-5 h-5 hover:border-white" />
-                      )}
-                    </button>
+                      {task.title}
+                    </p>
 
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-sm font-medium leading-snug ${
-                          isDone ? "line-through text-zinc-500" : "text-white"
-                        }`}
-                      >
-                        {task.title}
+                    {/* Task Description */}
+                    {task.description && (
+                      <p className="text-xs text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
+                        {task.description}
                       </p>
-
-                      {task.description && (
-                        <p className="text-xs text-zinc-400 mt-1 line-clamp-1">
-                          {task.description}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-2 mt-2 font-mono">
-                        {task.category && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-zinc-400 border border-white/5 flex items-center gap-1">
-                            <Tag className="w-2.5 h-2.5 text-zinc-400" />
-                            {task.category}
-                          </span>
-                        )}
-
-                        {task.dueDate && (
-                          <Badge variant={dueInfo.isOverdue ? "red" : "glass"} size="sm">
-                            <Calendar className="w-2.5 h-2.5" />
-                            {dueInfo.label}
-                          </Badge>
-                        )}
-
-                        {hasReminder && (
-                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/30 text-brand-red flex items-center gap-1 font-mono shadow-glow-red-subtle">
-                            <Bell className="w-2.5 h-2.5 text-brand-red fill-brand-red" />
-                            <span>
-                              {format(new Date(task.remindAt), "MMM d, h:mm a")}
-                            </span>
-                          </span>
-                        )}
-
-                        {task.recurrence && task.recurrence !== "NONE" && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-zinc-300 border border-white/5 flex items-center gap-1">
-                            <Repeat className="w-2.5 h-2.5" />
-                            {task.recurrence}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions & Remind Button */}
-                  <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center relative">
-                    {task.priority === "HIGH" && (
-                      <Badge variant="red" size="sm">
-                        Urgent
-                      </Badge>
                     )}
 
-                    {/* Postpone +1d Button */}
+                    {/* Badges & Meta Row */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5 font-mono">
+                      {task.priority === "HIGH" && !isDone && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-500/20 text-red-400 border border-red-500/40">
+                          URGENT
+                        </span>
+                      )}
+
+                      {task.dueDate && (
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                            dueInfo.isOverdue
+                              ? "bg-red-500/15 border-red-500/30 text-red-400 font-bold"
+                              : dueInfo.isToday
+                              ? "bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold"
+                              : "bg-white/[0.04] border-white/10 text-zinc-300"
+                          }`}
+                        >
+                          <Calendar className="w-2.5 h-2.5" />
+                          <span>{dueInfo.label}</span>
+                        </span>
+                      )}
+
+                      {task.category && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.03] text-zinc-400 border border-white/5 flex items-center gap-1">
+                          <Tag className="w-2.5 h-2.5 opacity-60" />
+                          <span>{task.category}</span>
+                        </span>
+                      )}
+
+                      {hasReminder && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-brand-red/15 border border-brand-red/40 text-brand-red flex items-center gap-1 font-bold">
+                          <Bell className="w-2.5 h-2.5 fill-brand-red" />
+                          <span>{format(new Date(task.remindAt), "MMM d, h:mm a")}</span>
+                        </span>
+                      )}
+
+                      {task.recurrence && task.recurrence !== "NONE" && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.03] text-zinc-400 border border-white/5 flex items-center gap-1">
+                          <Repeat className="w-2.5 h-2.5 opacity-60" />
+                          <span>{task.recurrence}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Touch Actions Bar */}
+                <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                  {/* Left: Quick Actions (+1d, Reminder) */}
+                  <div className="flex items-center gap-1.5">
                     <button
+                      type="button"
                       onClick={() => handlePostponeTask(task)}
-                      className="px-2 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-300 hover:text-white transition-all flex items-center gap-1 active:scale-95"
-                      title="Postpone 1 Day to Tomorrow"
+                      className="px-2.5 py-1 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 border border-white/10 text-[10px] text-zinc-300 flex items-center gap-1 transition-all"
+                      title="Postpone 1 Day"
                     >
                       <Calendar className="w-3 h-3 text-brand-red" />
                       <span>+1d</span>
                     </button>
 
-                    {/* Quick Inline Reminder Button */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setQuickReminderTaskId(isQuickOpen ? null : task.id)}
-                        className={`p-1.5 rounded-xl border transition-all ${
-                          hasReminder
-                            ? "bg-brand-red/15 border-brand-red/40 text-brand-red shadow-glow-red-subtle"
-                            : "bg-white/[0.02] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.05]"
-                        }`}
-                        title="Set Reminder"
-                      >
-                        <Bell className="w-4 h-4" />
-                      </button>
-
-                      {/* Inline Reminder Dropdown */}
-                      {isQuickOpen && (
-                        <div className="absolute right-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 w-56 bg-black/95 backdrop-blur-3xl border border-white/15 rounded-2xl p-2 z-30 shadow-glass-panel space-y-1">
-                          <span className="text-[10px] font-mono uppercase text-zinc-500 px-2 py-1 block">
-                            Quick Remind Me
-                          </span>
-                          <button
-                            onClick={() => handleUpdateReminder(task.id, "1_HOUR")}
-                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono text-zinc-300 hover:bg-brand-red hover:text-white transition-colors flex items-center justify-between"
+                    {/* Quick Inline Reminder Dropdown Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`px-2.5 py-1 rounded-xl border text-[10px] flex items-center gap-1 active:scale-95 transition-all ${
+                            hasReminder
+                              ? "bg-brand-red/15 border-brand-red/40 text-brand-red"
+                              : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-300"
+                          }`}
+                        >
+                          <Bell className="w-3 h-3" />
+                          <span>{hasReminder ? "Alarm Set" : "Remind"}</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56 p-1.5 bg-black/95 backdrop-blur-3xl border-white/15">
+                        <DropdownMenuLabel>Set Quick Reminder</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "1_HOUR")}>
+                          <span>In 1 Hour</span>
+                          <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TODAY_EVENING")}>
+                          <span>Tonight at 8 PM</span>
+                          <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TOMORROW_MORNING")}>
+                          <span>Tomorrow at 9 AM</span>
+                          <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                        </DropdownMenuItem>
+                        {hasReminder && (
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateReminder(task.id, "NONE")}
+                            className="text-red-400 focus:bg-red-500/20 focus:text-red-300 border-t border-white/10 mt-1"
                           >
-                            <span>In 1 Hour</span>
-                            <Clock className="w-3 h-3 opacity-60" />
-                          </button>
-                          <button
-                            onClick={() => handleUpdateReminder(task.id, "TODAY_EVENING")}
-                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono text-zinc-300 hover:bg-brand-red hover:text-white transition-colors flex items-center justify-between"
-                          >
-                            <span>Today at 8:00 PM</span>
-                            <Clock className="w-3 h-3 opacity-60" />
-                          </button>
-                          <button
-                            onClick={() => handleUpdateReminder(task.id, "TOMORROW_MORNING")}
-                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono text-zinc-300 hover:bg-brand-red hover:text-white transition-colors flex items-center justify-between"
-                          >
-                            <span>Tomorrow 9:00 AM</span>
-                            <Clock className="w-3 h-3 opacity-60" />
-                          </button>
-                          {hasReminder && (
-                            <button
-                              onClick={() => handleUpdateReminder(task.id, "NONE")}
-                              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono text-brand-red hover:bg-white/10 transition-colors border-t border-white/10 mt-1 pt-1.5"
-                            >
-                              Clear Reminder
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        haptics.warning();
-                        setTaskToDelete(task);
-                      }}
-                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-xl text-zinc-500 hover:text-brand-red hover:bg-white/10 transition-all active:scale-90"
-                      aria-label="Delete Task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                            <span>Clear Alarm</span>
+                            <Trash2 className="w-3.5 h-3.5 ml-auto opacity-60" />
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </Card>
 
-      {/* New Task Modal with Remind Me Engine */}
+                  {/* Right: Delete */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.warning();
+                      setTaskToDelete(task);
+                    }}
+                    className="p-1.5 text-zinc-500 hover:text-brand-red active:scale-90 transition-colors"
+                    aria-label="Delete Task"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* New Task Modal */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -537,7 +578,7 @@ export default function TasksPage() {
             </label>
             <textarea
               rows={2}
-              placeholder="Add key bullet points or notes..."
+              placeholder="Add key notes..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
@@ -549,15 +590,16 @@ export default function TasksPage() {
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Priority
               </label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
-              >
-                <option value="LOW" className="bg-black text-white">Low</option>
-                <option value="MEDIUM" className="bg-black text-white">Medium</option>
-                <option value="HIGH" className="bg-black text-white">High (Urgent)</option>
-              </select>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High (Urgent)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
@@ -568,7 +610,7 @@ export default function TasksPage() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="Work, Study, Personal"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red font-mono"
               />
             </div>
           </div>
@@ -588,17 +630,18 @@ export default function TasksPage() {
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Recurrence
               </label>
-              <select
-                value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
-              >
-                <option value="NONE" className="bg-black text-white">One-time</option>
-                <option value="DAILY" className="bg-black text-white">Daily</option>
-                <option value="WEEKDAYS" className="bg-black text-white">Mon - Fri (Weekdays)</option>
-                <option value="WEEKLY" className="bg-black text-white">Weekly</option>
-                <option value="MONTHLY" className="bg-black text-white">Monthly</option>
-              </select>
+              <Select value={recurrence} onValueChange={setRecurrence}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Select recurrence" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">One-time</SelectItem>
+                  <SelectItem value="DAILY">Daily</SelectItem>
+                  <SelectItem value="WEEKDAYS">Mon - Fri</SelectItem>
+                  <SelectItem value="WEEKLY">Weekly</SelectItem>
+                  <SelectItem value="MONTHLY">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -672,7 +715,7 @@ export default function TasksPage() {
         onConfirm={handleExecuteDeleteTask}
         isLoading={isDeletingTask}
         title="Delete Priority Task"
-        message={`Are you sure you want to permanently delete "${taskToDelete?.title}"?`}
+        message={`Are you sure you want to delete "${taskToDelete?.title}"?`}
         confirmText="Delete Task"
         confirmVariant="red"
         iconType="danger"

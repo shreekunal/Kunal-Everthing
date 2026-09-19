@@ -30,6 +30,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RelationshipPage() {
   const [data, setData] = useState<any>(null);
@@ -920,17 +927,18 @@ export default function RelationshipPage() {
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Category
               </label>
-              <select
-                value={newTemplateCategory}
-                onChange={(e) => setNewTemplateCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
-              >
-                <option value="LOVE">Love & Sweet</option>
-                <option value="CARE">Care & Health</option>
-                <option value="NIGHT">Good Night</option>
-                <option value="MORNING">Good Morning</option>
-                <option value="CUSTOM">Custom</option>
-              </select>
+              <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOVE">Love & Sweet</SelectItem>
+                  <SelectItem value="CARE">Care & Health</SelectItem>
+                  <SelectItem value="NIGHT">Good Night</SelectItem>
+                  <SelectItem value="MORNING">Good Morning</SelectItem>
+                  <SelectItem value="CUSTOM">Custom</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

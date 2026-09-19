@@ -9,7 +9,6 @@ import {
   Flame,
   BarChart3,
   Wallet,
-  ShieldCheck,
   Heart,
   Calendar,
   Settings,
@@ -23,6 +22,11 @@ import {
 import { clsx } from "clsx";
 import { Button } from "../ui/Button";
 import { BrandLogo } from "../ui/BrandLogo";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+} from "@/components/ui/dropdown-menu";
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
@@ -49,7 +53,6 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
     { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Progress", href: "/progress", icon: BarChart3 },
     { name: "Money", href: "/money", icon: Wallet },
-    { name: "Vault", href: "/vault", icon: ShieldCheck },
     { name: "Love", href: "/relationship", icon: Heart },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
@@ -133,77 +136,79 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
           </Button>
 
           {/* Notification Center */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/10 transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-glow-red font-mono">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Glass Notifications Dropdown */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-black/95 backdrop-blur-3xl border border-white/15 rounded-2xl shadow-glass-panel z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
-                  <span className="text-[11px] font-bold text-white uppercase tracking-wider font-mono">
-                    Notifications & Alerts
+          <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="relative p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/10 transition-colors"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-glow-red font-mono">
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
-                  <div className="flex items-center gap-2">
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 font-mono font-medium"
-                      >
-                        <CheckCheck className="w-3.5 h-3.5" />
-                        Mark read
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowNotifications(false)}
-                      className="text-zinc-400 hover:text-white p-0.5"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                )}
+              </button>
+            </DropdownMenuTrigger>
 
-                <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-zinc-500 font-mono">
-                      No active alerts. All systems running smooth!
-                    </div>
-                  ) : (
-                    notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-3.5 hover:bg-white/[0.04] transition-colors ${
-                          !notif.isRead ? "bg-red-500/[0.04]" : ""
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-xs font-semibold text-white">
-                            {notif.title}
-                          </h4>
-                          <span className="text-[9px] text-red-400 font-mono px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
-                            {notif.category}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                          {notif.message}
-                        </p>
-                      </div>
-                    ))
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-80 sm:w-96 p-0 border border-white/15 bg-black/95 backdrop-blur-3xl rounded-2xl shadow-glass-panel overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider font-mono">
+                  Notifications & Alerts
+                </span>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 font-mono font-medium"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      Mark read
+                    </button>
                   )}
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="text-zinc-400 hover:text-white p-0.5"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-zinc-500 font-mono">
+                    No active alerts. All systems running smooth!
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={`p-3.5 hover:bg-white/[0.04] transition-colors ${
+                        !notif.isRead ? "bg-red-500/[0.04]" : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-semibold text-white">
+                          {notif.title}
+                        </h4>
+                        <span className="text-[9px] text-red-400 font-mono px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">
+                          {notif.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        {notif.message}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Lock OS Portal CTA */}
           <button

@@ -203,13 +203,14 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
     { type: "CLEAN_DIET", name: "Clean Nutrition & Diet" },
   ];
 
-  const results = [];
   const now = new Date();
+  const existingStreaks = await prisma.disciplineStreak.findMany({
+    where: { userId },
+  });
 
+  const results = [];
   for (const item of types) {
-    let streak = await prisma.disciplineStreak.findUnique({
-      where: { userId_type: { userId, type: item.type } },
-    });
+    let streak = existingStreaks.find((s) => s.type === item.type);
 
     if (!streak) {
       streak = await prisma.disciplineStreak.create({
@@ -223,20 +224,15 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
         },
       });
     } else {
-      // Calculate current streak in days based on lastResetDate
       const resetDate = streak.lastResetDate || streak.createdAt;
       const daysSinceReset = Math.max(0, differenceInDays(now, resetDate));
-
       const updatedBest = Math.max(streak.bestStreak, daysSinceReset);
-      if (streak.currentStreak !== daysSinceReset || streak.bestStreak !== updatedBest) {
-        streak = await prisma.disciplineStreak.update({
-          where: { id: streak.id },
-          data: {
-            currentStreak: daysSinceReset,
-            bestStreak: updatedBest,
-          },
-        });
-      }
+
+      streak = {
+        ...streak,
+        currentStreak: daysSinceReset,
+        bestStreak: updatedBest,
+      };
     }
     results.push(streak);
   }
@@ -287,60 +283,72 @@ export async function ensureDefaultRewardItems(userId: string) {
 }
 
 /**
- * Get comprehensive discipline & rewards overview
+ * Get comprehensive discipline & rewards overview (Ultra-fast parallel queries)
  */
-export async function getDisciplineSummary(userId: string) {
-  await ensureDefaultRewardItems(userId);
-  const streaks = await getOrCreateDisciplineStreaks(userId);
-
-  // Fetch all logs
-  const logs = await prisma.rewardLog.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Calculate lifetime XP
-  const lifetimeXP = logs.reduce((sum, item) => sum + item.points, 0);
-
-  // Calculate current month XP (Reset cycle on 1st of every month)
+export async function getDisciplineSummary(userId: string, includeItems = false) {
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
   const currentMonthEnd = endOfMonth(now);
   const daysLeftInMonth = Math.max(0, differenceInDays(currentMonthEnd, now));
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const monthlyLogs = logs.filter(
-    (item) => new Date(item.createdAt) >= currentMonthStart
-  );
-  const monthlyXP = monthlyLogs.reduce((sum, item) => sum + item.points, 0);
+  const queries: Promise<any>[] = [
+    getOrCreateDisciplineStreaks(userId),
+    prisma.rewardLog.aggregate({
+      where: { userId },
+      _sum: { points: true },
+    }),
+    prisma.rewardLog.aggregate({
+      where: {
+        userId,
+        createdAt: { gte: currentMonthStart },
+      },
+      _sum: { points: true },
+    }),
+    prisma.rewardLog.findMany({
+      where: {
+        userId,
+        createdAt: { gte: todayStart },
+      },
+    }),
+    prisma.rewardLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    }),
+  ];
 
-  // Today start of day
-  const todayDateStr = format(now, "yyyy-MM-dd");
-  const todayLogs = logs.filter(
-    (item) => format(item.createdAt, "yyyy-MM-dd") === todayDateStr
-  );
+  if (includeItems) {
+    queries.push(
+      prisma.rewardItem.findMany({
+        where: { userId, isArchived: false },
+        orderBy: { cost: "asc" },
+      })
+    );
+  }
+
+  const [streaks, lifetimeAgg, monthAgg, todayLogs, recentLogs, rewardItems] =
+    await Promise.all(queries);
+
+  const lifetimeXP = lifetimeAgg._sum.points || 0;
+  const monthlyXP = monthAgg._sum.points || 0;
 
   const todayEarned = todayLogs
-    .filter((l) => l.points > 0)
-    .reduce((sum, l) => sum + l.points, 0);
+    .filter((l: any) => l.points > 0)
+    .reduce((sum: number, l: any) => sum + l.points, 0);
 
   const todayDeducted = Math.abs(
-    todayLogs.filter((l) => l.points < 0).reduce((sum, l) => sum + l.points, 0)
+    todayLogs.filter((l: any) => l.points < 0).reduce((sum: number, l: any) => sum + l.points, 0)
   );
 
-  // Monthly season drives current level, rank, and pet state
   const levelInfo = calculateLevel(monthlyXP);
 
-  const rewardItems = await prisma.rewardItem.findMany({
-    where: { userId, isArchived: false },
-    orderBy: { cost: "asc" },
-  });
-
-  const purityStreak = streaks.find((s) => s.type === "PURITY_NOFAP") || {
+  const purityStreak = streaks.find((s: any) => s.type === "PURITY_NOFAP") || {
     currentStreak: 0,
     bestStreak: 0,
   };
 
-  const dietStreak = streaks.find((s) => s.type === "CLEAN_DIET") || {
+  const dietStreak = streaks.find((s: any) => s.type === "CLEAN_DIET") || {
     currentStreak: 0,
     bestStreak: 0,
   };
@@ -360,7 +368,7 @@ export async function getDisciplineSummary(userId: string) {
       purity: purityStreak,
       diet: dietStreak,
     },
-    recentLogs: logs.slice(0, 30),
-    rewardItems,
+    recentLogs,
+    rewardItems: rewardItems || [],
   };
 }

@@ -14,6 +14,13 @@ import {
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -194,17 +201,21 @@ export default function ProgressPage() {
                   <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={manualType}
-                    onChange={(e) =>
-                      setManualType(e.target.value as "WORK" | "STUDY" | "PERSONAL")
+                    onValueChange={(val) =>
+                      setManualType(val as "WORK" | "STUDY" | "PERSONAL")
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
                   >
-                    <option value="WORK">Work</option>
-                    <option value="STUDY">Study</option>
-                    <option value="PERSONAL">Personal</option>
-                  </select>
+                    <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="WORK">Work</SelectItem>
+                      <SelectItem value="STUDY">Study</SelectItem>
+                      <SelectItem value="PERSONAL">Personal</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">

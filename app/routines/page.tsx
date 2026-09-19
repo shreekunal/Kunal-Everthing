@@ -6,9 +6,16 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles } from "lucide-react";
+import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { haptics } from "@/lib/haptics";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -18,12 +25,17 @@ export default function RoutinesPage() {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [expandedRoutineMap, setExpandedRoutineMap] = useState<Record<string, boolean>>({});
 
   // Form states
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Morning");
   const [targetDays, setTargetDays] = useState("DAILY");
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(30);
+
+  // Delete state
+  const [routineToDelete, setRoutineToDelete] = useState<any | null>(null);
+  const [isDeletingRoutine, setIsDeletingRoutine] = useState(false);
 
   const fetchRoutines = async () => {
     try {
@@ -59,9 +71,6 @@ export default function RoutinesPage() {
     }
   };
 
-  const [routineToDelete, setRoutineToDelete] = useState<any | null>(null);
-  const [isDeletingRoutine, setIsDeletingRoutine] = useState(false);
-
   const handleExecuteDeleteRoutine = async () => {
     if (!routineToDelete) return;
     setIsDeletingRoutine(true);
@@ -86,7 +95,7 @@ export default function RoutinesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          name: name.trim(),
           category,
           targetDays,
           targetDurationMinutes: Number(targetDurationMinutes),
@@ -94,6 +103,7 @@ export default function RoutinesPage() {
       });
 
       if (res.ok) {
+        haptics.success();
         setName("");
         setIsAddModalOpen(false);
         fetchRoutines();
@@ -103,26 +113,28 @@ export default function RoutinesPage() {
     }
   };
 
-  const totalStreaks = routines.reduce((acc, r) => acc + r.currentStreak, 0);
+  const totalStreaks = routines.reduce((acc, r) => acc + (r.currentStreak || 0), 0);
+  const completedTodayCount = routines.filter((r) => r.completedToday).length;
+  const todayProgressPercent = routines.length > 0 ? Math.round((completedTodayCount / routines.length) * 100) : 0;
 
   const TIME_FILTERS = [
-    { id: "ALL" as const, label: "All Protocols", icon: Sparkles },
-    { id: "MORNING" as const, label: "Morning Protocol", icon: Sun },
-    { id: "AFTERNOON" as const, label: "Afternoon Focus", icon: Sunset },
-    { id: "NIGHT" as const, label: "Night Protocol", icon: Moon },
+    { id: "ALL" as const, label: "All", icon: Sparkles },
+    { id: "MORNING" as const, label: "Morning", icon: Sun },
+    { id: "AFTERNOON" as const, label: "Focus", icon: Sunset },
+    { id: "NIGHT" as const, label: "Night", icon: Moon },
   ];
 
   const filteredRoutines = routines.filter((r) => {
     if (selectedTimeFilter === "ALL") return true;
     const cat = (r.category || "").toUpperCase();
-    const name = (r.name || "").toUpperCase();
+    const rName = (r.name || "").toUpperCase();
     if (selectedTimeFilter === "MORNING")
-      return cat.includes("MORN") || name.includes("MORN") || cat.includes("HEALTH");
+      return cat.includes("MORN") || rName.includes("MORN") || cat.includes("HEALTH");
     if (selectedTimeFilter === "AFTERNOON")
       return (
         cat.includes("AFTER") ||
         cat.includes("NOON") ||
-        name.includes("AFTER") ||
+        rName.includes("AFTER") ||
         cat.includes("WORK") ||
         cat.includes("STUDY")
       );
@@ -130,9 +142,9 @@ export default function RoutinesPage() {
       return (
         cat.includes("NIGHT") ||
         cat.includes("EVEN") ||
-        name.includes("NIGHT") ||
-        name.includes("SLEEP") ||
-        name.includes("BED") ||
+        rName.includes("NIGHT") ||
+        rName.includes("SLEEP") ||
+        rName.includes("BED") ||
         cat.includes("DISCIPLINE")
       );
     return true;
@@ -148,93 +160,113 @@ export default function RoutinesPage() {
   const maxPerDay = Math.max(1, routines.length);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 pb-20 sm:pb-6">
+      {/* Mobile-Optimized Top Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Flame className="w-5 h-5 text-red-400 fill-red-400" />
-            Habit Matrix & Streaks
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <Flame className="w-5 h-5 text-brand-red fill-brand-red" />
+            Habits & Daily Streaks
           </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            Tracking {routines.length} daily habits • Total active streak: {totalStreaks} days
-          </p>
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono mt-0.5">
+            <span className="text-white font-bold">{completedTodayCount}/{routines.length} today</span>
+            <span>•</span>
+            <span className="text-red-400 font-bold">{totalStreaks}d total streak</span>
+          </div>
         </div>
 
-        <Button variant="primary" size="md" onClick={() => setIsAddModalOpen(true)}>
+        <Button
+          variant="red"
+          size="sm"
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-9 px-3 text-xs font-bold shadow-glow-red flex items-center gap-1.5 flex-shrink-0"
+        >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>New Routine</span>
+          <span>New</span>
         </Button>
       </div>
 
-      {/* 30-Day Habit Contribution Heatmap Card */}
-      <Card glow="red" className="p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-brand-red" />
-            <h3 className="text-xs font-bold text-white tracking-wider uppercase font-mono">
-              30-Day Monk Consistency Grid
-            </h3>
+      {/* Today's Completion Progress Banner */}
+      <Card glow="red" className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">
+              Today&apos;s Execution
+            </span>
+            <div className="text-2xl font-bold text-white font-mono mt-0.5 flex items-baseline gap-2">
+              <span>{todayProgressPercent}%</span>
+              <span className="text-xs text-zinc-400 font-normal">
+                ({completedTodayCount} of {routines.length} completed)
+              </span>
+            </div>
           </div>
-          <span className="text-xs font-mono text-zinc-400">
-            {hoveredDate
-              ? `${hoveredDate}: ${dailyCounts[hoveredDate] || 0}/${routines.length} habits done`
-              : "Hover / Tap any day to inspect"}
-          </span>
+
+          <div className="w-14 h-14 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">
+              {todayProgressPercent === 100 ? "🔥" : todayProgressPercent >= 50 ? "⚡" : "🎯"}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-10 sm:grid-cols-15 gap-1.5 p-2.5 rounded-2xl bg-black/50 border border-white/5">
-          {past30Days.map((day) => {
-            const count = dailyCounts[day] || 0;
-            const ratio = count / maxPerDay;
-            const isFull = ratio >= 0.8 && count > 0;
-            const isHigh = ratio >= 0.5 && !isFull;
-            const isMed = ratio > 0 && !isHigh && !isFull;
-
-            return (
-              <button
-                key={day}
-                type="button"
-                onMouseEnter={() => setHoveredDate(day)}
-                onClick={() => {
-                  haptics.selection();
-                  setHoveredDate(day);
-                }}
-                className={`h-7 rounded-lg transition-all flex flex-col items-center justify-center text-[9px] font-mono border ${
-                  isFull
-                    ? "bg-brand-red text-white border-brand-red shadow-glow-red font-bold"
-                    : isHigh
-                    ? "bg-red-500/60 text-white border-red-500/40"
-                    : isMed
-                    ? "bg-red-500/20 text-red-300 border-red-500/30"
-                    : "bg-white/[0.03] text-zinc-600 border-white/5 hover:border-white/20"
-                }`}
-                title={`${day}: ${count}/${routines.length} completed`}
-              >
-                <span>{day.split("-")[2]}</span>
-              </button>
-            );
-          })}
+        {/* Progress Bar */}
+        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mt-3">
+          <div
+            className="h-full rounded-full bg-brand-red shadow-glow-red transition-all duration-500"
+            style={{ width: `${Math.max(5, todayProgressPercent)}%` }}
+          />
         </div>
 
-        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-3 pt-2 border-t border-white/5">
-          <div className="flex items-center gap-2">
-            <span>Legend:</span>
-            <span className="inline-block w-2.5 h-2.5 rounded bg-white/[0.04] border border-white/10" />
-            <span className="text-zinc-600">0</span>
-            <span className="inline-block w-2.5 h-2.5 rounded bg-red-500/20" />
-            <span className="text-zinc-400">Low</span>
-            <span className="inline-block w-2.5 h-2.5 rounded bg-red-500/60" />
-            <span className="text-zinc-300">Med</span>
-            <span className="inline-block w-2.5 h-2.5 rounded bg-brand-red shadow-glow-red" />
-            <span className="text-white">100%</span>
+        {/* 30-Day Mini Heatmap Strip */}
+        <div className="mt-4 pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-2">
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-brand-red" />
+              <span>30-Day Activity Grid</span>
+            </span>
+            <span>
+              {hoveredDate
+                ? `${hoveredDate.slice(5)}: ${dailyCounts[hoveredDate] || 0}/${routines.length}`
+                : "Tap day to inspect"}
+            </span>
           </div>
-          <span>30 Days Tracked</span>
+
+          <div className="grid grid-cols-10 sm:grid-cols-15 gap-1">
+            {past30Days.map((day) => {
+              const count = dailyCounts[day] || 0;
+              const ratio = count / maxPerDay;
+              const isFull = ratio >= 0.8 && count > 0;
+              const isHigh = ratio >= 0.5 && !isFull;
+              const isMed = ratio > 0 && !isHigh && !isFull;
+
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setHoveredDate(hoveredDate === day ? null : day);
+                  }}
+                  className={`h-6 rounded-md transition-all flex items-center justify-center text-[8px] font-mono border ${
+                    isFull
+                      ? "bg-brand-red text-white border-brand-red shadow-glow-red font-bold"
+                      : isHigh
+                      ? "bg-red-500/60 text-white border-red-500/40"
+                      : isMed
+                      ? "bg-red-500/20 text-red-300 border-red-500/30"
+                      : "bg-white/[0.03] text-zinc-600 border-white/5"
+                  }`}
+                  title={`${day}: ${count}/${routines.length} completed`}
+                >
+                  <span>{day.split("-")[2]}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </Card>
 
-      {/* Time-of-Day Protocol Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      {/* Protocol Tabs Filter */}
+      <div className="grid grid-cols-4 gap-1 p-1 bg-black/80 border border-white/10 rounded-2xl">
         {TIME_FILTERS.map((item) => {
           const Icon = item.icon;
           const isSelected = selectedTimeFilter === item.id;
@@ -245,133 +277,161 @@ export default function RoutinesPage() {
                 haptics.selection();
                 setSelectedTimeFilter(item.id);
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
+              className={`py-2 px-1 rounded-xl text-xs font-mono font-medium transition-all flex items-center justify-center gap-1.5 ${
                 isSelected
-                  ? "bg-brand-red text-white border-brand-red shadow-glow-red"
-                  : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                  ? "bg-brand-red text-white shadow-glow-red font-bold"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span>{item.label}</span>
+              <span className="hidden xs:inline">{item.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Routine Cards with 14-day Heatmap */}
-      <div className="space-y-4">
+      {/* Routines Feed (Mobile Ergonomics) */}
+      <div className="space-y-3">
         {loading ? (
           <div className="p-12 text-center text-xs text-zinc-500 font-mono">
-            Loading habits & matrix...
+            Loading routines...
           </div>
         ) : filteredRoutines.length === 0 ? (
-          <div className="p-12 text-center text-xs text-zinc-500 font-mono border border-white/5 rounded-2xl bg-white/[0.02]">
-            No routines found for this protocol. Click &apos;New Routine&apos; to create one!
+          <div className="p-10 text-center text-xs text-zinc-500 font-mono bg-white/[0.02] border border-white/5 rounded-2xl">
+            No routines found for this protocol. Tap &apos;+ New&apos; to create one!
           </div>
         ) : (
           filteredRoutines.map((routine) => {
-            return (
-              <Card key={routine.id} className="p-5">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left: Routine info & today toggle */}
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => handleToggleCompletion(routine.id)}
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                        routine.completedToday
-                          ? "bg-red-500 text-white font-bold shadow-glow-red border border-red-400"
-                          : "bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 border border-white/10"
-                      }`}
-                    >
-                      {routine.completedToday ? (
-                        <Check className="w-6 h-6 stroke-[3]" />
-                      ) : (
-                        <span className="text-[10px] font-mono font-bold">TODAY</span>
-                      )}
-                    </button>
+            const isExpanded = expandedRoutineMap[routine.id] || false;
+            const history = routine.pastHistory || [];
+            // Show last 7 days by default on mobile, or 14 days when expanded
+            const visibleHistory = isExpanded ? history : history.slice(-7);
 
-                    <div>
-                      <h3 className="text-base font-bold text-white flex items-center gap-2">
-                        {routine.name}
-                        {routine.currentStreak >= 7 && (
-                          <span className="text-red-400 flex items-center gap-0.5 text-xs font-mono font-bold">
-                            <Flame className="w-3.5 h-3.5 fill-red-400" /> STREAK ON FIRE
-                          </span>
-                        )}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1 font-mono">
-                        <Badge variant="glass" size="sm">
-                          {routine.category}
-                        </Badge>
-                        <span className="text-[11px] text-zinc-500">
-                          {routine.targetDays} • {routine.targetDurationMinutes}m
-                        </span>
-                      </div>
+            return (
+              <Card
+                key={routine.id}
+                className={`p-4 transition-all border ${
+                  routine.completedToday
+                    ? "border-red-500/30 bg-red-500/[0.02]"
+                    : "border-white/10 hover:border-white/20"
+                }`}
+              >
+                {/* Main Row: Big Check Button + Info + Streaks */}
+                <div className="flex items-center gap-3">
+                  {/* Big Touch-Friendly Today Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCompletion(routine.id)}
+                    className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center transition-all flex-shrink-0 active:scale-90 ${
+                      routine.completedToday
+                        ? "bg-brand-red text-white shadow-glow-red border border-red-400"
+                        : "bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 border border-white/10"
+                    }`}
+                    aria-label={routine.completedToday ? "Completed today" : "Mark completed today"}
+                  >
+                    {routine.completedToday ? (
+                      <Check className="w-6 h-6 stroke-[3]" />
+                    ) : (
+                      <>
+                        <span className="text-[9px] font-mono font-bold leading-none">DONE</span>
+                        <span className="text-[7px] text-zinc-500 mt-0.5">TODAY</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Routine Title & Badges */}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                      {routine.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1 font-mono flex-wrap">
+                      <span className="text-[9px] px-2 py-0.5 rounded-md bg-white/[0.04] text-zinc-400 border border-white/5">
+                        {routine.category}
+                      </span>
+                      <span className="text-[9px] text-zinc-500">
+                        {routine.targetDays} • {routine.targetDurationMinutes}m
+                      </span>
                     </div>
                   </div>
 
-                  {/* Right: Streaks & Best */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-4 bg-black/60 px-4 py-2 rounded-2xl border border-white/10">
-                      <div className="text-center">
-                        <span className="text-[9px] text-zinc-500 uppercase font-mono block">
-                          Current
-                        </span>
-                        <span className="text-base font-bold text-red-400 font-mono flex items-center justify-center gap-1">
-                          <Flame className="w-4 h-4 fill-red-400" />
-                          {routine.currentStreak}d
-                        </span>
+                  {/* Streaks Pill & Delete */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-black/60 border border-white/10 text-xs font-mono">
+                      <div className="flex items-center gap-1 text-red-400 font-bold">
+                        <Flame className="w-3.5 h-3.5 fill-red-400" />
+                        <span>{routine.currentStreak}d</span>
                       </div>
-                      <div className="w-px h-7 bg-white/10" />
-                      <div className="text-center">
-                        <span className="text-[9px] text-zinc-500 uppercase font-mono block">
-                          Best
-                        </span>
-                        <span className="text-base font-bold text-white font-mono flex items-center justify-center gap-1">
-                          <Trophy className="w-3.5 h-3.5" />
-                          {routine.bestStreak}d
-                        </span>
+                      <div className="w-px h-4 bg-white/10" />
+                      <div className="flex items-center gap-1 text-zinc-400">
+                        <Trophy className="w-3 h-3 text-amber-400" />
+                        <span>{routine.bestStreak}d</span>
                       </div>
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => {
                         haptics.warning();
                         setRoutineToDelete(routine);
                       }}
-                      className="text-zinc-500 hover:text-brand-red p-2 transition-colors active:scale-90"
+                      className="p-1.5 text-zinc-500 hover:text-brand-red active:scale-90 transition-colors"
                       aria-label="Delete Routine"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* 14-Day Heatmap Matrix Row */}
-                <div className="mt-5 pt-4 border-t border-white/5">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2 font-mono">
-                    <span>14-Day Activity Matrix</span>
-                    <span className="text-zinc-500">Click day to toggle</span>
+                {/* Rolling Days Track (Optimized for Phone Tap) */}
+                <div className="mt-3.5 pt-3 border-t border-white/5">
+                  <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono mb-2">
+                    <span>{isExpanded ? "14-Day Matrix" : "Past 7 Days Consistency"}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        setExpandedRoutineMap((prev) => ({
+                          ...prev,
+                          [routine.id]: !isExpanded,
+                        }));
+                      }}
+                      className="text-zinc-500 hover:text-white flex items-center gap-0.5 text-[10px]"
+                    >
+                      <span>{isExpanded ? "Show 7d" : "Show 14d"}</span>
+                      {isExpanded ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-7 sm:grid-cols-14 gap-1.5">
-                    {routine.pastHistory?.map((h: any) => {
-                      const dayLabel = format(parseISO(h.date), "dd/MM");
+                  <div className={`grid gap-1.5 ${isExpanded ? "grid-cols-7" : "grid-cols-7"}`}>
+                    {visibleHistory.map((h: any) => {
+                      const dayDate = parseISO(h.date);
+                      const dayLabel = format(dayDate, "EEE")[0]; // M, T, W...
+                      const dateNumber = format(dayDate, "d");
                       const isCompleted = h.completed;
 
                       return (
                         <button
                           key={h.date}
+                          type="button"
                           onClick={() => handleToggleCompletion(routine.id, h.date)}
-                          title={`${h.date}: ${isCompleted ? "Completed" : "Pending"}`}
-                          className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                          className={`py-2 rounded-xl border transition-all flex flex-col items-center justify-center active:scale-90 ${
                             isCompleted
                               ? "bg-red-500/20 border-red-500/40 text-red-400 font-bold shadow-glow-red-subtle"
                               : "bg-white/[0.02] hover:bg-white/[0.06] border-white/5 text-zinc-600"
                           }`}
+                          title={`${h.date}: ${isCompleted ? "Completed" : "Pending"}`}
                         >
-                          <span className="text-[10px] font-mono">{dayLabel}</span>
-                          <span className="text-xs mt-0.5">
+                          <span className="text-[9px] font-mono text-zinc-400 uppercase">
+                            {dayLabel}
+                          </span>
+                          <span className="text-xs font-mono font-bold mt-0.5">
+                            {dateNumber}
+                          </span>
+                          <span className="text-[10px] mt-0.5 leading-none">
                             {isCompleted ? "✓" : "•"}
                           </span>
                         </button>
@@ -399,10 +459,10 @@ export default function RoutinesPage() {
             <input
               type="text"
               required
-              placeholder="e.g. Gym, Read 20 mins, Study"
+              placeholder="e.g. Gym workout, Read 20 mins, Cold shower"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-mono"
               autoFocus
             />
           </div>
@@ -412,36 +472,38 @@ export default function RoutinesPage() {
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Category
               </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="Morning">Morning Protocol</option>
-                <option value="Afternoon">Afternoon Focus</option>
-                <option value="Night">Night Protocol</option>
-                <option value="Health">Health & Fitness</option>
-                <option value="Study">Study & Knowledge</option>
-                <option value="Work">Deep Work</option>
-                <option value="Discipline">Monk Discipline</option>
-                <option value="Finance">Finance</option>
-              </select>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Morning">Morning Protocol</SelectItem>
+                  <SelectItem value="Afternoon">Afternoon Focus</SelectItem>
+                  <SelectItem value="Night">Night Protocol</SelectItem>
+                  <SelectItem value="Health">Health & Fitness</SelectItem>
+                  <SelectItem value="Study">Study & Knowledge</SelectItem>
+                  <SelectItem value="Work">Deep Work</SelectItem>
+                  <SelectItem value="Discipline">Monk Discipline</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
                 Frequency
               </label>
-              <select
-                value={targetDays}
-                onChange={(e) => setTargetDays(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-white/10 text-sm text-white focus:outline-none focus:border-red-500"
-              >
-                <option value="DAILY">Daily</option>
-                <option value="MON_SAT">Mon - Sat</option>
-                <option value="WEEKDAYS">Weekdays only</option>
-                <option value="WEEKENDS">Weekends only</option>
-                <option value="SUNDAY">Every Sunday</option>
-              </select>
+              <Select value={targetDays} onValueChange={setTargetDays}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAILY">Daily</SelectItem>
+                  <SelectItem value="MON_SAT">Mon - Sat</SelectItem>
+                  <SelectItem value="WEEKDAYS">Weekdays only</SelectItem>
+                  <SelectItem value="WEEKENDS">Weekends only</SelectItem>
+                  <SelectItem value="SUNDAY">Every Sunday</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -453,21 +515,21 @@ export default function RoutinesPage() {
               type="number"
               min="1"
               value={targetDurationMinutes}
-              onChange={(e) => setTargetDurationMinutes(Number(e.target.value))}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-red-500 font-mono"
+              onChange={(e) => setTargetDurationMinutes(Number(e.target.value) || 1)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
             />
           </div>
 
           <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
             <Button
-              variant="ghost"
+              variant="glass"
               size="sm"
               type="button"
               onClick={() => setIsAddModalOpen(false)}
             >
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit">
+            <Button variant="red" size="sm" type="submit">
               Save Routine
             </Button>
           </div>
@@ -480,8 +542,8 @@ export default function RoutinesPage() {
         onClose={() => setRoutineToDelete(null)}
         onConfirm={handleExecuteDeleteRoutine}
         isLoading={isDeletingRoutine}
-        title="Delete Habit & Routine"
-        message={`Are you sure you want to delete "${routineToDelete?.name}"? All streak tracking, habit logs, and 14-day matrices for this routine will be permanently removed.`}
+        title="Delete Routine"
+        message={`Are you sure you want to delete "${routineToDelete?.name}"? All streak counts and history logs will be removed.`}
         confirmText="Delete Routine"
         confirmVariant="red"
         iconType="danger"
