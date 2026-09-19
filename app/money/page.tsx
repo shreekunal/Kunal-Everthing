@@ -29,7 +29,9 @@ import {
   TrendingUp,
   TrendingDown,
   ShieldCheck,
+  Wifi,
 } from "lucide-react";
+import clsx from "clsx";
 import { haptics } from "@/lib/haptics";
 import {
   Select,
@@ -252,6 +254,7 @@ export default function MoneyPage() {
         body: JSON.stringify({
           name: cardName.trim(),
           bank: "", // No separate bank name required
+          network: cardNetwork || "VISA",
           cardNumber: cardNumber ? cardNumber.replace(/\s+/g, "") : null,
           expiryDate: cardExpiry ? cardExpiry.trim() : null,
           cvv: cardCvv ? cardCvv.trim() : null,
@@ -266,6 +269,7 @@ export default function MoneyPage() {
       setCardNumber("");
       setCardExpiry("");
       setCardCvv("");
+      setCardNetwork("VISA");
       setCardLimit("150000");
       setCardOutstanding("0");
       setIsAddCardOpen(false);
@@ -280,6 +284,7 @@ export default function MoneyPage() {
     setSelectedCardForEdit({
       id: card.id,
       name: card.name,
+      network: card.network || "VISA",
       cardNumber: card.cardNumber ? formatCardNumberInput(card.cardNumber) : "",
       expiryDate: card.expiryDate || "",
       cvv: card.cvv || "",
@@ -301,6 +306,7 @@ export default function MoneyPage() {
         body: JSON.stringify({
           name: selectedCardForEdit.name.trim(),
           bank: "",
+          network: selectedCardForEdit.network || "VISA",
           cardNumber: selectedCardForEdit.cardNumber
             ? selectedCardForEdit.cardNumber.replace(/\s+/g, "")
             : null,
@@ -414,6 +420,7 @@ export default function MoneyPage() {
       setDebitCardExpiry("");
       setDebitCardCvv("");
       setDebitCardNotes("");
+      setDebitCardNetwork("VISA");
       setIsAddDebitCardOpen(false);
       fetchFinancials();
     } catch (err) {
@@ -606,95 +613,75 @@ export default function MoneyPage() {
               const isUrgent = days <= 3;
               const isWarning = days > 3 && days <= 15;
               const countdownBarColor = isUrgent
-                ? "bg-red-500"
+                ? "bg-red-500 shadow-glow-red"
                 : isWarning
                 ? "bg-amber-400"
                 : "bg-emerald-400";
+              const formattedNumber = card.cardNumber
+                ? formatCardNumberInput(card.cardNumber)
+                : card.last4
+                ? `•••• •••• •••• ${card.last4}`
+                : "•••• •••• •••• ••••";
+              const showCvv = showCvvMap[`credit-${card.id}`] || false;
 
               return (
-                <Card
+                <div
                   key={card.id}
-                  glow={isUrgent ? "red" : undefined}
-                  className="p-5 flex flex-col justify-between group"
+                  className={clsx(
+                    "group relative overflow-hidden rounded-2xl border transition-all duration-300 p-5 flex flex-col justify-between",
+                    "bg-gradient-to-br from-zinc-900/90 via-black to-zinc-950/90 hover:border-white/25 shadow-xl",
+                    isUrgent
+                      ? "border-red-500/40 shadow-glow-red-subtle"
+                      : isWarning
+                      ? "border-amber-500/30"
+                      : "border-white/10"
+                  )}
                 >
+                  {/* Glowing spine for urgent payment cycle */}
+                  {isUrgent && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-red shadow-glow-red" />
+                  )}
+
                   <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        {/* Only Card Name - No separate bank name */}
-                        <h4 className="text-base font-bold text-white truncate">
-                          {card.name}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          {card.cardNumber ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                haptics.impactLight();
-                                navigator.clipboard.writeText(card.cardNumber.replace(/\s+/g, ""));
-                                setCopiedId(`num-${card.id}`);
-                                setTimeout(() => setCopiedId(null), 2000);
-                              }}
-                              className="text-[11px] text-zinc-300 hover:text-white font-mono flex items-center gap-1 bg-white/[0.04] hover:bg-white/[0.08] px-2 py-0.5 rounded-md border border-white/10 transition-colors"
-                              title="Click to copy full card number"
-                            >
-                              <span>{card.cardNumber}</span>
-                              {copiedId === `num-${card.id}` ? (
-                                <Check className="w-2.5 h-2.5 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-2.5 h-2.5 text-zinc-500" />
-                              )}
-                            </button>
-                          ) : card.last4 ? (
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              •••• {card.last4}
-                            </span>
-                          ) : null}
-
-                          {/* Expiry Date Display */}
-                          {card.expiryDate && (
-                            <span className="text-[10px] font-mono text-zinc-300 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
-                              <span className="text-zinc-500">EXP:</span>
-                              <span className="font-bold text-white">{card.expiryDate}</span>
-                            </span>
-                          )}
-
-                          {card.cvv && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                haptics.selection();
-                                setShowCvvMap((prev) => ({
-                                  ...prev,
-                                  [card.id]: !prev[card.id],
-                                }));
-                              }}
-                              className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/10"
-                              title="Toggle CVV"
-                            >
-                              <span>CVV:</span>
-                              <span className="font-bold text-brand-red">
-                                {showCvvMap[card.id] ? card.cvv : "•••"}
-                              </span>
-                              {showCvvMap[card.id] ? (
-                                <EyeOff className="w-2.5 h-2.5 text-zinc-500" />
-                              ) : (
-                                <Eye className="w-2.5 h-2.5 text-zinc-500" />
-                              )}
-                            </button>
-                          )}
+                    {/* Top Row: Brass EMV Chip + Contactless + Network & Action Dock */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        {/* Realistic Brass/Gold EMV Chip */}
+                        <div className="w-8 h-6 rounded-md border border-amber-400/40 bg-gradient-to-br from-amber-300/20 via-amber-500/10 to-yellow-600/30 flex items-center justify-center relative overflow-hidden shadow-inner flex-shrink-0">
+                          <div className="w-full h-[1px] bg-amber-400/30 absolute top-2" />
+                          <div className="w-[1px] h-full bg-amber-400/30 absolute left-3" />
+                          <div className="w-2.5 h-1.5 rounded-[2px] border border-amber-400/40" />
                         </div>
+
+                        {/* Contactless Waves */}
+                        <Wifi className="w-3.5 h-3.5 rotate-90 text-zinc-400 opacity-60" />
+
+                        {card.network && (
+                          <span className="text-[10px] font-mono font-bold tracking-widest text-zinc-300 uppercase bg-white/[0.04] px-2 py-0.5 rounded border border-white/5">
+                            {card.network}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Badge
-                          variant={isUrgent ? "red" : isWarning ? "outline" : "outline"}
-                          size="sm"
+                      {/* Right: Due Date Pill & Actions */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span
+                          className={clsx(
+                            "text-[10px] font-mono px-2 py-0.5 rounded-md border flex items-center gap-1 font-bold",
+                            isUrgent
+                              ? "bg-red-500/15 border-red-500/30 text-red-400"
+                              : isWarning
+                              ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
+                              : "bg-white/[0.04] border-white/10 text-zinc-400"
+                          )}
                         >
-                          {card.dueDateLabel}
-                        </Badge>
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{days}d left</span>
+                        </span>
+
                         <button
                           onClick={() => handleOpenEditCard(card)}
-                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-white transition-all active:scale-90"
+                          className="p-1 text-zinc-500 hover:text-white transition-all active:scale-90 rounded hover:bg-white/5"
                           title="Edit card"
                           aria-label="Edit card"
                         >
@@ -705,7 +692,7 @@ export default function MoneyPage() {
                             haptics.warning();
                             setCardToDelete(card);
                           }}
-                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90"
+                          className="p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90 rounded hover:bg-white/5"
                           title="Delete card"
                           aria-label="Delete card"
                         >
@@ -714,114 +701,112 @@ export default function MoneyPage() {
                       </div>
                     </div>
 
-                    {/* Due Date Countdown Bar */}
-                    <div className="mt-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
-                      <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
-                        <span className="flex items-center gap-1 text-zinc-400">
-                          <Clock className="w-3 h-3 text-zinc-400" />
-                          {isUrgent ? "⚠️ Payment Urgent" : isWarning ? "Approaching Due" : "Safe Window"}
-                        </span>
-                        <span
-                          className={`font-bold ${
-                            isUrgent
-                              ? "text-red-400 animate-pulse"
-                              : isWarning
-                              ? "text-amber-400"
-                              : "text-emerald-400"
-                          }`}
-                        >
-                          {days} {days === 1 ? "day" : "days"} left
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${countdownBarColor}`}
-                          style={{
-                            width: `${Math.max(5, Math.min(100, ((30 - Math.min(30, days)) / 30) * 100))}%`,
-                          }}
-                        />
-                      </div>
+                    {/* Cardholder / Card Name */}
+                    <div className="mt-4">
+                      <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug truncate">
+                        {card.name}
+                      </h4>
                     </div>
 
-                    {/* 30% Credit Utilization Warning Pill */}
-                    <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
-                      {card.utilization > 30 ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-red-500/15 border border-red-500/30 text-[10px] font-mono font-bold text-red-400 flex items-center gap-1">
-                          <AlertTriangle className="w-2.5 h-2.5" />
-                          {card.utilization}% Used (&gt;30% Risk)
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/10 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
-                          🛡️ {card.utilization}% Used (Optimal)
-                        </span>
-                      )}
-                      <span className="text-[10px] font-mono text-zinc-500">
-                        Limit: {formatINR(card.creditLimit || 0)}
-                      </span>
-                    </div>
-
-                    {/* Statement & Due Dates */}
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/10 text-xs font-mono">
-                      <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5">
-                        <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                          Statement Date
-                        </span>
-                        <span className="font-bold text-white">
-                          {card.statementDate}th of month
-                        </span>
-                      </div>
-
-                      <div className="p-2 rounded-xl bg-white/[0.02] border border-white/5">
-                        <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                          Payment Due Date
-                        </span>
-                        <span className="font-bold text-brand-red">
-                          {card.dueDate}th of month
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Outstanding & 1-Click Pay */}
-                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 uppercase font-mono block">
-                        Outstanding
-                      </span>
-                      <span className="text-sm font-bold text-red-400 font-mono">
-                        {formatINR(card.currentOutstanding || 0)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {card.currentOutstanding > 0 && (
-                        <Button
-                          variant="red"
-                          size="sm"
-                          className="text-[11px] h-7 px-2.5"
-                          onClick={() => handleQuickPay(card)}
-                        >
-                          <CheckCircle className="w-3 h-3" />
-                          <span>1-Click Paid</span>
-                        </Button>
-                      )}
-                      <Button
-                        variant="glass"
-                        size="sm"
-                        className="text-[11px] h-7 px-2"
+                    {/* 16-Digit Monospace Number with 1-Tap Copy */}
+                    <div className="mt-2.5">
+                      <button
+                        type="button"
                         onClick={() => {
-                          setSelectedCardForPayment(card);
-                          setPaymentAmount(
-                            card.currentOutstanding ? String(card.currentOutstanding) : ""
-                          );
-                          setIsPaymentModalOpen(true);
+                          if (card.cardNumber) {
+                            haptics.impactLight();
+                            navigator.clipboard.writeText(card.cardNumber.replace(/\s+/g, ""));
+                            setCopiedId(`num-${card.id}`);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }
                         }}
+                        className="group/num flex items-center gap-2 font-mono text-xs sm:text-sm font-bold tracking-widest text-zinc-200 hover:text-white transition-colors"
+                        title={card.cardNumber ? "Click to copy 16-digit card number" : undefined}
                       >
-                        Pay
-                      </Button>
+                        <span>{formattedNumber}</span>
+                        {card.cardNumber && (
+                          <span className="text-zinc-500 group-hover/num:text-zinc-300 transition-colors">
+                            {copiedId === `num-${card.id}` ? (
+                              <Check className="w-3 h-3 text-emerald-400 inline" />
+                            ) : (
+                              <Copy className="w-3 h-3 opacity-50 group-hover/num:opacity-100 inline" />
+                            )}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Sleek Metadata Strip: Expiry, CVV, Limit, Statement */}
+                    <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3 text-xs font-mono flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">
+                            Valid Thru
+                          </span>
+                          <span className="text-xs font-bold text-zinc-200">
+                            {card.expiryDate || "—"}
+                          </span>
+                        </div>
+
+                        {card.cvv && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              haptics.selection();
+                              setShowCvvMap((prev) => ({
+                                ...prev,
+                                [`credit-${card.id}`]: !prev[`credit-${card.id}`],
+                              }));
+                            }}
+                            className="text-left group/cvv"
+                            title="Toggle CVV"
+                          >
+                            <span className="text-[9px] text-zinc-500 uppercase block tracking-wider flex items-center gap-1">
+                              CVV
+                              {showCvv ? (
+                                <EyeOff className="w-2.5 h-2.5 text-zinc-500" />
+                              ) : (
+                                <Eye className="w-2.5 h-2.5 text-zinc-500" />
+                              )}
+                            </span>
+                            <span className="text-xs font-bold text-brand-red">
+                              {showCvv ? card.cvv : "•••"}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 ml-auto">
+                        <div className="text-right">
+                          <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">
+                            Credit Limit
+                          </span>
+                          <span className="text-xs font-bold text-zinc-300">
+                            {formatINR(card.creditLimit || 0)}
+                          </span>
+                        </div>
+                        <div className="text-right hidden sm:block">
+                          <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">
+                            Bill Date
+                          </span>
+                          <span className="text-xs font-bold text-zinc-400">
+                            {card.statementDate}th
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </Card>
+
+                  {/* Micro Billing Cycle Progress Line */}
+                  <div className="mt-3 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={clsx("h-full rounded-full transition-all", countdownBarColor)}
+                      style={{
+                        width: `${Math.max(5, Math.min(100, ((30 - Math.min(30, days)) / 30) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -856,35 +841,34 @@ export default function MoneyPage() {
               const showCvv = showCvvMap[`debit-${dCard.id}`] || false;
 
               return (
-                <Card
+                <div
                   key={dCard.id}
-                  className="p-5 flex flex-col justify-between group relative border-white/10 hover:border-emerald-500/30 transition-colors"
+                  className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-emerald-500/30 transition-all duration-300 p-5 flex flex-col justify-between bg-gradient-to-br from-zinc-900/90 via-black to-zinc-950/90 shadow-xl"
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-base font-bold text-white truncate">
-                            {dCard.name}
-                          </h4>
-                          {dCard.network && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.05] border border-white/10 text-zinc-300">
-                              {dCard.network}
-                            </span>
-                          )}
+                    {/* Top Row: Teal/Silver EMV Chip + Contactless + Network & Action Dock */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        {/* Realistic Teal/Silver EMV Chip */}
+                        <div className="w-8 h-6 rounded-md border border-emerald-400/40 bg-gradient-to-br from-emerald-300/20 via-teal-500/10 to-emerald-600/30 flex items-center justify-center relative overflow-hidden shadow-inner flex-shrink-0">
+                          <div className="w-full h-[1px] bg-emerald-400/30 absolute top-2" />
+                          <div className="w-[1px] h-full bg-emerald-400/30 absolute left-3" />
+                          <div className="w-2.5 h-1.5 rounded-[2px] border border-emerald-400/40" />
                         </div>
 
-                        {dCard.notes && (
-                          <p className="text-[11px] text-zinc-400 mt-1 line-clamp-1">
-                            {dCard.notes}
-                          </p>
+                        <Wifi className="w-3.5 h-3.5 rotate-90 text-zinc-400 opacity-60" />
+
+                        {dCard.network && (
+                          <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-400 uppercase bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            {dCard.network}
+                          </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={() => handleOpenEditDebitCard(dCard)}
-                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-white transition-all active:scale-90"
+                          className="p-1 text-zinc-500 hover:text-white transition-all active:scale-90 rounded hover:bg-white/5"
                           title="Edit debit card"
                           aria-label="Edit debit card"
                         >
@@ -895,7 +879,7 @@ export default function MoneyPage() {
                             haptics.warning();
                             setDebitCardToDelete(dCard);
                           }}
-                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90"
+                          className="p-1 text-zinc-500 hover:text-brand-red transition-all active:scale-90 rounded hover:bg-white/5"
                           title="Delete debit card"
                           aria-label="Delete debit card"
                         >
@@ -904,86 +888,92 @@ export default function MoneyPage() {
                       </div>
                     </div>
 
-                    {/* Card Details Box */}
-                    <div className="mt-3.5 p-3 rounded-xl bg-black/60 border border-white/10 space-y-2.5 font-mono">
-                      {/* 16-Digit Card Number */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] text-zinc-500 uppercase">Card Number</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-white font-bold tracking-wider">
-                            {dCard.cardNumber
-                              ? formatCardNumberInput(dCard.cardNumber)
-                              : dCard.last4
-                              ? `•••• •••• •••• ${dCard.last4}`
-                              : "•••• •••• •••• ••••"}
-                          </span>
-                          {dCard.cardNumber && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                haptics.impactLight();
-                                navigator.clipboard.writeText(dCard.cardNumber.replace(/\s+/g, ""));
-                                setCopiedId(`dcard-${dCard.id}`);
-                                setTimeout(() => setCopiedId(null), 2000);
-                              }}
-                              className="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/10"
-                              title="Copy card number"
-                            >
-                              {isCopied ? (
-                                <Check className="w-3 h-3 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                    {/* Cardholder / Card Name */}
+                    <div className="mt-4">
+                      <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug truncate">
+                        {dCard.name}
+                      </h4>
+                      {dCard.notes && (
+                        <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1 font-sans font-normal">
+                          {dCard.notes}
+                        </p>
+                      )}
+                    </div>
 
-                      {/* Expiry & CVV Row */}
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-xs">
-                        <div>
-                          <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                            Valid Thru (EXP)
-                          </span>
-                          <span className="font-bold text-white">
-                            {dCard.expiryDate || "—"}
-                          </span>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">
-                              CVV
-                            </span>
-                            {dCard.cvv && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  haptics.selection();
-                                  setShowCvvMap((prev) => ({
-                                    ...prev,
-                                    [`debit-${dCard.id}`]: !prev[`debit-${dCard.id}`],
-                                  }));
-                                }}
-                                className="text-zinc-500 hover:text-zinc-300 p-0.5"
-                                title="Toggle CVV"
-                              >
-                                {showCvv ? (
-                                  <EyeOff className="w-2.5 h-2.5" />
-                                ) : (
-                                  <Eye className="w-2.5 h-2.5" />
-                                )}
-                              </button>
+                    {/* 16-Digit Monospace Number with 1-Tap Copy */}
+                    <div className="mt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (dCard.cardNumber) {
+                            haptics.impactLight();
+                            navigator.clipboard.writeText(dCard.cardNumber.replace(/\s+/g, ""));
+                            setCopiedId(`dcard-${dCard.id}`);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }
+                        }}
+                        className="group/num flex items-center gap-2 font-mono text-xs sm:text-sm font-bold tracking-widest text-zinc-200 hover:text-white transition-colors"
+                        title={dCard.cardNumber ? "Click to copy card number" : undefined}
+                      >
+                        <span>
+                          {dCard.cardNumber
+                            ? formatCardNumberInput(dCard.cardNumber)
+                            : dCard.last4
+                            ? `•••• •••• •••• ${dCard.last4}`
+                            : "•••• •••• •••• ••••"}
+                        </span>
+                        {dCard.cardNumber && (
+                          <span className="text-zinc-500 group-hover/num:text-zinc-300 transition-colors">
+                            {isCopied ? (
+                              <Check className="w-3 h-3 text-emerald-400 inline" />
+                            ) : (
+                              <Copy className="w-3 h-3 opacity-50 group-hover/num:opacity-100 inline" />
                             )}
-                          </div>
-                          <span className="font-bold text-emerald-400">
-                            {dCard.cvv ? (showCvv ? dCard.cvv : "•••") : "—"}
                           </span>
-                        </div>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Sleek Metadata Strip */}
+                    <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3 text-xs font-mono">
+                      <div>
+                        <span className="text-[9px] text-zinc-500 uppercase block tracking-wider">
+                          Valid Thru
+                        </span>
+                        <span className="text-xs font-bold text-zinc-200">
+                          {dCard.expiryDate || "—"}
+                        </span>
                       </div>
+
+                      {dCard.cvv && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.selection();
+                            setShowCvvMap((prev) => ({
+                              ...prev,
+                              [`debit-${dCard.id}`]: !prev[`debit-${dCard.id}`],
+                            }));
+                          }}
+                          className="text-right group/cvv"
+                          title="Toggle CVV"
+                        >
+                          <span className="text-[9px] text-zinc-500 uppercase block tracking-wider flex items-center gap-1 justify-end">
+                            CVV
+                            {showCvv ? (
+                              <EyeOff className="w-2.5 h-2.5 text-zinc-500" />
+                            ) : (
+                              <Eye className="w-2.5 h-2.5 text-zinc-500" />
+                            )}
+                          </span>
+                          <span className="text-xs font-bold text-emerald-400">
+                            {showCvv ? dCard.cvv : "•••"}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
@@ -1644,16 +1634,20 @@ export default function MoneyPage() {
             </div>
             <div>
               <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-                Outstanding (₹)
+                Card Network
               </label>
-              <input
-                type="number"
-                min="0"
-                value={cardOutstanding}
-                onChange={(e) => setCardOutstanding(e.target.value)}
-                placeholder="0"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
-              />
+              <Select value={cardNetwork} onValueChange={setCardNetwork}>
+                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                  <SelectValue placeholder="Network" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VISA">VISA</SelectItem>
+                  <SelectItem value="MASTERCARD">MasterCard</SelectItem>
+                  <SelectItem value="RUPAY">RuPay</SelectItem>
+                  <SelectItem value="AMEX">Amex</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -1814,20 +1808,28 @@ export default function MoneyPage() {
               </div>
               <div>
                 <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-                  Outstanding (₹)
+                  Card Network
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={selectedCardForEdit.currentOutstanding}
-                  onChange={(e) =>
+                <Select
+                  value={selectedCardForEdit.network || "VISA"}
+                  onValueChange={(val) =>
                     setSelectedCardForEdit({
                       ...selectedCardForEdit,
-                      currentOutstanding: e.target.value,
+                      network: val,
                     })
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red"
-                />
+                >
+                  <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                    <SelectValue placeholder="Network" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VISA">VISA</SelectItem>
+                    <SelectItem value="MASTERCARD">MasterCard</SelectItem>
+                    <SelectItem value="RUPAY">RuPay</SelectItem>
+                    <SelectItem value="AMEX">Amex</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

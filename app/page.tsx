@@ -14,6 +14,7 @@ import {
   Heart,
   CheckCircle2,
   Circle,
+  Check,
   ArrowRight,
   TrendingUp,
   LayoutDashboard,
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
+import clsx from "clsx";
 import { haptics } from "@/lib/haptics";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
@@ -620,31 +622,51 @@ export default function DashboardPage() {
                     <div
                       key={task.id}
                       onClick={() => handleToggleTask(task.id, task.status)}
-                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      className={clsx(
+                        "group relative overflow-hidden flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
                         isDone
-                          ? "bg-white/[0.01] border-white/5 text-zinc-600 line-through"
-                          : "bg-white/[0.03] hover:bg-white/[0.06] border-white/10 text-white"
-                      }`}
+                          ? "bg-black/40 border-white/5 opacity-60 text-zinc-500"
+                          : task.priority === "HIGH"
+                          ? "bg-gradient-to-r from-red-950/20 via-zinc-950/80 to-zinc-950 border-red-500/30 shadow-glow-red-subtle hover:border-red-500/50 text-white"
+                          : "bg-zinc-950/80 hover:bg-zinc-900/60 border-white/[0.08] hover:border-white/20 text-white"
+                      )}
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        {isDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-red-400 flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-zinc-500 hover:text-white flex-shrink-0" />
-                        )}
-                        <span className="text-sm font-medium truncate">{task.title}</span>
+                      {task.priority === "HIGH" && !isDone && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-red shadow-glow-red" />
+                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleTask(task.id, task.status);
+                          }}
+                          className={clsx(
+                            "w-4 h-4 rounded-md border flex items-center justify-center transition-all flex-shrink-0 active:scale-90",
+                            isDone
+                              ? "bg-brand-red border-brand-red text-white shadow-glow-red"
+                              : "border-zinc-700 group-hover:border-brand-red/80 bg-white/[0.02]"
+                          )}
+                          aria-label={isDone ? "Mark todo" : "Mark done"}
+                        >
+                          <Check className={clsx("w-3 h-3 stroke-[2.5]", isDone ? "opacity-100" : "opacity-0")} />
+                        </button>
+                        <span className={clsx("text-sm font-medium truncate", isDone && "line-through text-zinc-500")}>
+                          {task.title}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {task.category && (
-                          <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-zinc-400 border border-white/5 font-mono">
-                            {task.category}
+                          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-white/[0.03] text-zinc-400 border border-white/5 font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-red" />
+                            <span>{task.category}</span>
                           </span>
                         )}
-                        {task.priority === "HIGH" && (
-                          <Badge variant="red" size="sm">
-                            High
-                          </Badge>
+                        {task.priority === "HIGH" && !isDone && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider uppercase bg-red-500/15 text-red-400 border border-red-500/30">
+                            Urgent
+                          </span>
                         )}
                         <button
                           type="button"
@@ -652,7 +674,7 @@ export default function DashboardPage() {
                             e.stopPropagation();
                             handlePostponeTask(task);
                           }}
-                          className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-zinc-400 hover:text-white border border-white/10 flex items-center gap-1 transition-all active:scale-95"
+                          className="h-6 px-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[10px] font-mono text-zinc-400 hover:text-white border border-white/10 flex items-center gap-1 transition-all active:scale-95"
                           title="Postpone +1 Day to Tomorrow"
                         >
                           <Calendar className="w-2.5 h-2.5 text-brand-red" />
