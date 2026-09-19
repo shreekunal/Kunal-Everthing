@@ -163,7 +163,7 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
                 <Lock className="w-5 h-5" />
               </div>
               <span className="text-[10px] font-mono font-medium text-red-400 truncate w-full text-center">
-                Lock OS
+                Lock Everything
               </span>
             </button>
           </div>

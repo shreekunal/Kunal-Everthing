@@ -36,6 +36,8 @@ export async function GET() {
         utilization: Math.round(utilization),
         statementDate: c.statementDate,
         dueDate: c.dueDate,
+        cardNumber: c.cardNumber,
+        cvv: c.cvv,
         autopay: c.autopay,
         daysRemaining: dueInfo.daysRemaining,
         dueDateLabel: dueInfo.label,
@@ -60,6 +62,8 @@ export async function POST(request: Request) {
       bank,
       network,
       last4,
+      cardNumber,
+      cvv,
       creditLimit,
       statementDate,
       dueDate,
@@ -76,13 +80,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Determine clean last4 from cardNumber or explicit last4
+    const cleanDigits = cardNumber ? cardNumber.replace(/\D/g, "") : "";
+    const computedLast4 = cleanDigits.length >= 4 
+      ? cleanDigits.slice(-4) 
+      : (last4 ? last4.slice(-4) : "0000");
+
     const card = await prisma.creditCard.create({
       data: {
         userId: user.id,
         name,
         bank: bank || "Bank",
         network: network || "VISA",
-        last4: last4 ? last4.slice(-4) : "0000",
+        last4: computedLast4,
+        cardNumber: cardNumber ? cardNumber.trim() : null,
+        cvv: cvv ? cvv.trim() : null,
         creditLimit: parseFloat(creditLimit) || 100000.0,
         statementDate: parseInt(statementDate, 10) || 12,
         dueDate: parseInt(dueDate, 10) || 30,

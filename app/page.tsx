@@ -366,44 +366,36 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Header Row: Pixel Pet Companion + Level Rank + Actions */}
+          {/* Row 1: Disciple Rank, Title, XP Score, Season & Quick Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
-            {/* Left: Pixel Pet & Level Information */}
-            <div className="flex items-center gap-3">
-              <PixelPet
-                level={discipline.level}
-                totalXP={discipline.totalXP}
-                isPetDead={discipline.isPetDead}
-                purityStreak={discipline.streaks?.purity?.currentStreak || 0}
-                dietStreak={discipline.streaks?.diet?.currentStreak || 0}
-                todayDeducted={discipline.todayDeducted}
-              />
-              <div className="hidden sm:block w-[1px] h-8 bg-white/10" />
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white shadow-glow-red-subtle"}`}>
-                    {discipline.isPetDead ? "R.I.P." : `Lvl ${discipline.level}`}
+            {/* Disciple Status Pill */}
+            <Link
+              href="/rewards"
+              onClick={() => haptics.impactLight()}
+              className="flex items-center gap-2.5 flex-wrap group cursor-pointer hover:opacity-90 transition-opacity"
+            >
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white shadow-glow-red-subtle"}`}>
+                {discipline.isPetDead ? "R.I.P." : `Lvl ${discipline.level}`}
+              </span>
+              <h3 className="text-sm font-black text-white tracking-tight group-hover:text-brand-red transition-colors flex items-center gap-1.5">
+                <span>{discipline.title}</span>
+                <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
+              </h3>
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <span className={`font-bold border px-2 py-0.5 rounded-md ${discipline.totalXP < 0 ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-white bg-white/[0.06] border-white/10"}`}>
+                  {discipline.totalXP} XP
+                </span>
+                <span className="text-emerald-400 text-[11px] font-medium">+{discipline.todayEarned}</span>
+                {discipline.todayDeducted > 0 && (
+                  <span className="text-brand-red text-[11px] font-medium">-{discipline.todayDeducted}</span>
+                )}
+                {discipline.season && (
+                  <span className="text-[10px] text-zinc-500 hidden md:inline ml-1">
+                    • {discipline.season.name} ({discipline.season.daysRemaining}d left)
                   </span>
-                  <h3 className="text-sm font-black text-white tracking-tight">
-                    {discipline.title}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-mono mt-1">
-                  <span className={`font-bold border px-2 py-0.5 rounded-md ${discipline.totalXP < 0 ? "text-red-400 border-red-500/30 bg-red-500/10" : "text-white bg-white/[0.06] border-white/10"}`}>
-                    {discipline.totalXP} XP
-                  </span>
-                  <span className="text-emerald-400 text-[11px] font-medium">+{discipline.todayEarned}</span>
-                  {discipline.todayDeducted > 0 && (
-                    <span className="text-brand-red text-[11px] font-medium">-{discipline.todayDeducted}</span>
-                  )}
-                  {discipline.season && (
-                    <span className="text-[10px] text-zinc-500 hidden md:inline ml-1">
-                      • {discipline.season.name} ({discipline.season.daysRemaining}d left)
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-            </div>
+            </Link>
 
             {/* Quick Actions */}
             <div className="flex items-center gap-1.5 self-start sm:self-auto">
@@ -427,6 +419,28 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+
+          {/* Row 2: Dedicated Interactive Companion Pet Bay (Navigatable to /rewards) */}
+          <Link
+            href="/rewards"
+            onClick={() => haptics.impactLight()}
+            className="block my-2.5 p-2.5 sm:p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 hover:border-brand-red/30 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <PixelPet
+                level={discipline.level}
+                totalXP={discipline.totalXP}
+                isPetDead={discipline.isPetDead}
+                purityStreak={discipline.streaks?.purity?.currentStreak || 0}
+                dietStreak={discipline.streaks?.diet?.currentStreak || 0}
+                todayDeducted={discipline.todayDeducted}
+              />
+              <div className="flex items-center gap-1 text-[11px] font-mono text-zinc-500 group-hover:text-brand-red transition-colors flex-shrink-0">
+                <span className="hidden sm:inline">Karma Hub</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </div>
+          </Link>
 
           {/* Middle Row: Sleek 4-Pill Telemetry Dock (2x2 Grid with Centered Text) */}
           <div className="grid grid-cols-2 gap-2.5 pt-3">

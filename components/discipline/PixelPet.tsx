@@ -54,7 +54,9 @@ export function PixelPet({
         "Focus on the protocol. The rewards take care of themselves.",
       ];
 
-  const handlePetClick = () => {
+  const handlePetClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (isPetDead) {
       haptics.warning();
     } else {
@@ -159,9 +161,11 @@ export function PixelPet({
             {/* Inner shading */}
             <rect x="8" y="9" width="8" height="8" fill="#F4F4F5" />
             {/* Sprout Leaves on Head */}
-            <rect x="11" y="5" width="2" height="3" fill="#10B981" />
-            <rect x="9" y="4" width="2" height="2" fill="#10B981" />
-            <rect x="13" y="4" width="2" height="2" fill="#10B981" />
+            <g className="animate-pet-float">
+              <rect x="11" y="5" width="2" height="3" fill="#10B981" />
+              <rect x="9" y="4" width="2" height="2" fill="#10B981" />
+              <rect x="13" y="4" width="2" height="2" fill="#10B981" />
+            </g>
             {/* Pixel Eyes (Blinking/Slumped) */}
             {isSlumped ? (
               <>
@@ -171,13 +175,13 @@ export function PixelPet({
                 <rect x="7" y="8" width="4" height="2" fill="#F87171" />
               </>
             ) : (
-              <>
+              <g className="animate-pet-eyes">
                 <rect x="9" y="11" width="2" height="3" fill="#000000" />
                 <rect x="13" y="11" width="2" height="3" fill="#000000" />
                 {/* Blushing cheeks */}
                 <rect x="7" y="14" width="2" height="1" fill="#EF4444" />
                 <rect x="15" y="14" width="2" height="1" fill="#EF4444" />
-              </>
+              </g>
             )}
             {/* Mini Feet */}
             <rect x="8" y="18" width="2" height="2" fill="#A1A1AA" />
@@ -196,15 +200,19 @@ export function PixelPet({
             <rect x="7" y="8" width="10" height="8" fill="#EF4444" />
             <rect x="8" y="13" width="8" height="4" fill="#FFFFFF" />
             {/* Eyes */}
-            <rect x="8" y="10" width="2" height="2" fill="#000000" />
-            <rect x="14" y="10" width="2" height="2" fill="#000000" />
+            <g className="animate-pet-eyes">
+              <rect x="8" y="10" width="2" height="2" fill="#000000" />
+              <rect x="14" y="10" width="2" height="2" fill="#000000" />
+            </g>
             {/* Snout */}
             <rect x="11" y="13" width="2" height="2" fill="#000000" />
             {/* Body */}
             <rect x="8" y="16" width="8" height="5" fill="#EF4444" />
-            {/* Tail Tip (white) */}
-            <rect x="17" y="15" width="3" height="4" fill="#EF4444" />
-            <rect x="19" y="14" width="2" height="2" fill="#FFFFFF" />
+            {/* Tail Wag */}
+            <g className="animate-pet-tail">
+              <rect x="17" y="15" width="3" height="4" fill="#EF4444" />
+              <rect x="19" y="14" width="2" height="2" fill="#FFFFFF" />
+            </g>
           </svg>
         )}
 
@@ -218,13 +226,20 @@ export function PixelPet({
             {/* Head & Mane */}
             <rect x="6" y="8" width="12" height="8" fill="#E4E4E7" />
             {/* Crimson Piercing Eyes */}
-            <rect x="8" y="10" width="2" height="2" fill="#EF4444" />
-            <rect x="14" y="10" width="2" height="2" fill="#EF4444" />
+            <g className="animate-pet-eyes">
+              <rect x="8" y="10" width="2" height="2" fill="#EF4444" />
+              <rect x="14" y="10" width="2" height="2" fill="#EF4444" />
+            </g>
             {/* Snout */}
             <rect x="10" y="12" width="4" height="3" fill="#A1A1AA" />
             <rect x="11" y="13" width="2" height="2" fill="#000000" />
             {/* Body */}
             <rect x="7" y="16" width="10" height="5" fill="#71717A" />
+            {/* Tail Wag */}
+            <g className="animate-pet-tail">
+              <rect x="17" y="15" width="3" height="4" fill="#71717A" />
+              <rect x="19" y="14" width="2" height="2" fill="#E4E4E7" />
+            </g>
           </svg>
         )}
 
@@ -238,8 +253,10 @@ export function PixelPet({
             {/* Dragon Head */}
             <rect x="6" y="7" width="12" height="8" fill="#EF4444" />
             {/* Golden Fierce Eyes */}
-            <rect x="8" y="9" width="2" height="2" fill="#F59E0B" />
-            <rect x="14" y="9" width="2" height="2" fill="#F59E0B" />
+            <g className="animate-pet-eyes">
+              <rect x="8" y="9" width="2" height="2" fill="#F59E0B" />
+              <rect x="14" y="9" width="2" height="2" fill="#F59E0B" />
+            </g>
             {/* Snout & Whiskers */}
             <rect x="9" y="12" width="6" height="3" fill="#DC2626" />
             <rect x="10" y="13" width="1" height="1" fill="#000000" />
@@ -259,13 +276,17 @@ export function PixelPet({
             {/* Head */}
             <rect x="8" y="6" width="8" height="6" fill="#EF4444" />
             {/* Sharp Eyes */}
-            <rect x="9" y="8" width="2" height="2" fill="#FFFFFF" />
-            <rect x="13" y="8" width="2" height="2" fill="#FFFFFF" />
+            <g className="animate-pet-eyes">
+              <rect x="9" y="8" width="2" height="2" fill="#FFFFFF" />
+              <rect x="13" y="8" width="2" height="2" fill="#FFFFFF" />
+            </g>
             {/* Beak */}
             <rect x="11" y="10" width="2" height="2" fill="#F59E0B" />
-            {/* Majestic Wings */}
-            <rect x="3" y="9" width="4" height="7" fill="#DC2626" />
-            <rect x="17" y="9" width="4" height="7" fill="#DC2626" />
+            {/* Flapping Wings */}
+            <g className="animate-pet-wings">
+              <rect x="3" y="9" width="4" height="7" fill="#DC2626" />
+              <rect x="17" y="9" width="4" height="7" fill="#DC2626" />
+            </g>
             {/* Fire Body */}
             <rect x="7" y="12" width="10" height="7" fill="#EF4444" />
             <rect x="9" y="14" width="6" height="4" fill="#F59E0B" />

@@ -20,8 +20,11 @@ import {
   CheckCircle,
   Clock,
   ShieldAlert,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
-import { INDIAN_CARD_PRESETS } from "@/lib/presets";
 import { haptics } from "@/lib/haptics";
 
 export default function MoneyPage() {
@@ -46,6 +49,10 @@ export default function MoneyPage() {
   const [cardBank, setCardBank] = useState("HDFC Bank");
   const [cardNetwork, setCardNetwork] = useState("VISA");
   const [cardLast4, setCardLast4] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [showCvvMap, setShowCvvMap] = useState<{ [key: string]: boolean }>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cardLimit, setCardLimit] = useState("150000");
   const [cardStatementDate, setCardStatementDate] = useState("12");
   const [cardDueDate, setCardDueDate] = useState("30");
@@ -115,6 +122,8 @@ export default function MoneyPage() {
         body: JSON.stringify({
           name: cardName,
           bank: cardBank || "Bank",
+          cardNumber: cardNumber || null,
+          cvv: cardCvv || null,
           creditLimit: Number(cardLimit) || 100000,
           currentOutstanding: Number(cardOutstanding) || 0,
           statementDate: Number(cardStatementDate) || 12,
@@ -124,6 +133,8 @@ export default function MoneyPage() {
       haptics.success();
       setCardName("");
       setCardBank("");
+      setCardNumber("");
+      setCardCvv("");
       setCardLimit("150000");
       setCardOutstanding("0");
       setIsAddCardOpen(false);
@@ -194,14 +205,6 @@ export default function MoneyPage() {
     }
   };
 
-  const handleApplyCardPreset = (preset: typeof INDIAN_CARD_PRESETS[0]) => {
-    setCardName(preset.name);
-    setCardBank(preset.bank);
-    setCardNetwork(preset.network);
-    setCardLimit(preset.typicalLimit.toString());
-    setCardStatementDate(preset.statementDate.toString());
-    setCardDueDate(preset.dueDate.toString());
-  };
 
   const { netWorth, totalAssets, totalLiabilities, totalCardOutstanding, accounts } =
     data || {};
@@ -306,11 +309,57 @@ export default function MoneyPage() {
                       <h4 className="text-base font-bold text-white truncate">
                         {card.bank ? `${card.bank} ` : ""}{card.name}
                       </h4>
-                      {card.last4 && (
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          •••• {card.last4}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {card.cardNumber ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              haptics.impactLight();
+                              navigator.clipboard.writeText(card.cardNumber.replace(/\s+/g, ""));
+                              setCopiedId(`num-${card.id}`);
+                              setTimeout(() => setCopiedId(null), 2000);
+                            }}
+                            className="text-[11px] text-zinc-300 hover:text-white font-mono flex items-center gap-1 bg-white/[0.04] hover:bg-white/[0.08] px-2 py-0.5 rounded-md border border-white/10 transition-colors"
+                            title="Click to copy full card number"
+                          >
+                            <span>{card.cardNumber}</span>
+                            {copiedId === `num-${card.id}` ? (
+                              <Check className="w-2.5 h-2.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-2.5 h-2.5 text-zinc-500" />
+                            )}
+                          </button>
+                        ) : card.last4 ? (
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            •••• {card.last4}
+                          </span>
+                        ) : null}
+
+                        {card.cvv && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              haptics.selection();
+                              setShowCvvMap((prev) => ({
+                                ...prev,
+                                [card.id]: !prev[card.id],
+                              }));
+                            }}
+                            className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/10"
+                            title="Toggle CVV"
+                          >
+                            <span>CVV:</span>
+                            <span className="font-bold text-brand-red">
+                              {showCvvMap[card.id] ? card.cvv : "•••"}
+                            </span>
+                            {showCvvMap[card.id] ? (
+                              <EyeOff className="w-2.5 h-2.5 text-zinc-500" />
+                            ) : (
+                              <Eye className="w-2.5 h-2.5 text-zinc-500" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -605,27 +654,6 @@ export default function MoneyPage() {
         title="Add Credit Card"
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Pick Indian Bank Preset
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-28 overflow-y-auto p-1 border border-white/10 rounded-2xl bg-black/60">
-              {INDIAN_CARD_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleApplyCardPreset(preset)}
-                  className="text-left p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-[11px] text-zinc-300 border border-white/5"
-                >
-                  <span className="font-bold block text-red-400 font-mono">
-                    {preset.name}
-                  </span>
-                  <span className="text-[10px] text-zinc-500">{preset.bank}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <form onSubmit={handleCreateCard} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -651,6 +679,40 @@ export default function MoneyPage() {
                   value={cardBank}
                   onChange={(e) => setCardBank(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Card Number & CVV Fields */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  Card Number (16 Digits)
+                </label>
+                <input
+                  type="text"
+                  maxLength={19}
+                  placeholder="4111 2222 3333 4444"
+                  value={cardNumber}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                    const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ");
+                    setCardNumber(formatted);
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
+                  CVV
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  placeholder="•••"
+                  value={cardCvv}
+                  onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-brand-red text-center tracking-widest"
                 />
               </div>
             </div>

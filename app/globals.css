@@ -79,6 +79,37 @@ body {
   animation: petPulseDead 2s ease-in-out infinite;
 }
 
+@keyframes petEyeBlink {
+  0%, 46%, 48%, 94%, 96%, 100% { transform: scaleY(1); }
+  47%, 95% { transform: scaleY(0.1); }
+}
+
+.animate-pet-eyes {
+  transform-origin: center;
+  animation: petEyeBlink 4.2s infinite ease-in-out;
+}
+
+@keyframes petTailWag {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+.animate-pet-tail {
+  transform-origin: 17px 18px;
+  animation: petTailWag 1.8s infinite ease-in-out;
+}
+
+@keyframes petWingFlap {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  50% { transform: scaleY(0.8) translateY(1px); }
+}
+
+.animate-pet-wings {
+  transform-origin: center;
+  animation: petWingFlap 1.2s infinite ease-in-out;
+}
+
 @keyframes curtainPulse {
   0%, 100% { transform: scale(1); opacity: 0.85; filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.4)); }
   50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 24px rgba(239, 68, 68, 0.9)); }

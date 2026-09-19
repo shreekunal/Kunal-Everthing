@@ -45,22 +45,22 @@ export function AppOpeningCurtain() {
       {/* Monogram / Emblem */}
       <div className="relative flex flex-col items-center">
         <div className="w-20 h-20 rounded-3xl bg-black border border-brand-red/40 flex items-center justify-center shadow-glow-red animate-curtain-pulse">
-          {/* Custom SVG Monogram */}
-          <svg viewBox="0 0 24 24" className="w-10 h-10 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 4h4v16H4z" fill="#FFFFFF" fillOpacity="0.1" />
-            <path d="M12 4l8 8-8 8" stroke="#EF4444" strokeWidth="2.5" />
-            <path d="M4 12h14" stroke="#EF4444" strokeWidth="2.5" />
+          {/* Custom SVG Monogram (O ->) */}
+          <svg viewBox="0 0 24 24" className="w-12 h-12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8.5" cy="12" r="5.5" stroke="#FFFFFF" strokeWidth="2.2" fill="#FFFFFF" fillOpacity="0.1" />
+            <path d="M14 12h7" stroke="#EF4444" strokeWidth="2.5" />
+            <path d="M17.5 8.5l3.5 3.5-3.5 3.5" stroke="#EF4444" strokeWidth="2.5" />
           </svg>
         </div>
 
         {/* Brand Typography & Micro-Telemetry */}
         <div className="mt-5 text-center">
           <h1 className="text-sm font-black tracking-widest text-white uppercase font-mono">
-            KUNAL OS
+            EVERYTHING
           </h1>
           <p className="text-[10px] text-zinc-500 font-mono tracking-wider mt-1 flex items-center justify-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping" />
-            INITIALIZING SECURE PROTOCOL
+            EVERYTHING • INITIALIZING SECURE PROTOCOL
           </p>
         </div>
       </div>

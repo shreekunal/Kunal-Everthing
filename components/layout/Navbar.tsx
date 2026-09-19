@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "../ui/Button";
+import { BrandLogo } from "../ui/BrandLogo";
 
 interface NavbarProps {
   onOpenQuickAdd: () => void;
@@ -88,7 +89,7 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
       <div className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-4 py-2.5 shadow-glass-panel flex items-center justify-between gap-3">
         {/* Left: Minimalist Branding */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
-          <img src="/BrandLogo.png" alt="Everything" className="w-5 h-5 object-contain rounded" />
+          <BrandLogo className="w-5 h-5" />
           <span className="font-bold text-xs tracking-[0.25em] text-white font-mono uppercase group-hover:text-brand-red transition-colors">
             EVERYTHING
           </span>
