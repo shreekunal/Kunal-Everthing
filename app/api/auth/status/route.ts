@@ -1,32 +1,44 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { verifySessionToken, getOrCreateDefaultUser } from "@/lib/auth";
+import { verifySessionToken, getAvailableProfiles, ensureDualProfiles } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-
   try {
     const cookieStore = cookies();
     const token = cookieStore.get("kunal_os_token")?.value;
-    const defaultUser = await getOrCreateDefaultUser();
+    const { kunal, mradul } = await ensureDualProfiles();
+    const profiles = await getAvailableProfiles();
 
     let authenticated = false;
     let authMethod = null;
+    let currentUser = kunal;
 
     if (token) {
       const payload = await verifySessionToken(token);
       if (payload?.userId) {
-        authenticated = true;
-        authMethod = payload.authMethod || "pin";
+        const found = await prisma.user.findUnique({
+          where: { id: payload.userId },
+          include: { settings: true },
+        });
+        if (found) {
+          authenticated = true;
+          authMethod = payload.authMethod || "pin";
+          currentUser = found;
+        }
       }
     }
 
     return NextResponse.json({
       authenticated,
       authMethod,
-      hasBiometrics: !!defaultUser.biometricCredential,
-      userName: defaultUser.name || "Kunal",
+      userId: currentUser.id,
+      userName: currentUser.name || "Kunal",
+      userEmail: currentUser.email,
+      hasBiometrics: !!currentUser.biometricCredential,
+      profiles,
     });
   } catch (error: any) {
     console.error("Auth status error:", error);

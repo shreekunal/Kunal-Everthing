@@ -28,6 +28,9 @@ import {
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
 
+import { ProfileAvatar } from "../ui/ProfileAvatar";
+import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
+
 interface NavbarProps {
   onOpenQuickAdd: () => void;
 }
@@ -37,6 +40,11 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Active User Profile State
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
+  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   const handleLockPortal = async () => {
     try {
@@ -73,8 +81,22 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
     }
   };
 
+  const fetchUserStatus = async () => {
+    try {
+      const res = await fetch("/api/auth/status");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.userId) setCurrentUserId(data.userId);
+        if (data.userName) setCurrentUserName(data.userName);
+      }
+    } catch {
+      // Silently ignore
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
+    fetchUserStatus();
   }, []);
 
   const markAllRead = async () => {
@@ -210,6 +232,24 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Active Profile Switcher Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsProfileSwitcherOpen(true)}
+            className="flex items-center gap-1.5 p-1 sm:pr-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 transition-all cursor-pointer active:scale-95 group"
+            title={`Active Workspace: ${currentUserName}. Click to switch.`}
+          >
+            <ProfileAvatar
+              name={currentUserName || "Kunal"}
+              gender={currentUserName.toLowerCase().includes("mradul") ? "FEMALE" : "MALE"}
+              size="sm"
+              isSelected
+            />
+            <span className="hidden sm:inline text-xs font-mono font-bold text-white group-hover:text-brand-red transition-colors">
+              {currentUserName || "Kunal"}
+            </span>
+          </button>
+
           {/* Lock OS Portal CTA */}
           <button
             onClick={handleLockPortal}
@@ -222,6 +262,13 @@ export function Navbar({ onOpenQuickAdd }: NavbarProps) {
         </div>
       </div>
 
+      {/* Profile Switcher Modal */}
+      <ProfileSwitcherModal
+        isOpen={isProfileSwitcherOpen}
+        onClose={() => setIsProfileSwitcherOpen(false)}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+      />
     </header>
   );
 }

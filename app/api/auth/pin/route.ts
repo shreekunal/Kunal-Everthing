@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { pin } = await req.json();
+    const { pin, userId } = await req.json();
 
     if (!pin || typeof pin !== "string" || pin.length !== 4) {
       return NextResponse.json(
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { success, user } = await verifyUserPin(pin);
+    const { success, user } = await verifyUserPin(pin, userId);
 
     if (!success || !user) {
       const currentAttempts = (record?.attempts || 0) + 1;

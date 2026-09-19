@@ -9,3 +9,4 @@ export * from "./dropdown-menu";
 export * from "./popover";
 export * from "./calendar";
 export * from "./date-picker";
+export * from "./ProfileAvatar";

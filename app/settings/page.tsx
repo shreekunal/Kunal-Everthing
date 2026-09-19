@@ -28,7 +28,10 @@ import {
   CreditCard as CreditCardIcon,
   Heart,
   CheckSquare,
+  Users,
 } from "lucide-react";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
+import { ProfileSwitcherModal } from "@/components/profile/ProfileSwitcherModal";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { haptics } from "@/lib/haptics";
 import {
@@ -104,11 +107,16 @@ export default function SettingsPage() {
   const [pinSuccess, setPinSuccess] = useState(false);
   const [isUpdatingPin, setIsUpdatingPin] = useState(false);
 
-  // Biometrics
+  // Biometrics & Multi-Profile States
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [biometricsSupported, setBiometricsSupported] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
   const [bioMessage, setBioMessage] = useState<{ text: string; error?: boolean } | null>(null);
+
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
+  const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
+  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
 
   // Fetch initial security status
   useEffect(() => {
@@ -121,6 +129,9 @@ export default function SettingsPage() {
         if (res.ok) {
           const data = await res.json();
           setHasBiometrics(!!data.hasBiometrics);
+          if (data.userId) setCurrentUserId(data.userId);
+          if (data.userName) setCurrentUserName(data.userName);
+          if (data.profiles) setAvailableProfiles(data.profiles);
         }
 
         if (typeof window !== "undefined") {
@@ -335,12 +346,83 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {/* Prime Video Dual-Profile Profiles */}
+      <Card glow="red">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-brand-red" />
+            <CardTitle>Dual-Profile Workspaces (Prime Video Style)</CardTitle>
+          </div>
+          <Badge variant="red" size="sm">
+            Current: {currentUserName}
+          </Badge>
+        </CardHeader>
+
+        <div className="space-y-4 text-xs">
+          <p className="text-zinc-400 font-mono text-[11px]">
+            Two independent profiles (Mradul & Kunal) with isolated tasks, routines, cards, and wallets.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+            {availableProfiles.map((p) => {
+              const isCurrent = p.id === currentUserId || p.name === currentUserName;
+              return (
+                <div
+                  key={p.id}
+                  className={`p-3.5 rounded-2xl border transition-all flex items-center gap-3 ${
+                    isCurrent
+                      ? "bg-white/[0.04] border-brand-red/40 shadow-glow-red-subtle"
+                      : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                  }`}
+                >
+                  <ProfileAvatar
+                    name={p.name}
+                    gender={p.gender}
+                    size="md"
+                    isSelected={isCurrent}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white font-mono text-sm">
+                        {p.name}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-red/20 text-brand-red font-mono font-bold">
+                          CURRENT
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-zinc-400 font-mono block truncate">
+                      {p.role === "PRIMARY" ? "Primary / Master Profile" : "Partner Profile"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
+            <span className="text-zinc-400 font-mono text-[11px]">
+              Switch to the other profile workspace:
+            </span>
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={() => setIsProfileSwitcherOpen(true)}
+              className="text-xs gap-1.5"
+            >
+              <span>Switch Profile (PIN Required)</span>
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       {/* Device Lock & Biometrics */}
       <Card glow="red">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 text-brand-red" />
-            <CardTitle>Master PIN & Biometric Lock Security</CardTitle>
+            <CardTitle>Master PIN & Biometric Lock Security ({currentUserName})</CardTitle>
           </div>
           <Badge variant="red" size="sm">
             Lock Screen Active
@@ -1043,6 +1125,14 @@ export default function SettingsPage() {
         confirmText="Remove Biometrics"
         confirmVariant="red"
         iconType="warning"
+      />
+
+      {/* Profile Switcher Modal */}
+      <ProfileSwitcherModal
+        isOpen={isProfileSwitcherOpen}
+        onClose={() => setIsProfileSwitcherOpen(false)}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
       />
     </div>
   );

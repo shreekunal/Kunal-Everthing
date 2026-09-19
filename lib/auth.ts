@@ -47,17 +47,26 @@ export async function verifySessionToken(token: string): Promise<{ userId: strin
 }
 
 /**
- * Get or create the default user for KunalOS (ensures frictionless personal usage)
+ * Ensure both Kunal (Male) and Mradul (Female) profiles exist in the system
  */
-export async function getOrCreateDefaultUser() {
-  let user = await prisma.user.findFirst({
+export async function ensureDualProfiles() {
+  // 1. Primary User: Kunal
+  let kunal = await prisma.user.findFirst({
+    where: { email: "kunal@local.os" },
     include: { settings: true },
   });
 
-  if (!user) {
+  if (!kunal) {
+    // If an existing user exists without email kunal@local.os, treat that user as Kunal
+    kunal = await prisma.user.findFirst({
+      include: { settings: true },
+    });
+  }
+
+  if (!kunal) {
     const defaultPasswordHash = await hashPassword("kunal123");
     const defaultPinHash = await hashPin("1234");
-    user = await prisma.user.create({
+    kunal = await prisma.user.create({
       data: {
         email: "kunal@local.os",
         name: "Kunal",
@@ -76,29 +85,164 @@ export async function getOrCreateDefaultUser() {
       },
       include: { settings: true },
     });
-  } else if (!user.pinHash) {
-    // Ensure default PIN is set to 1234 if user existed prior to PIN column
+  } else {
+    // Ensure kunal has pinHash and email set
+    if (!kunal.pinHash) {
+      const defaultPinHash = await hashPin("1234");
+      kunal = await prisma.user.update({
+        where: { id: kunal.id },
+        data: { pinHash: defaultPinHash },
+        include: { settings: true },
+      });
+    }
+  }
+
+  // 2. Partner User: Mradul (Female)
+  let mradul = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: "mradul@local.os" },
+        { name: "Mradul" },
+      ],
+    },
+    include: { settings: true },
+  });
+
+  if (!mradul) {
+    const defaultPasswordHash = await hashPassword("mradul123");
     const defaultPinHash = await hashPin("1234");
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { pinHash: defaultPinHash },
+    mradul = await prisma.user.create({
+      data: {
+        email: "mradul@local.os",
+        name: "Mradul",
+        passwordHash: defaultPasswordHash,
+        pinHash: defaultPinHash,
+        settings: {
+          create: {
+            currency: "INR",
+            timezone: "Asia/Kolkata",
+            theme: "pitch-black",
+            vaultAutoLockMinutes: 5,
+            clipboardClearSecs: 30,
+            notificationsEnabled: true,
+          },
+        },
+      },
       include: { settings: true },
     });
   }
 
-  return user;
+  // 3. Ensure reciprocal relationship records between Kunal and Mradul
+  try {
+    const kunalPartner = await prisma.partner.findFirst({
+      where: { userId: kunal.id },
+    });
+    if (!kunalPartner) {
+      await prisma.partner.create({
+        data: {
+          userId: kunal.id,
+          name: "Mradul",
+          nickname: "Golu",
+          phone: "+919520675476",
+          birthday: "2008-06-08",
+          anniversary: "2025-01-07",
+          preferredChannel: "WHATSAPP",
+        },
+      });
+    }
+
+    const mradulPartner = await prisma.partner.findFirst({
+      where: { userId: mradul.id },
+    });
+    if (!mradulPartner) {
+      await prisma.partner.create({
+        data: {
+          userId: mradul.id,
+          name: "Kunal",
+          nickname: "My Love",
+          birthday: kunalPartner?.birthday || null,
+          anniversary: kunalPartner?.anniversary || "2025-01-07",
+          preferredChannel: "WHATSAPP",
+        },
+      });
+    }
+  } catch (err) {
+    // Non-fatal if partner tables already populated
+  }
+
+  return { kunal, mradul };
 }
 
 /**
- * Verify user PIN
+ * Get available profiles metadata for Prime Video lock screen
  */
-export async function verifyUserPin(pin: string): Promise<{ success: boolean; user?: any }> {
-  const user = await getOrCreateDefaultUser();
-  if (!user.pinHash) {
-    return { success: pin === "1234", user };
+export async function getAvailableProfiles() {
+  const { kunal, mradul } = await ensureDualProfiles();
+
+  return [
+    {
+      id: mradul.id,
+      name: "Mradul",
+      gender: "FEMALE" as const,
+      role: "PARTNER" as const,
+      email: mradul.email,
+      hasPin: !!mradul.pinHash,
+      hasBiometrics: !!mradul.biometricCredential,
+      accentColor: "#f43f5e", // Rose-500
+      glowColor: "rgba(244, 63, 94, 0.4)",
+    },
+    {
+      id: kunal.id,
+      name: "Kunal",
+      gender: "MALE" as const,
+      role: "PRIMARY" as const,
+      email: kunal.email,
+      hasPin: !!kunal.pinHash,
+      hasBiometrics: !!kunal.biometricCredential,
+      accentColor: "#ef4444", // Brand Red
+      glowColor: "rgba(239, 68, 68, 0.4)",
+    },
+  ];
+}
+
+/**
+ * Get or create the default primary user for KunalOS
+ */
+export async function getOrCreateDefaultUser() {
+  const { kunal } = await ensureDualProfiles();
+  return kunal;
+}
+
+/**
+ * Verify user PIN for either a specific user or across available profiles
+ */
+export async function verifyUserPin(
+  pin: string,
+  targetUserId?: string
+): Promise<{ success: boolean; user?: any }> {
+  const { kunal, mradul } = await ensureDualProfiles();
+
+  if (targetUserId) {
+    const user = targetUserId === kunal.id ? kunal : targetUserId === mradul.id ? mradul : null;
+    if (!user) return { success: false };
+    if (!user.pinHash) {
+      return { success: pin === "1234", user };
+    }
+    const isMatch = await verifyPin(pin, user.pinHash);
+    return { success: isMatch, user: isMatch ? user : undefined };
   }
-  const isMatch = await verifyPin(pin, user.pinHash);
-  return { success: isMatch, user: isMatch ? user : undefined };
+
+  // If no target specified, check against both profiles
+  for (const user of [mradul, kunal]) {
+    if (!user.pinHash) {
+      if (pin === "1234") return { success: true, user };
+    } else {
+      const isMatch = await verifyPin(pin, user.pinHash);
+      if (isMatch) return { success: true, user };
+    }
+  }
+
+  return { success: false };
 }
 
 /**

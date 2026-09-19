@@ -637,7 +637,7 @@ export default function RelationshipPage() {
                 const cardId = `love-msg-${m.id || 0}`;
                 const msgText = m.text || "";
                 const mood = m.mood || "Tender";
-                const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n— Tera Kunal`;
+                const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n—Kunal`;
 
                 return (
                   <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-brand-red/[0.08] via-black to-white/[0.02] border border-brand-red/40 shadow-glow-red-subtle space-y-3.5">
@@ -661,14 +661,14 @@ export default function RelationshipPage() {
                     <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2.5">
                       <span className="text-xs font-mono text-brand-red font-semibold flex items-center gap-1">
                         <Heart className="w-3 h-3 fill-brand-red" />
-                        <span>— Tera Kunal ❤️</span>
+                        <span>—Kunal ❤️</span>
                       </span>
 
                       <div className="flex items-center gap-2 ml-auto">
                         <Button
                           variant="glass"
                           size="sm"
-                          onClick={() => handleCopyText(cardId, `"${msgText}"\n— Tera Kunal`)}
+                          onClick={() => handleCopyText(cardId, `"${msgText}"\n—Kunal`)}
                           className="text-xs h-7 px-2.5"
                         >
                           {copiedId === cardId ? (
@@ -706,7 +706,7 @@ export default function RelationshipPage() {
                   const cardId = `love-msg-${m.id || index + 1}`;
                   const msgText = m.text || "";
                   const mood = m.mood || "Sweet";
-                  const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n— Tera Kunal`;
+                  const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n—Kunal`;
 
                   return (
                     <div
@@ -730,14 +730,14 @@ export default function RelationshipPage() {
 
                       <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
                         <span className="text-[11px] font-mono text-zinc-500">
-                          — Tera Kunal
+                          —Kunal
                         </span>
 
                         <div className="flex items-center gap-1.5">
                           <Button
                             variant="glass"
                             size="sm"
-                            onClick={() => handleCopyText(cardId, `"${msgText}"\n— Tera Kunal`)}
+                            onClick={() => handleCopyText(cardId, `"${msgText}"\n—Kunal`)}
                             className="text-[11px] h-6 px-2"
                           >
                             {copiedId === cardId ? (

@@ -22,6 +22,9 @@ import {
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 
+import { ProfileAvatar } from "../ui/ProfileAvatar";
+import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
+
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
 }
@@ -29,6 +32,19 @@ interface BottomNavProps {
 export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
   const pathname = usePathname();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
+  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.userId) setCurrentUserId(data.userId);
+        if (data.userName) setCurrentUserName(data.userName);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLockPortal = async () => {
     try {
@@ -96,11 +112,30 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
             className="w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mb-2.5 cursor-pointer transition-colors"
           />
 
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-brand-red" />
-              Everthing
-            </span>
+          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+            <div
+              onClick={() => {
+                haptics.impactMedium();
+                setIsDrawerOpen(false);
+                setIsProfileSwitcherOpen(true);
+              }}
+              className="flex items-center gap-2 cursor-pointer p-1 rounded-xl hover:bg-white/[0.05] transition-colors"
+              title="Click to switch profile"
+            >
+              <ProfileAvatar
+                name={currentUserName || "Kunal"}
+                gender={currentUserName.toLowerCase().includes("mradul") ? "FEMALE" : "MALE"}
+                size="sm"
+                isSelected
+              />
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-bold text-white font-mono leading-none flex items-center gap-1.5">
+                  <span>{currentUserName || "Kunal"}</span>
+                  <span className="text-[9px] text-zinc-500 font-mono">(Switch)</span>
+                </span>
+                <span className="text-[9px] text-zinc-400 font-mono mt-0.5">Active Workspace</span>
+              </div>
+            </div>
             <button
               onClick={() => {
                 haptics.impactLight();
@@ -252,6 +287,14 @@ export function BottomNav({ onOpenQuickAdd }: BottomNavProps) {
           </button>
         </div>
       </div>
+
+      {/* Profile Switcher Modal */}
+      <ProfileSwitcherModal
+        isOpen={isProfileSwitcherOpen}
+        onClose={() => setIsProfileSwitcherOpen(false)}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+      />
     </>
   );
 }
