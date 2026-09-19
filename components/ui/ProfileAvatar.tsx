@@ -75,18 +75,6 @@ export function ProfileAvatar({
           draggable={false}
           className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-300 group-hover:scale-105"
         />
-
-        {/* Selected Check Indicator */}
-        {isSelected && (
-          <div
-            className={clsx(
-              "absolute bottom-0 inset-x-0 py-0.5 text-center text-[9px] font-mono font-bold tracking-widest text-white uppercase backdrop-blur-md",
-              isFemale ? "bg-rose-600/90" : "bg-brand-red/90"
-            )}
-          >
-            ACTIVE
-          </div>
-        )}
       </div>
 
       {/* Label under Circle (Prime Video Style) */}
