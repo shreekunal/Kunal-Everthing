@@ -32,8 +32,56 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/";
 
-  const [profiles, setProfiles] = useState<ProfileItem[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<ProfileItem | null>(null);
+  const [profiles, setProfiles] = useState<ProfileItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const cached = localStorage.getItem("kunal_os_cached_profiles");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+
+  const [selectedProfile, setSelectedProfile] = useState<ProfileItem | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    // Check if user explicitly asked to switch profiles
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("switch") === "true") return null;
+
+    // Check target user ID from URL or localStorage
+    const targetUserId =
+      params.get("userId") ||
+      localStorage.getItem("kunal_os_locked_user_id") ||
+      localStorage.getItem("kunal_os_current_user_id");
+
+    if (!targetUserId) return null;
+
+    // 1. Try finding in cached profiles
+    try {
+      const cachedRaw = localStorage.getItem("kunal_os_cached_profiles");
+      if (cachedRaw) {
+        const list: ProfileItem[] = JSON.parse(cachedRaw);
+        const matched = list.find((p) => p.id === targetUserId);
+        if (matched) return matched;
+      }
+    } catch {}
+
+    // 2. Optimistic profile matching from cached name & gender
+    const cachedName = localStorage.getItem("kunal_os_current_user_name") || "Kunal";
+    const isFemale = cachedName.toLowerCase().includes("mradul");
+
+    return {
+      id: targetUserId,
+      name: cachedName,
+      gender: isFemale ? "FEMALE" : "MALE",
+      role: isFemale ? "PARTNER" : "PRIMARY",
+      email: "",
+      hasPin: true,
+      hasBiometrics: true,
+      accentColor: isFemale ? "#f43f5e" : "#ef4444",
+    };
+  });
+
   const [pin, setPin] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState(false);
@@ -41,7 +89,10 @@ function LoginContent() {
   const [success, setSuccess] = useState(false);
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const [biometricsSupported, setBiometricsSupported] = useState(false);
-  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [loadingProfiles, setLoadingProfiles] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return !localStorage.getItem("kunal_os_cached_profiles");
+  });
 
   // Check biometric availability, load available profiles, and check status
   useEffect(() => {
@@ -50,14 +101,21 @@ function LoginContent() {
         const bioStatus = await checkDeviceBiometrics();
         setBiometricsSupported(bioStatus.isAvailable);
 
+        // Auto-prompt fingerprint early if selectedProfile has biometrics
+        if (selectedProfile?.hasBiometrics && bioStatus.isAvailable) {
+          setTimeout(() => {
+            handleBiometricAuth(selectedProfile);
+          }, 350);
+        }
+
         const res = await fetch("/api/auth/status");
         if (res.ok) {
           const data = await res.json();
           if (data.profiles && Array.isArray(data.profiles)) {
             setProfiles(data.profiles);
+            localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
 
-            // AUTO-LOCK ENHANCEMENT:
-            // If arriving from auto-lock or a locked user exists, open their PIN pad directly
+            const isSwitchRequested = searchParams.get("switch") === "true";
             const targetUserId =
               searchParams.get("userId") ||
               (typeof window !== "undefined"
@@ -65,7 +123,7 @@ function LoginContent() {
                   localStorage.getItem("kunal_os_current_user_id")
                 : null);
 
-            if (targetUserId && !data.authenticated) {
+            if (targetUserId && !data.authenticated && !isSwitchRequested) {
               const matched = data.profiles.find((p: ProfileItem) => p.id === targetUserId);
               if (matched) {
                 setSelectedProfile(matched);
@@ -98,6 +156,12 @@ function LoginContent() {
   const handleSelectProfile = (profile: ProfileItem) => {
     haptics.impactMedium();
     setSelectedProfile(profile);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kunal_os_locked_user_id", profile.id);
+      localStorage.setItem("kunal_os_current_user_id", profile.id);
+      localStorage.setItem("kunal_os_current_user_name", profile.name);
+      window.history.replaceState(null, "", `/login?locked=true&userId=${encodeURIComponent(profile.id)}`);
+    }
     setPin("");
     setError("");
     setShake(false);
@@ -108,6 +172,9 @@ function LoginContent() {
     setSelectedProfile(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("kunal_os_locked_user_id");
+      localStorage.removeItem("kunal_os_current_user_id");
+      localStorage.removeItem("kunal_os_current_user_name");
+      window.history.replaceState(null, "", "/login?switch=true");
     }
     setPin("");
     setError("");

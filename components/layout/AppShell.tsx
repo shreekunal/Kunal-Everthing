@@ -98,6 +98,9 @@ export function AppShell({ children }: AppShellProps) {
           setCurrentUserName(data.userName);
           localStorage.setItem("kunal_os_current_user_name", data.userName);
         }
+        if (data?.profiles && Array.isArray(data.profiles)) {
+          localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
+        }
       })
       .catch(() => {});
 
