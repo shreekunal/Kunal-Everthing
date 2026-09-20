@@ -357,9 +357,16 @@ export default function DashboardPage() {
             <span className="text-xs text-zinc-400 font-normal">/ {waterTarget} Glasses</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
-            <span className="text-zinc-400 font-semibold">
-              {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
-            </span>
+            {waterGlasses >= waterTarget ? (
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                Goal Met (+30 XP)
+              </span>
+            ) : (
+              <span className="text-zinc-400 font-semibold">
+                {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
+              </span>
+            )}
             <span className="text-cyan-400 font-bold">{waterGlasses * 250} ml</span>
           </div>
         </Card>

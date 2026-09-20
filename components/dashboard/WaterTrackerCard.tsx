@@ -13,6 +13,7 @@ import {
   Sparkles,
   CheckCircle2,
   RotateCcw,
+  Trophy,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { format } from "date-fns";
@@ -30,44 +31,143 @@ export function WaterTrackerCard() {
   const storageCountKey = `kunal_os_water_count_${todayKey}`;
   const storageTargetKey = "kunal_os_water_target_glasses";
   const storageNotifKey = "kunal_os_water_notifications_enabled";
+  const storageRewardKey = `kunal_os_water_reward_claimed_${todayKey}`;
 
   const [drankGlasses, setDrankGlasses] = useState<number>(0);
   const [targetGlasses, setTargetGlasses] = useState<number>(DEFAULT_TARGET_GLASSES);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [isEditingTarget, setIsEditingTarget] = useState<boolean>(false);
+  const [hasClaimedReward, setHasClaimedReward] = useState<boolean>(false);
+  const [showRewardToast, setShowRewardToast] = useState<boolean>(false);
+  const [rewardMessage, setRewardMessage] = useState<string>("+30 Monk Karma XP Earned!");
+
+  // Claim XP reward from API
+  const claimReward = async (showToast = true) => {
+    try {
+      const res = await fetch("/api/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REWARD_WATER", points: 30 }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setHasClaimedReward(true);
+        if (showToast) {
+          setRewardMessage(data.message || "+30 Monk Karma XP Earned!");
+          setShowRewardToast(true);
+          setTimeout(() => setShowRewardToast(false), 4500);
+        }
+        if (typeof window !== "undefined") {
+          localStorage.setItem(storageRewardKey, "true");
+          window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to claim water reward:", err);
+    }
+  };
+
+  // Revert reward if user drops below target
+  const revertReward = async () => {
+    try {
+      setHasClaimedReward(false);
+      setShowRewardToast(false);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(storageRewardKey);
+      }
+      await fetch("/api/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REVERT_WATER" }),
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+      }
+    } catch (err) {
+      console.error("Failed to revert water reward:", err);
+    }
+  };
 
   // Initialize from storage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let initialGlasses = 0;
+    let currentTarget = DEFAULT_TARGET_GLASSES;
+
     // Load today's count
     const savedCount = localStorage.getItem(storageCountKey);
     if (savedCount !== null) {
       const parsed = parseInt(savedCount, 10);
-      if (!isNaN(parsed)) setDrankGlasses(parsed);
+      if (!isNaN(parsed)) {
+        initialGlasses = parsed;
+        setDrankGlasses(parsed);
+      }
     }
 
     // Load user target
     const savedTarget = localStorage.getItem(storageTargetKey);
     if (savedTarget !== null) {
       const parsed = parseInt(savedTarget, 10);
-      if (!isNaN(parsed) && parsed > 0) setTargetGlasses(parsed);
+      if (!isNaN(parsed) && parsed > 0) {
+        currentTarget = parsed;
+        setTargetGlasses(parsed);
+      }
     }
 
     // Load notification state
     const savedNotif = localStorage.getItem(storageNotifKey);
     setNotificationsEnabled(savedNotif === "true");
-  }, [storageCountKey]);
+
+    // Load reward claimed state
+    const savedReward = localStorage.getItem(storageRewardKey);
+    if (savedReward === "true") {
+      setHasClaimedReward(true);
+    } else if (initialGlasses >= currentTarget) {
+      claimReward(false);
+    }
+  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey]);
+
+  // Sync claimed state with server rewards on mount
+  useEffect(() => {
+    fetch("/api/rewards")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.recentLogs) {
+          const claimed = data.recentLogs.some(
+            (log: any) => log.referenceId === `water_${todayKey}`
+          );
+          if (claimed) {
+            setHasClaimedReward(true);
+            if (typeof window !== "undefined") {
+              localStorage.setItem(storageRewardKey, "true");
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, [todayKey, storageRewardKey]);
 
   // Update drank glasses
   const updateDrankGlasses = (newCount: number) => {
     const val = Math.max(0, newCount);
+    const prevCount = drankGlasses;
     setDrankGlasses(val);
+
     if (typeof window !== "undefined") {
       localStorage.setItem(storageCountKey, val.toString());
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
-    if (val >= targetGlasses && drankGlasses < targetGlasses) {
+
+    const wasAchieved = prevCount >= targetGlasses;
+    const isNowAchieved = val >= targetGlasses;
+
+    if (isNowAchieved && (!wasAchieved || !hasClaimedReward)) {
       haptics.success();
+      claimReward(true);
+    } else if (!isNowAchieved && wasAchieved && hasClaimedReward) {
+      haptics.warning();
+      revertReward();
     } else {
       haptics.selection();
     }
@@ -79,6 +179,7 @@ export function WaterTrackerCard() {
     setTargetGlasses(val);
     if (typeof window !== "undefined") {
       localStorage.setItem(storageTargetKey, val.toString());
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
     haptics.impactLight();
   };
@@ -116,9 +217,9 @@ export function WaterTrackerCard() {
             <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
               Hydration & Water
               {isGoalAchieved && (
-                <span className="flex items-center gap-1 text-[10px] text-cyan-400 font-mono font-normal">
-                  <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
-                  Goal Met!
+                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                  <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                  Goal Met • +30 XP!
                 </span>
               )}
             </CardTitle>
@@ -160,6 +261,32 @@ export function WaterTrackerCard() {
       </CardHeader>
 
       <div className="space-y-4">
+        {/* Celebratory Reward Notification Toast */}
+        {showRewardToast && (
+          <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-950/90 via-emerald-950/80 to-cyan-950/90 border border-cyan-400/50 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 duration-300 shadow-[0_0_25px_rgba(6,182,212,0.35)]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-cyan-400/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 flex-shrink-0">
+                <Trophy className="w-4 h-4 text-yellow-400 animate-bounce" />
+              </div>
+              <div>
+                <p className="font-bold text-white flex items-center gap-1.5 text-xs">
+                  Hydration Target Completed!
+                  <span className="text-emerald-400 font-mono font-bold">+30 XP</span>
+                </p>
+                <p className="text-[11px] text-zinc-300 font-mono">
+                  {rewardMessage}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRewardToast(false)}
+              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 ml-2"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {/* Metric & Liquid Progress Bar */}
         <div>
           <div className="flex items-baseline justify-between mb-1.5">

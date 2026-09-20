@@ -26,6 +26,7 @@ import {
   Gamepad2,
   Pizza,
   Film,
+  Droplets,
 } from "lucide-react";
 import { format } from "date-fns";
 import { haptics } from "@/lib/haptics";
@@ -617,12 +618,21 @@ export default function RewardsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isReward
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        log.type === "REWARD_WATER"
+                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                          : isReward
                           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                           : "bg-red-500/10 text-brand-red border border-red-500/20"
-                        }`}
+                      }`}
                     >
-                      {isReward ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+                      {log.type === "REWARD_WATER" ? (
+                        <Droplets className="w-4 h-4 fill-cyan-400/20" />
+                      ) : isReward ? (
+                        <Plus className="w-4 h-4" />
+                      ) : (
+                        <Minus className="w-4 h-4" />
+                      )}
                     </div>
                     <div>
                       <h5 className="text-xs font-semibold text-white">{log.title}</h5>

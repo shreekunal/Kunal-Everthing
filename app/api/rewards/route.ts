@@ -126,7 +126,99 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 6. Redeem reward perk from store
+    // 6. Daily Water / Hydration Target Completed Reward (+30 XP)
+    if (action === "REWARD_WATER") {
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      const referenceId = `water_${todayKey}`;
+
+      // Check if already awarded today to prevent duplicate farming
+      const existing = await prisma.rewardLog.findFirst({
+        where: {
+          userId: user.id,
+          referenceId,
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          alreadyAwarded: true,
+          log: existing,
+          points: existing.points,
+          message: "Today's hydration reward has already been claimed!",
+        });
+      }
+
+      const pointsToAward = points || 30;
+      const log = await awardPoints({
+        userId: user.id,
+        points: pointsToAward,
+        type: "REWARD_WATER",
+        title: "💧 Daily Hydration Target Reached",
+        reason: notes || reason || `Completed daily hydration quota (+${pointsToAward} XP).`,
+        category: "HEALTH",
+        referenceId,
+      });
+
+      // Auto-complete any active hydration routine in the user's habits
+      try {
+        const hydrationRoutine = await prisma.routine.findFirst({
+          where: {
+            userId: user.id,
+            isArchived: false,
+            OR: [
+              { name: { contains: "Hydration", mode: "insensitive" } },
+              { name: { contains: "Water", mode: "insensitive" } },
+            ],
+          },
+        });
+        if (hydrationRoutine) {
+          await prisma.routineCompletion.upsert({
+            where: {
+              routineId_date: {
+                routineId: hydrationRoutine.id,
+                date: todayKey,
+              },
+            },
+            create: {
+              userId: user.id,
+              routineId: hydrationRoutine.id,
+              date: todayKey,
+              completed: true,
+            },
+            update: {
+              completed: true,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Routine auto-complete error for water:", e);
+      }
+
+      return NextResponse.json({
+        success: true,
+        log,
+        points: pointsToAward,
+        message: `Earned +${pointsToAward} XP for daily hydration!`,
+      });
+    }
+
+    // 7. Revert Water Reward (if user un-increments back below target)
+    if (action === "REVERT_WATER") {
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      const referenceId = `water_${todayKey}`;
+
+      await prisma.rewardLog.deleteMany({
+        where: {
+          userId: user.id,
+          referenceId,
+        },
+      });
+
+      return NextResponse.json({ success: true, message: "Hydration reward reverted." });
+    }
+
+    // 8. Redeem reward perk from store
     if (action === "REDEEM_REWARD") {
       if (!itemId) {
         return NextResponse.json({ error: "Item ID is required" }, { status: 400 });
