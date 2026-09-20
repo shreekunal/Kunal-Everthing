@@ -11,7 +11,6 @@ import {
   Wallet,
   Clock,
   CreditCard,
-  Heart,
   CheckCircle2,
   Circle,
   Check,
@@ -248,7 +247,7 @@ export default function DashboardPage() {
 
   const greeting = getGreeting();
 
-  const { todayTasks, routines, financials, weeklySummary, upcomingDues, partner, discipline } =
+  const { todayTasks, routines, financials, weeklySummary, upcomingDues, discipline } =
     data || {};
 
   return (
@@ -775,51 +774,10 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Right Col: Hydration & Relationship Spotlight */}
+        {/* Right Col: Hydration Tracker */}
         <div className="space-y-6">
           {/* Water & Hydration Tracker with 2h Alarms */}
           <WaterTrackerCard />
-
-          {/* Relationship Spotlight */}
-          {partner && (
-            <Card glow="red">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4 text-red-400 fill-red-400" />
-                  <CardTitle>Relationship</CardTitle>
-                </div>
-                <Link
-                  href="/relationship"
-                  className="text-xs text-red-400 hover:text-red-300 font-mono"
-                >
-                  Templates
-                </Link>
-              </CardHeader>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Partner:</span>
-                  <span className="font-bold text-white">
-                    {partner.nickname || partner.name}
-                  </span>
-                </div>
-                {partner.anniversary && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-400">Anniversary:</span>
-                    <span className="text-red-400 font-mono">{partner.anniversary}</span>
-                  </div>
-                )}
-                <div className="pt-2">
-                  <Link href="/relationship">
-                    <Button variant="primary" size="sm" className="w-full">
-                      <Heart className="w-3.5 h-3.5" />
-                      Send WhatsApp Wish
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
 
