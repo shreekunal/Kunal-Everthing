@@ -25,6 +25,7 @@ export function AppShell({ children }: AppShellProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
   const [isPartnerRadialOpen, setIsPartnerRadialOpen] = useState(false);
+  const [radialOrigin, setRadialOrigin] = useState<{ x: number; y: number } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
   const [exitToast, setExitToast] = useState<string | null>(null);
@@ -96,7 +97,12 @@ export function AppShell({ children }: AppShellProps) {
       .catch(() => {});
 
     const handleOpenProfileSwitcher = () => setIsProfileSwitcherOpen(true);
-    const handleOpenPartnerRadial = () => setIsPartnerRadialOpen(true);
+    const handleOpenPartnerRadial = (e: any) => {
+      if (e?.detail?.origin) {
+        setRadialOrigin(e.detail.origin);
+      }
+      setIsPartnerRadialOpen(true);
+    };
     window.addEventListener("open-profile-switcher", handleOpenProfileSwitcher);
     window.addEventListener("open-partner-radial", handleOpenPartnerRadial);
     return () => {
@@ -198,6 +204,10 @@ export function AppShell({ children }: AppShellProps) {
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
+        onOpenPartnerRadial={(origin) => {
+          if (origin) setRadialOrigin(origin);
+          setIsPartnerRadialOpen(true);
+        }}
       />
 
       {/* Full-Width Main Content */}
@@ -209,13 +219,20 @@ export function AppShell({ children }: AppShellProps) {
       <BottomNav
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
-        onOpenPartnerRadial={() => setIsPartnerRadialOpen(true)}
+        onOpenPartnerRadial={(origin) => {
+          if (origin) setRadialOrigin(origin);
+          setIsPartnerRadialOpen(true);
+        }}
       />
 
       {/* Global Partner Message Radial Wheel */}
       <PartnerRadialWheel
         isOpen={isPartnerRadialOpen}
-        onClose={() => setIsPartnerRadialOpen(false)}
+        origin={radialOrigin}
+        onClose={() => {
+          setIsPartnerRadialOpen(false);
+          setRadialOrigin(null);
+        }}
       />
 
       {/* Global Command Palette (Cmd + K / Mobile Search) */}

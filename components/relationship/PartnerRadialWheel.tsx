@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Heart,
@@ -10,27 +10,32 @@ import {
   Sparkles,
   BookOpen,
   X,
-  Send,
-  MessageCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
 import clsx from "clsx";
 
+export interface RadialOrigin {
+  x: number;
+  y: number;
+}
+
 interface PartnerRadialWheelProps {
   isOpen: boolean;
   onClose: () => void;
+  origin?: RadialOrigin | null;
 }
 
-const DEFAULT_TEMPLATES = [
+// 6 Core Petals with strictly pure, raw template strings
+const PETALS = [
   {
     id: "love",
     label: "Love You",
     icon: Heart,
     color: "from-rose-500 to-pink-600",
-    glow: "shadow-[0_0_15px_rgba(244,63,94,0.4)]",
-    borderColor: "border-rose-400/60",
+    glow: "shadow-[0_0_20px_rgba(244,63,94,0.6)]",
+    borderColor: "border-rose-400",
     textColor: "text-rose-300",
     text: "I love you so much ❤️",
   },
@@ -39,8 +44,8 @@ const DEFAULT_TEMPLATES = [
     label: "Pyara Bacha",
     icon: Smile,
     color: "from-pink-500 to-rose-600",
-    glow: "shadow-[0_0_15px_rgba(236,72,153,0.4)]",
-    borderColor: "border-pink-400/60",
+    glow: "shadow-[0_0_20px_rgba(236,72,153,0.6)]",
+    borderColor: "border-pink-400",
     textColor: "text-pink-300",
     text: "Mera bacha pyara sa",
   },
@@ -49,8 +54,8 @@ const DEFAULT_TEMPLATES = [
     label: "Good Night",
     icon: Moon,
     color: "from-indigo-500 to-purple-600",
-    glow: "shadow-[0_0_15px_rgba(99,102,241,0.4)]",
-    borderColor: "border-indigo-400/60",
+    glow: "shadow-[0_0_20px_rgba(99,102,241,0.6)]",
+    borderColor: "border-indigo-400",
     textColor: "text-indigo-300",
     text: "Good Night babu .. Take Care",
   },
@@ -59,18 +64,18 @@ const DEFAULT_TEMPLATES = [
     label: "Good Morning",
     icon: Sun,
     color: "from-amber-500 to-orange-600",
-    glow: "shadow-[0_0_15px_rgba(245,158,11,0.4)]",
-    borderColor: "border-amber-400/60",
+    glow: "shadow-[0_0_20px_rgba(245,158,11,0.6)]",
+    borderColor: "border-amber-400",
     textColor: "text-amber-300",
     text: "Good Morning Babyyyy",
   },
   {
     id: "shayari",
-    label: "Sweet Shayari",
+    label: "Shayari",
     icon: Sparkles,
     color: "from-purple-500 to-pink-500",
-    glow: "shadow-[0_0_15px_rgba(168,85,247,0.4)]",
-    borderColor: "border-purple-400/60",
+    glow: "shadow-[0_0_20px_rgba(168,85,247,0.6)]",
+    borderColor: "border-purple-400",
     textColor: "text-purple-300",
     text: "Sometimes I just randomly smile because I remember that you're mine. ❤️",
   },
@@ -79,29 +84,30 @@ const DEFAULT_TEMPLATES = [
     label: "Partner Hub",
     icon: BookOpen,
     color: "from-zinc-700 to-zinc-800",
-    glow: "shadow-[0_0_15px_rgba(255,255,255,0.15)]",
-    borderColor: "border-white/20",
+    glow: "shadow-[0_0_15px_rgba(255,255,255,0.3)]",
+    borderColor: "border-white/30",
     textColor: "text-zinc-200",
     text: "",
   },
 ];
 
-export function PartnerRadialWheel({ isOpen, onClose }: PartnerRadialWheelProps) {
+export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWheelProps) {
   const router = useRouter();
   const [partnerData, setPartnerData] = useState<any>(null);
-  const [senderName, setSenderName] = useState<string>("Kunal");
+  const [activePetalId, setActivePetalId] = useState<string | null>(null);
+  const activePetalIdRef = useRef<string | null>(null);
 
-  // Load partner data & sender name from cache & API
+  // Keep ref in sync for release-to-launch event handler
+  useEffect(() => {
+    activePetalIdRef.current = activePetalId;
+  }, [activePetalId]);
+
+  // Load partner data from cache & API
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const cachedUser = localStorage.getItem("kunal_os_current_user_name");
-    if (cachedUser) setSenderName(cachedUser);
-
     const cachedPartner = offlineCache.get<any>("partner_profile");
-    if (cachedPartner) {
-      setPartnerData(cachedPartner);
-    }
+    if (cachedPartner) setPartnerData(cachedPartner);
 
     fetch("/api/relationship")
       .then((res) => (res.ok ? res.json() : null))
@@ -114,7 +120,7 @@ export function PartnerRadialWheel({ isOpen, onClose }: PartnerRadialWheelProps)
       .catch(() => {});
   }, []);
 
-  // Back button integration: dismiss wheel on back gesture
+  // Back button integration: dismiss on Android back
   useEffect(() => {
     if (!isOpen) return;
     return backButton.register(() => {
@@ -123,115 +129,265 @@ export function PartnerRadialWheel({ isOpen, onClose }: PartnerRadialWheelProps)
     });
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
-  const partnerNickname = partnerData?.nickname || partnerData?.name || "My Love";
   const partnerPhone = partnerData?.phone || "";
   const cleanPhone = partnerPhone.replace(/[^0-9]/g, "");
 
-  // Dispatch message directly to WhatsApp
-  const handleDispatch = (template: (typeof DEFAULT_TEMPLATES)[0]) => {
-    haptics.impactMedium();
+  // Execute chosen action (raw message to WhatsApp or Hub navigation)
+  const executeAction = useCallback(
+    (item: (typeof PETALS)[0]) => {
+      haptics.impactMedium();
 
-    if (template.id === "hub") {
+      if (item.id === "hub") {
+        onClose();
+        router.push("/relationship");
+        return;
+      }
+
+      // STRICTLY RAW MESSAGE TEXT: Zero prefix, Zero quotes, Zero sender signature
+      const messageText = item.text;
+      const encoded = encodeURIComponent(messageText);
+      const url = cleanPhone
+        ? `https://wa.me/${cleanPhone}?text=${encoded}`
+        : `https://wa.me/?text=${encoded}`;
+
+      window.open(url, "_blank");
       onClose();
-      router.push("/relationship");
-      return;
+    },
+    [cleanPhone, onClose, router]
+  );
+
+  // Geometry calculations: default origin falls back to bottom-dock Love button
+  const getCenterCoords = useCallback(() => {
+    if (typeof window === "undefined") return { x: 250, y: 600, isTop: false };
+
+    if (origin && origin.x && origin.y) {
+      const isTop = origin.y < window.innerHeight / 2;
+      return { x: origin.x, y: origin.y, isTop };
     }
 
-    const formattedMessage = `${partnerNickname}... ❤️\n\n"${template.text}"\n\n—${senderName}`;
-    const encoded = encodeURIComponent(formattedMessage);
-    const url = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encoded}`
-      : `https://wa.me/?text=${encoded}`;
+    // Default mobile fallback: tab 4 on bottom nav (70% width, 50px from bottom)
+    return {
+      x: Math.round(window.innerWidth * 0.7),
+      y: window.innerHeight - 50,
+      isTop: false,
+    };
+  }, [origin]);
 
-    window.open(url, "_blank");
-    onClose();
-  };
+  const centerPos = getCenterCoords();
+  const radius = 115; // px
 
-  // Radial geometry calculation: 6 items in an upward semi-circle arc (-165° to -15°)
-  const radius = 115; // px from center origin
-  const angles = [-165, -135, -105, -75, -45, -15];
+  // Angles: upward fan arc if near bottom, downward fan arc if near top
+  const angles = centerPos.isTop
+    ? [30, 60, 90, 120, 150, 180]
+    : [-170, -145, -120, -95, -70, -45];
+
+  // Traditional Radial Drag & Release Engine (pointermove & pointerup)
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      const touch = "touches" in e && e.touches.length > 0 ? e.touches[0] : null;
+      const clientX = touch ? touch.clientX : (e as MouseEvent).clientX;
+      const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
+
+      if (clientX === undefined || clientY === undefined) return;
+
+      const dx = clientX - centerPos.x;
+      const dy = clientY - centerPos.y;
+      const distance = Math.hypot(dx, dy);
+
+      // Deadzone: within 32px of center is cancel / no selection
+      if (distance < 32) {
+        if (activePetalIdRef.current !== null) {
+          setActivePetalId(null);
+          haptics.selection();
+        }
+        return;
+      }
+
+      // Calculate touch angle in degrees
+      const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+      // Find petal with closest angular alignment
+      let closestIdx = 0;
+      let minDiff = Infinity;
+
+      angles.forEach((targetAngle, idx) => {
+        let diff = Math.abs(angleDeg - targetAngle);
+        if (diff > 180) diff = 360 - diff;
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIdx = idx;
+        }
+      });
+
+      // If finger is pointing away from the fan arc (e.g. downward off-screen), deselect
+      if (minDiff > 45) {
+        if (activePetalIdRef.current !== null) {
+          setActivePetalId(null);
+          haptics.selection();
+        }
+        return;
+      }
+
+      const candidate = PETALS[closestIdx];
+      if (candidate && candidate.id !== activePetalIdRef.current) {
+        setActivePetalId(candidate.id);
+        haptics.selection(); // rotary click feedback
+      }
+    };
+
+    const handlePointerUp = (e: MouseEvent | TouchEvent) => {
+      let currentActiveId = activePetalIdRef.current;
+
+      // Direct tap fallback: if user tapped directly on a petal button
+      if (!currentActiveId && typeof document !== "undefined") {
+        let checkX: number | undefined;
+        let checkY: number | undefined;
+        if ("changedTouches" in e && e.changedTouches.length > 0) {
+          checkX = e.changedTouches[0].clientX;
+          checkY = e.changedTouches[0].clientY;
+        } else if ("clientX" in e) {
+          checkX = (e as MouseEvent).clientX;
+          checkY = (e as MouseEvent).clientY;
+        }
+        if (checkX !== undefined && checkY !== undefined) {
+          const elem = document.elementFromPoint(checkX, checkY);
+          const petalBtn = elem?.closest("[data-petal-id]");
+          if (petalBtn) {
+            currentActiveId = petalBtn.getAttribute("data-petal-id");
+          }
+        }
+      }
+
+      if (currentActiveId) {
+        const item = PETALS.find((p) => p.id === currentActiveId);
+        if (item) {
+          executeAction(item);
+          return;
+        }
+      }
+      // Released in deadzone or canceled
+      onClose();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("touchmove", handlePointerMove, { passive: true });
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("touchend", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("touchmove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("touchend", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [isOpen, centerPos.x, centerPos.y, angles, executeAction, onClose]);
+
+  if (!isOpen) return null;
+
+  const activePetal = PETALS.find((p) => p.id === activePetalId);
 
   return (
-    <div className="fixed inset-0 z-[150] flex flex-col justify-end items-center pointer-events-auto select-none animate-in fade-in duration-200">
-      {/* Dark Blurred Glass Backdrop */}
+    <div className="fixed inset-0 z-[200] pointer-events-auto select-none">
+      {/* Dark Blurred Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-200"
         onClick={() => {
           haptics.impactLight();
           onClose();
         }}
       />
 
-      {/* Main Radial Bloom Origin Container (Anchored right above Bottom Dock) */}
-      <div className="relative z-10 mb-20 flex flex-col items-center">
-        {/* Radial Petals Bloom Arc */}
-        <div className="relative w-12 h-12 flex items-center justify-center">
-          {DEFAULT_TEMPLATES.map((item, idx) => {
-            const angleDeg = angles[idx];
-            const angleRad = (angleDeg * Math.PI) / 180;
-            const x = Math.round(Math.cos(angleRad) * radius);
-            const y = Math.round(Math.sin(angleRad) * radius);
-            const Icon = item.icon;
+      {/* Origin Point anchored exactly at Touch Position */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: `${centerPos.x}px`,
+          top: `${centerPos.y}px`,
+        }}
+      >
+        {/* Dynamic Petals blooming from center */}
+        {PETALS.map((petal, idx) => {
+          const angleDeg = angles[idx];
+          const angleRad = (angleDeg * Math.PI) / 180;
+          const x = Math.round(Math.cos(angleRad) * radius);
+          const y = Math.round(Math.sin(angleRad) * radius);
+          const Icon = petal.icon;
+          const isSelected = activePetalId === petal.id;
 
-            return (
-              <div
-                key={item.id}
-                className="absolute flex flex-col items-center justify-center transition-all duration-300 ease-out animate-in zoom-in-50"
-                style={{
-                  transform: `translate(${x}px, ${y}px)`,
-                  transitionDelay: `${idx * 30}ms`,
-                }}
+          return (
+            <div
+              key={petal.id}
+              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out"
+              style={{
+                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.3 : 1})`,
+                zIndex: isSelected ? 40 : 20,
+              }}
+            >
+              <button
+                type="button"
+                data-petal-id={petal.id}
+                onClick={() => executeAction(petal)}
+                className={clsx(
+                  "w-12 h-12 rounded-full border-2 flex items-center justify-center text-white bg-gradient-to-br transition-all duration-150 shadow-2xl pointer-events-auto",
+                  petal.color,
+                  petal.borderColor,
+                  isSelected
+                    ? `${petal.glow} ring-4 ring-white/50 border-white`
+                    : "opacity-85"
+                )}
               >
-                <button
-                  type="button"
-                  onClick={() => handleDispatch(item)}
-                  title={item.label}
-                  className={clsx(
-                    "w-12 h-12 rounded-full border flex items-center justify-center text-white bg-gradient-to-br transition-transform duration-150 active:scale-90 hover:scale-110",
-                    item.color,
-                    item.borderColor,
-                    item.glow
-                  )}
-                >
-                  <Icon className="w-5 h-5 drop-shadow-md" />
-                </button>
+                <Icon className={clsx("w-5 h-5 drop-shadow-md", isSelected && "animate-pulse")} />
+              </button>
 
-                {/* Floating Micro-Pill Label */}
-                <span
-                  className={clsx(
-                    "mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold whitespace-nowrap bg-black/90 border border-white/20 shadow-2xl backdrop-blur-md pointer-events-none",
-                    item.textColor
-                  )}
-                >
-                  {item.label}
-                </span>
-              </div>
-            );
-          })}
+              {/* Label Pill */}
+              <span
+                className={clsx(
+                  "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shadow-xl backdrop-blur-md transition-all duration-150 pointer-events-none",
+                  centerPos.isTop ? "top-14" : "-bottom-6",
+                  isSelected
+                    ? "bg-white text-black border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+                    : "bg-black/90 text-zinc-300 border-white/20"
+                )}
+              >
+                {petal.label}
+              </span>
+            </div>
+          );
+        })}
 
-          {/* Central Pulsing Heart Hub */}
-          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 border-2 border-rose-300 flex flex-col items-center justify-center shadow-[0_0_25px_rgba(244,63,94,0.6)] animate-pulse">
-            <Heart className="w-6 h-6 text-white fill-white" />
-            <span className="text-[9px] font-mono font-bold text-white tracking-wider truncate max-w-[50px] leading-tight">
-              {partnerNickname}
-            </span>
-          </div>
+        {/* Center Anchor Hub (Where thumb was placed) */}
+        <div
+          className={clsx(
+            "absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex flex-col items-center justify-center transition-transform duration-150 border-2",
+            activePetalId
+              ? "bg-zinc-900/90 border-white/20 text-zinc-500 scale-90"
+              : "bg-gradient-to-tr from-rose-600 to-pink-500 border-rose-300 text-white shadow-[0_0_25px_rgba(244,63,94,0.7)] animate-pulse scale-100"
+          )}
+        >
+          <Heart className="w-5 h-5 fill-current" />
+          <span className="text-[8px] font-mono font-bold uppercase mt-0.5 tracking-wider">
+            {activePetalId ? "Release" : "Hold & Slide"}
+          </span>
         </div>
 
-        {/* Dismiss / Close Pill */}
-        <button
-          type="button"
-          onClick={() => {
-            haptics.impactLight();
-            onClose();
-          }}
-          className="mt-14 px-4 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/20 text-zinc-300 text-xs font-mono flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition-all"
-        >
-          <X className="w-3.5 h-3.5" />
-          <span>Close Wheel</span>
-        </button>
+        {/* Live Message Preview Tooltip (Appears above the thumb as you glide) */}
+        {activePetal && (
+          <div
+            className={clsx(
+              "absolute -translate-x-1/2 px-3 py-1.5 rounded-xl bg-black/95 border border-white/20 text-white text-xs font-mono shadow-2xl backdrop-blur-xl animate-in fade-in duration-100 whitespace-nowrap pointer-events-none",
+              centerPos.isTop ? "top-28" : "-top-24"
+            )}
+          >
+            <span className="text-zinc-400 mr-1.5 font-bold">Preview:</span>
+            <span className={clsx("font-semibold", activePetal.textColor)}>
+              {activePetal.id === "hub" ? "Open Full Partner Hub" : activePetal.text}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

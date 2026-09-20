@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -23,6 +23,7 @@ import {
 import { clsx } from "clsx";
 import { Button } from "../ui/Button";
 import { BrandLogo } from "../ui/BrandLogo";
+import { haptics } from "@/lib/haptics";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -35,10 +36,19 @@ interface NavbarProps {
   onOpenQuickAdd: () => void;
   onOpenSearch?: () => void;
   onOpenProfileSwitcher?: () => void;
+  onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
 }
 
-export function Navbar({ onOpenQuickAdd, onOpenSearch, onOpenProfileSwitcher }: NavbarProps) {
+export function Navbar({
+  onOpenQuickAdd,
+  onOpenSearch,
+  onOpenProfileSwitcher,
+  onOpenPartnerRadial,
+}: NavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const desktopHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const desktopLongPressRef = useRef(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -126,6 +136,75 @@ export function Navbar({ onOpenQuickAdd, onOpenSearch, onOpenProfileSwitcher }: 
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+
+            if (item.name === "Love") {
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return;
+                    desktopLongPressRef.current = false;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const origin = {
+                      x: Math.round(rect.left + rect.width / 2),
+                      y: Math.round(rect.bottom + 10),
+                    };
+                    desktopHoldTimerRef.current = setTimeout(() => {
+                      desktopLongPressRef.current = true;
+                      haptics.impactMedium();
+                      if (onOpenPartnerRadial) {
+                        onOpenPartnerRadial(origin);
+                      } else {
+                        window.dispatchEvent(
+                          new CustomEvent("open-partner-radial", { detail: { origin } })
+                        );
+                      }
+                    }, 200);
+                  }}
+                  onPointerUp={() => {
+                    if (desktopHoldTimerRef.current) {
+                      clearTimeout(desktopHoldTimerRef.current);
+                      desktopHoldTimerRef.current = null;
+                    }
+                    if (desktopLongPressRef.current) return;
+                    haptics.selection();
+                    router.push("/relationship");
+                  }}
+                  onPointerCancel={() => {
+                    if (desktopHoldTimerRef.current) {
+                      clearTimeout(desktopHoldTimerRef.current);
+                      desktopHoldTimerRef.current = null;
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const origin = {
+                      x: Math.round(rect.left + rect.width / 2),
+                      y: Math.round(rect.bottom + 10),
+                    };
+                    if (onOpenPartnerRadial) {
+                      onOpenPartnerRadial(origin);
+                    } else {
+                      window.dispatchEvent(
+                        new CustomEvent("open-partner-radial", { detail: { origin } })
+                      );
+                    }
+                  }}
+                  className={clsx(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap select-none touch-none",
+                    isActive
+                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)] font-semibold"
+                      : "text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10"
+                  )}
+                  title="Click: Partner Hub • Hold or Right-click: Radial Quick Messages"
+                >
+                  <Icon className={clsx("w-3.5 h-3.5", isActive ? "text-rose-400" : "text-rose-500/70")} />
+                  <span>{item.name}</span>
+                </button>
+              );
+            }
 
             return (
               <Link

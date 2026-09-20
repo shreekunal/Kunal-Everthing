@@ -309,19 +309,6 @@ export default function RelationshipPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              haptics.impactMedium();
-              window.dispatchEvent(new CustomEvent("open-partner-radial"));
-            }}
-            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 border-rose-400/30 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]"
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1" />
-            <span>⚡ Radial Wish Wheel</span>
-          </Button>
-
-          <Button
             variant="glass"
             size="sm"
             onClick={() => setIsEditProfileOpen(true)}
@@ -652,7 +639,7 @@ export default function RelationshipPage() {
                 const cardId = `love-msg-${m.id || 0}`;
                 const msgText = m.text || "";
                 const mood = m.mood || "Tender";
-                const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n—Kunal`;
+                const whatsappMsg = msgText;
 
                 return (
                   <div className="relative p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-brand-red/[0.08] via-black to-white/[0.02] border border-brand-red/40 shadow-glow-red-subtle space-y-3.5">
@@ -683,7 +670,7 @@ export default function RelationshipPage() {
                         <Button
                           variant="glass"
                           size="sm"
-                          onClick={() => handleCopyText(cardId, `"${msgText}"\n—Kunal`)}
+                          onClick={() => handleCopyText(cardId, msgText)}
                           className="text-xs h-7 px-2.5"
                         >
                           {copiedId === cardId ? (
@@ -721,7 +708,7 @@ export default function RelationshipPage() {
                   const cardId = `love-msg-${m.id || index + 1}`;
                   const msgText = m.text || "";
                   const mood = m.mood || "Sweet";
-                  const whatsappMsg = `${partnerNicknameDisplay}... ❤️\n\n"${msgText}"\n\n—Kunal`;
+                  const whatsappMsg = msgText;
 
                   return (
                     <div
@@ -752,7 +739,7 @@ export default function RelationshipPage() {
                           <Button
                             variant="glass"
                             size="sm"
-                            onClick={() => handleCopyText(cardId, `"${msgText}"\n—Kunal`)}
+                            onClick={() => handleCopyText(cardId, msgText)}
                             className="text-[11px] h-6 px-2"
                           >
                             {copiedId === cardId ? (

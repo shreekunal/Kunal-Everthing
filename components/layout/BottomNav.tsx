@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -26,7 +26,7 @@ import { ProfileAvatar } from "../ui/ProfileAvatar";
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
   onOpenProfileSwitcher?: () => void;
-  onOpenPartnerRadial?: () => void;
+  onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function BottomNav({
@@ -35,9 +35,61 @@ export function BottomNav({
   onOpenPartnerRadial,
 }: BottomNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
+
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
+
+  const handleLovePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    isLongPressRef.current = false;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+    };
+
+    holdTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      haptics.impactMedium();
+      if (isDrawerOpen) setIsDrawerOpen(false);
+      if (onOpenPartnerRadial) {
+        onOpenPartnerRadial(origin);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("open-partner-radial", { detail: { origin } })
+        );
+      }
+    }, 200);
+  };
+
+  const handleLovePointerUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    // If long press triggered, radial wheel manages pointerup to release-launch
+    if (isLongPressRef.current) {
+      return;
+    }
+
+    // Short tap: navigate normally to /relationship
+    haptics.selection();
+    if (isDrawerOpen) setIsDrawerOpen(false);
+    router.push("/relationship");
+  };
+
+  const handleLovePointerCancel = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
 
   React.useEffect(() => {
     fetch("/api/auth/status")
@@ -247,28 +299,17 @@ export function BottomNav({
             </button>
           </div>
 
-          {/* 4. Relationship Hub / Partner Radial Bloom */}
+          {/* 4. Relationship Hub / Traditional Radial Bloom (Hold to bloom, slide to petals, release to dispatch) */}
           <button
             type="button"
-            aria-label="Partner Quick Messages"
-            onClick={(e) => {
-              e.preventDefault();
-              haptics.impactMedium();
-              if (isDrawerOpen) setIsDrawerOpen(false);
-              if (onOpenPartnerRadial) {
-                onOpenPartnerRadial();
-              } else {
-                window.dispatchEvent(new CustomEvent("open-partner-radial"));
-              }
-            }}
-            onContextMenu={(e) => {
-              // Long press: navigate directly to /relationship
-              e.preventDefault();
-              haptics.selection();
-              window.location.href = "/relationship";
-            }}
+            aria-label="Partner Hub & Quick Messages"
+            onPointerDown={handleLovePointerDown}
+            onPointerUp={handleLovePointerUp}
+            onPointerCancel={handleLovePointerCancel}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={(e) => e.preventDefault()}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none",
               pathname === "/relationship" ? "text-rose-400" : "text-zinc-400 hover:text-white"
             )}
           >
