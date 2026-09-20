@@ -444,58 +444,46 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Discipline Companion & Karma Command Deck */}
+      {/* Sleek Discipline Companion & Karma Hub */}
       {discipline ? (
-        <Card glow="red" className="relative overflow-hidden bg-gradient-to-b from-zinc-950 via-black to-zinc-950 border border-brand-red/30 shadow-[0_0_35px_rgba(239,68,68,0.14)] p-4 sm:p-5">
-          {/* Subtle Cyber Background Ambient Aura */}
-          <div className="absolute -top-12 right-1/4 w-80 h-44 bg-brand-red/10 rounded-full blur-3xl pointer-events-none" />
-
-          {/* Pet Deceased Alert Banner (when monthly XP < 0) */}
+        <Card glow="red" className="relative overflow-hidden bg-gradient-to-b from-zinc-950 via-black to-zinc-950 border border-brand-red/30 shadow-[0_0_30px_rgba(239,68,68,0.12)] p-4">
+          {/* Pet Deceased Alert Banner */}
           {discipline.isPetDead && (
-            <div className="mb-4 px-3.5 py-2.5 rounded-2xl bg-red-950/70 border border-red-500/70 flex items-center justify-between gap-3 text-xs font-mono shadow-glow-red animate-pulse">
-              <div className="flex items-center gap-2.5 text-red-200">
+            <div className="mb-3 px-3 py-2 rounded-xl bg-red-950/80 border border-red-500/70 flex items-center justify-between gap-2 text-xs font-mono text-red-200 animate-pulse">
+              <div className="flex items-center gap-2">
                 <Skull className="w-4 h-4 text-red-400 flex-shrink-0" />
-                <span>
-                  <strong className="text-white">COMPANION DECEASED</strong> • Karma Score: {discipline.totalXP} XP. Complete deep work sessions or log habits to resurrect!
-                </span>
+                <span><strong className="text-white">COMPANION DECEASED</strong> (XP below 0). Complete habits to resurrect!</span>
               </div>
             </div>
           )}
 
-          {/* Deck Header: Title, Level & Season Pill */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-white/[0.08]">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red flex-shrink-0">
-                <Crown className="w-4 h-4" />
+          {/* Top Row: Title, Level & Direct Navigation */}
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-md bg-brand-red/15 border border-brand-red/30 text-brand-red">
+                <Crown className="w-3.5 h-3.5" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-white tracking-wide uppercase font-mono">
-                    Companion &amp; Karma Command
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white shadow-glow-red-subtle"}`}>
-                    {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
-                  </span>
-                </div>
-                <p className="text-[11px] text-zinc-400 font-mono">
-                  {discipline.title}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto font-mono text-xs">
+              <h3 className="text-xs font-black text-white uppercase font-mono tracking-wider">
+                Companion &amp; Karma
+              </h3>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white"}`}>
+                {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
+              </span>
               {discipline.season && (
-                <span className="text-[10px] px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/10 text-zinc-400">
-                  {discipline.season.name} • {discipline.season.daysRemaining}d left
+                <span className="hidden sm:inline-block text-[10px] text-zinc-400 font-mono">
+                  • {discipline.season.name}
                 </span>
               )}
+            </div>
+
+            <div className="flex items-center gap-2 font-mono text-xs">
               <button
                 type="button"
                 onClick={() => {
                   haptics.impactMedium();
                   setIsEveningCheckinOpen(true);
                 }}
-                className="px-2.5 py-1 rounded-lg bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/40 text-[11px] text-white transition-all flex items-center gap-1.5 shadow-glow-red-subtle active:scale-95"
+                className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-brand-red/20 border border-white/10 hover:border-brand-red/40 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1 active:scale-95"
               >
                 <Moon className="w-3 h-3 text-brand-red" />
                 <span>Bedtime</span>
@@ -503,7 +491,7 @@ export default function DashboardPage() {
               <Link
                 href="/rewards"
                 onClick={() => haptics.selection()}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1 group"
+                className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1 group"
               >
                 <Trophy className="w-3 h-3 text-yellow-400" />
                 <span>Rewards</span>
@@ -512,168 +500,124 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Hero Chamber & Karma HUD (Dual Grid) */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 my-4 items-center">
-            {/* Left Holographic Chamber (5 Cols) */}
-            <div className="md:col-span-5 p-3.5 rounded-2xl bg-gradient-to-b from-white/[0.04] to-black/60 border border-white/10 hover:border-brand-red/30 transition-all relative overflow-hidden group">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono uppercase text-zinc-400 tracking-wider">
-                  Neural Companion
-                </span>
-                <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Sync
-                </span>
-              </div>
-
-              {/* PixelPet Interactive Component */}
-              <div className="py-1 flex justify-center">
-                <PixelPet
-                  level={discipline.level}
-                  totalXP={discipline.totalXP}
-                  isPetDead={discipline.isPetDead}
-                  purityStreak={discipline.streaks?.purity?.currentStreak || 0}
-                  dietStreak={discipline.streaks?.diet?.currentStreak || 0}
-                  todayDeducted={discipline.todayDeducted}
-                />
-              </div>
-
-              <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                <span>Tap companion for wisdom</span>
-                <Link
-                  href="/rewards"
-                  className="text-brand-red hover:underline flex items-center gap-1"
-                >
-                  <span>Karma Hub</span>
-                  <ArrowRight className="w-2.5 h-2.5" />
-                </Link>
-              </div>
+          {/* Center Compact Deck: Interactive Pet + XP Telemetry */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-3">
+            {/* Companion Character */}
+            <div className="flex-shrink-0 flex justify-center sm:justify-start">
+              <PixelPet
+                level={discipline.level}
+                totalXP={discipline.totalXP}
+                isPetDead={discipline.isPetDead}
+                purityStreak={discipline.streaks?.purity?.currentStreak || 0}
+                dietStreak={discipline.streaks?.diet?.currentStreak || 0}
+                todayDeducted={discipline.todayDeducted}
+              />
             </div>
 
-            {/* Right Telemetry Deck (7 Cols) */}
-            <div className="md:col-span-7 flex flex-col justify-between space-y-3.5">
-              {/* Score & Daily Delta */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block mb-0.5">
-                    Total Monk Discipline XP
+            {/* Score & Progress */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-baseline justify-between flex-wrap gap-2">
+                <div className="flex items-baseline gap-2 font-mono">
+                  <span className={`text-2xl font-black tracking-tight ${discipline.totalXP < 0 ? "text-red-400" : "text-white"}`}>
+                    {discipline.totalXP.toLocaleString()} XP
                   </span>
-                  <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white flex items-baseline gap-2">
-                    <span className={discipline.totalXP < 0 ? "text-red-400" : "text-white"}>
-                      {discipline.totalXP.toLocaleString()}
-                    </span>
-                    <span className="text-xs font-mono font-normal text-zinc-400">Karma Score</span>
-                  </div>
+                  <span className="text-xs text-zinc-400 truncate">{discipline.title}</span>
                 </div>
 
-                <div className="flex flex-col items-end gap-1.5 font-mono text-xs">
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px] flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
+                <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-bold">
                     +{discipline.todayEarned} Today
                   </span>
                   {discipline.todayDeducted > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-bold text-[10px]">
-                      -{discipline.todayDeducted} Penalty
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-bold">
+                      -{discipline.todayDeducted}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Progress Gauge to Next Tier */}
+              {/* Laser Progress Bar */}
               <Link
                 href="/rewards"
                 onClick={() => haptics.selection()}
-                className="p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-brand-red/30 transition-all block group"
+                className="block group"
               >
-                <div className="flex justify-between items-center text-[11px] font-mono mb-1.5">
-                  <span className="text-zinc-400 group-hover:text-white transition-colors flex items-center gap-1">
-                    <span>Rank Progress</span>
-                    <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                  <span className="text-zinc-300 font-bold">
-                    <span className="text-white">{discipline.currentLevelXP || discipline.totalXP}</span> / {discipline.nextLevelXP} XP ({discipline.progressPercent}%)
-                  </span>
-                </div>
                 <div className="w-full h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden p-0.5">
                   <div
                     className="h-full bg-gradient-to-r from-red-600 via-brand-red to-orange-500 rounded-full transition-all duration-500 shadow-glow-red"
                     style={{ width: `${Math.max(5, discipline.progressPercent)}%` }}
                   />
                 </div>
+                <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400 mt-1">
+                  <span>To Level {discipline.level + 1}</span>
+                  <span className="group-hover:text-white transition-colors">
+                    {discipline.progressPercent}% ({discipline.currentLevelXP || discipline.totalXP}/{discipline.nextLevelXP} XP)
+                  </span>
+                </div>
               </Link>
             </div>
           </div>
 
-          {/* 4-Pod Tactical Control Matrix */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-white/[0.08]">
-            {/* Pod 1: Purity Streak -> /rewards */}
+          {/* Bottom Row: 4 Sleek Compact Action Chips */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2.5 border-t border-white/[0.08]">
+            {/* Purity Streak */}
             <Link
               href="/rewards"
               onClick={() => haptics.selection()}
-              className="p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-brand-red/40 flex flex-col justify-between transition-all group cursor-pointer active:scale-95"
+              className="px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-brand-red/40 flex items-center justify-between transition-all group active:scale-95"
             >
-              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-1">
-                <span>PURITY</span>
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-red group-hover:scale-110 transition-transform" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ShieldCheck className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
+                <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white truncate">Purity</span>
               </div>
-              <div className="text-base font-bold font-mono text-white group-hover:text-brand-red transition-colors">
-                {discipline.streaks?.purity?.currentStreak || 0} Days
-              </div>
-              <span className="text-[9px] font-mono text-zinc-400 mt-0.5">Monk Protocol</span>
+              <span className="text-xs font-bold font-mono text-white">
+                {discipline.streaks?.purity?.currentStreak || 0}d
+              </span>
             </Link>
 
-            {/* Pod 2: Diet Streak -> /routines */}
+            {/* Clean Diet Streak */}
             <Link
               href="/routines"
               onClick={() => haptics.selection()}
-              className="p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-emerald-500/40 flex flex-col justify-between transition-all group cursor-pointer active:scale-95"
+              className="px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-emerald-500/40 flex items-center justify-between transition-all group active:scale-95"
             >
-              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-1">
-                <span>CLEAN DIET</span>
-                <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white truncate">Clean Diet</span>
               </div>
-              <div className="text-base font-bold font-mono text-white group-hover:text-emerald-400 transition-colors">
-                {discipline.streaks?.diet?.currentStreak || 0} Days
-              </div>
-              <span className="text-[9px] font-mono text-zinc-400 mt-0.5">Zero Junk Streak</span>
+              <span className="text-xs font-bold font-mono text-white">
+                {discipline.streaks?.diet?.currentStreak || 0}d
+              </span>
             </Link>
 
-            {/* Pod 3: Relapse Penalty */}
+            {/* Relapse Quick Deduction */}
             <button
               type="button"
               onClick={() => handleQuickDeduct("FAP")}
-              className="p-3 rounded-xl bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/40 hover:border-brand-red text-left flex flex-col justify-between transition-all group cursor-pointer active:scale-95 shadow-glow-red-subtle"
+              className="px-3 py-2 rounded-xl bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/30 hover:border-brand-red flex items-center justify-between transition-all active:scale-95"
             >
-              <div className="flex items-center justify-between text-[10px] font-mono text-brand-red mb-1">
-                <span>RELAPSE</span>
-                <Zap className="w-3.5 h-3.5 text-brand-red group-hover:scale-110 transition-transform" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Zap className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
+                <span className="text-[11px] font-mono text-red-300 truncate">Relapse</span>
               </div>
-              <div className="text-base font-bold font-mono text-white flex items-center justify-between">
-                <span>Infraction</span>
-                <span className="text-[10px] font-bold text-white bg-brand-red px-1.5 py-0.5 rounded leading-none">
-                  -100
-                </span>
-              </div>
-              <span className="text-[9px] font-mono text-red-300 mt-0.5">Reset Purity Streak</span>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-brand-red text-white leading-none">
+                -100
+              </span>
             </button>
 
-            {/* Pod 4: Junk Food Penalty */}
+            {/* Junk Food Quick Deduction */}
             <button
               type="button"
               onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-              className="p-3 rounded-xl bg-white/[0.03] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-left flex flex-col justify-between transition-all group cursor-pointer active:scale-95"
+              className="px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 flex items-center justify-between transition-all active:scale-95"
             >
-              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 group-hover:text-red-300 mb-1">
-                <span>JUNK FOOD</span>
-                <span className="text-xs">🍔</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-xs leading-none">🍔</span>
+                <span className="text-[11px] font-mono text-zinc-400 hover:text-red-300 truncate">Junk Food</span>
               </div>
-              <div className="text-base font-bold font-mono text-white flex items-center justify-between">
-                <span>Infraction</span>
-                <span className="text-[10px] font-bold text-brand-red bg-red-500/15 px-1.5 py-0.5 rounded leading-none border border-red-500/30">
-                  -50
-                </span>
-              </div>
-              <span className="text-[9px] font-mono text-zinc-400 group-hover:text-red-300 mt-0.5">Reset Diet Streak</span>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/30 leading-none">
+                -50
+              </span>
             </button>
           </div>
         </Card>

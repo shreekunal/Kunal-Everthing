@@ -723,44 +723,43 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Cyber Category Navigation Filter Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { id: "all", label: "All Modules", icon: Layers },
-          { id: "profiles", label: `Profiles (${availableProfiles.length || 2})`, icon: Users },
-          { id: "security", label: "Security & Lock", icon: ShieldCheck },
-          { id: "alarms", label: "Hardware Alarms", icon: Bell, dot: notificationsEnabled || waterRemindersEnabled },
-          { id: "vault", label: "Data Vault", icon: Database },
-          { id: "danger", label: "Danger Zone", icon: AlertTriangle, isDanger: true },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                haptics.selection();
-                setActiveTab(tab.id as SettingsTab);
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-medium transition-all whitespace-nowrap active:scale-95 ${
-                isActive
-                  ? tab.isDanger
-                    ? "bg-red-500 text-white shadow-glow-red font-bold"
-                    : "bg-brand-red text-white shadow-glow-red font-bold"
-                  : tab.isDanger
-                  ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
-                  : "bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-white/10"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-              {tab.dot && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
-              )}
-            </button>
-          );
-        })}
+      {/* Settings Module Dropdown Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 shadow-glow-red-subtle">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/25 text-brand-red">
+            <Sliders className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="font-bold text-white font-mono text-xs uppercase tracking-wider block">
+              Settings Menu
+            </span>
+            <span className="text-[11px] text-zinc-400 font-mono">
+              Switch configuration module via dropdown
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full sm:w-80">
+          <Select
+            value={activeTab}
+            onValueChange={(val) => {
+              haptics.selection();
+              setActiveTab(val as SettingsTab);
+            }}
+          >
+            <SelectTrigger className="w-full h-10 rounded-xl bg-black border-brand-red/30 hover:border-brand-red/70 text-xs text-white font-mono shadow-glow-red-subtle">
+              <SelectValue placeholder="Select Settings Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">📑 All Settings &amp; Modules</SelectItem>
+              <SelectItem value="profiles">👥 Dual-Profile Workspaces ({availableProfiles.length || 2})</SelectItem>
+              <SelectItem value="security">🛡️ Master PIN &amp; Biometrics</SelectItem>
+              <SelectItem value="alarms">🔔 Hardware Alarms &amp; Notifications</SelectItem>
+              <SelectItem value="vault">💾 Data Vault &amp; Backups</SelectItem>
+              <SelectItem value="danger">⚠️ Danger Zone (Wipe &amp; Reset)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* 1. Prime Video Dual-Profile Profiles */}
