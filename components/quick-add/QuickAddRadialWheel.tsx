@@ -174,12 +174,19 @@ export function QuickAddRadialWheel({
     const isLeft = x < winW * 0.28;
     const isRight = x > winW * 0.72;
 
+    // For bottom dock centered wheel, snap x to exact viewport center for 100% true symmetry
+    if (!isTop && !isLeft && !isRight) {
+      x = Math.round(winW * 0.5);
+    }
+
     return { x, y, isTop, isLeft, isRight };
   }, [origin]);
 
-  const radius = typeof window !== "undefined" && window.innerWidth < 400 ? 128 : 142;
+  const radius = typeof window !== "undefined" && window.innerWidth < 400 ? 128 : 140;
 
-  // Viewport-adaptive fan angles preventing off-screen clipping
+  // Viewport-adaptive fan angles:
+  // For bottom center (+ button), creates a 100% mathematically balanced 180° upward semicircle
+  // exactly mirrored around the vertical -90° axis with 30° spacing between petals.
   const angles = useMemo(() => {
     if (centerPos.isTop) {
       if (centerPos.isLeft) return [25, 50, 75, 100, 125, 150];
@@ -188,6 +195,8 @@ export function QuickAddRadialWheel({
     } else {
       if (centerPos.isLeft) return [-90, -70, -50, -30, -10, 10];
       if (centerPos.isRight) return [-190, -170, -150, -130, -110, -90];
+      // Perfectly balanced 180° semicircle mirrored around -90° vertical:
+      // [-165, -135, -105, -75, -45, -15]
       return [-165, -135, -105, -75, -45, -15];
     }
   }, [centerPos.isTop, centerPos.isLeft, centerPos.isRight]);
@@ -348,9 +357,11 @@ export function QuickAddRadialWheel({
           return (
             <div
               key={petal.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out"
+              className="absolute transition-all duration-200 ease-out flex items-center justify-center pointer-events-none"
               style={{
-                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.35 : 1})`,
+                left: `${x}px`,
+                top: `${y}px`,
+                transform: `translate(-50%, -50%) scale(${isSelected ? 1.35 : 1})`,
                 zIndex: isSelected ? 50 : 20,
               }}
             >
@@ -404,12 +415,18 @@ export function QuickAddRadialWheel({
         {/* Center Anchor Hub (Touch Origin Reactor, no laser lines) */}
         <div
           className={clsx(
-            "absolute -translate-x-1/2 -translate-y-1/2 w-15 h-15 rounded-full flex flex-col items-center justify-center transition-all duration-200 border-2 backdrop-blur-2xl shadow-2xl",
+            "absolute flex flex-col items-center justify-center transition-all duration-200 border-2 backdrop-blur-2xl shadow-2xl rounded-full",
             activePetal
               ? "bg-zinc-950/95 border-white/40 text-white scale-95 shadow-[0_0_25px_rgba(255,255,255,0.3)]"
               : "bg-gradient-to-tr from-brand-red to-red-600 border-red-300/80 text-white shadow-[0_0_25px_rgba(239,68,68,0.7)] scale-100"
           )}
-          style={{ width: "58px", height: "58px" }}
+          style={{
+            width: "58px",
+            height: "58px",
+            left: "0px",
+            top: "0px",
+            transform: "translate(-50%, -50%)",
+          }}
         >
           <Plus
             className={clsx(
@@ -428,7 +445,7 @@ export function QuickAddRadialWheel({
         <div
           className={clsx(
             "fixed left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5 max-w-[92vw]",
-            centerPos.isTop ? "top-28" : "bottom-48"
+            centerPos.isTop ? "top-28" : "bottom-56"
           )}
           style={{
             boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
