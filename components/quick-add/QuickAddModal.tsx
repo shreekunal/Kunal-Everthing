@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
 import { haptics } from "@/lib/haptics";
+import { scheduleTaskNotification } from "@/lib/notifications";
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -173,6 +174,16 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
         }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const createdTask = data?.task || data;
+        if (remindAt && createdTask?.id) {
+          scheduleTaskNotification({
+            id: createdTask.id,
+            title: createdTask.title || taskTitle,
+            remindAt,
+          }).catch((err) => console.warn("Task notification schedule failed:", err));
+        }
+
         haptics.success();
         setSuccessMessage("Task created successfully!");
         setTimeout(() => {

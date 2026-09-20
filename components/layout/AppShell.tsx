@@ -13,6 +13,7 @@ import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
 import { offlineQueue } from "@/lib/offlineQueue";
+import { setupNotificationListeners, setupNotificationChannels } from "@/lib/notifications";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -84,6 +85,23 @@ export function AppShell({ children }: AppShellProps) {
       cleanupQueue();
     };
   }, []);
+
+  // Initialize Android Notification Channels & Tap Deep-Linking
+  useEffect(() => {
+    setupNotificationChannels();
+    let cleanup: (() => void) | undefined;
+    setupNotificationListeners((route) => {
+      if (route) {
+        router.push(route);
+      }
+    }).then((unsub) => {
+      cleanup = unsub;
+    });
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [router]);
 
   // Fetch current user status & listen for global profile switcher requests
   useEffect(() => {

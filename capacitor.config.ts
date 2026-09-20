@@ -12,6 +12,13 @@ interface CapacitorConfig {
     allowMixedContent?: boolean;
     captureInput?: boolean;
   };
+  plugins?: {
+    LocalNotifications?: {
+      smallIcon?: string;
+      iconColor?: string;
+      sound?: string;
+    };
+  };
 }
 
 const config: CapacitorConfig = {
@@ -27,6 +34,12 @@ const config: CapacitorConfig = {
     backgroundColor: "#000000",
     allowMixedContent: false,
     captureInput: true,
+  },
+  plugins: {
+    LocalNotifications: {
+      smallIcon: "ic_stat_notification",
+      iconColor: "#EF4444",
+    },
   },
 };
 

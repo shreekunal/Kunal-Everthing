@@ -47,6 +47,9 @@ import {
   scheduleCoreDailyNotifications,
   cancelCoreNotifications,
   sendTestNotification,
+  areCoreNotificationsActive,
+  checkExactAlarmPermission,
+  requestExactAlarmPermission,
 } from "@/lib/notifications";
 
 export default function SettingsPage() {
@@ -83,6 +86,7 @@ export default function SettingsPage() {
 
   // Notification states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [hasExactAlarms, setHasExactAlarms] = useState(true);
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
@@ -162,11 +166,10 @@ export default function SettingsPage() {
           }
         }
 
-        if (typeof window !== "undefined") {
-          setNotificationsEnabled(
-            localStorage.getItem("everything_notifications_enabled") === "true"
-          );
-        }
+        const isCoreActive = await areCoreNotificationsActive();
+        setNotificationsEnabled(isCoreActive);
+        const exactOk = await checkExactAlarmPermission();
+        setHasExactAlarms(exactOk);
       } catch {
         // Silently handle
       }
@@ -184,6 +187,11 @@ export default function SettingsPage() {
           setNotificationsEnabled(true);
           setNotifMessage("Scheduled: 8:00 AM Morning Briefing & 9:00 PM Streak Defender");
           haptics.success();
+          fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notificationsEnabled: true }),
+          }).catch(() => {});
         } else {
           setNotifMessage("Notification permission was denied or not supported on this device.");
           haptics.warning();
@@ -193,9 +201,26 @@ export default function SettingsPage() {
         setNotificationsEnabled(false);
         setNotifMessage("Daily device alarms disabled.");
         haptics.impactLight();
+        fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationsEnabled: false }),
+        }).catch(() => {});
       }
+      const exactOk = await checkExactAlarmPermission();
+      setHasExactAlarms(exactOk);
     } finally {
       setNotifLoading(false);
+    }
+  };
+
+  const handleRequestExactAlarms = async () => {
+    haptics.impactLight();
+    const granted = await requestExactAlarmPermission();
+    setHasExactAlarms(granted);
+    if (granted) {
+      setNotifMessage("Exact alarm permission enabled!");
+      haptics.success();
     }
   };
 
@@ -701,6 +726,23 @@ export default function SettingsPage() {
             <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
               <span>{notifMessage}</span>
+            </div>
+          )}
+
+          {!hasExactAlarms && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>Exact alarm permission is disabled on your device. Alarms may be delayed by Android Doze mode.</span>
+              </div>
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={handleRequestExactAlarms}
+                className="text-amber-400 border-amber-500/30 text-[11px] self-start sm:self-auto"
+              >
+                Enable in Settings
+              </Button>
             </div>
           )}
 

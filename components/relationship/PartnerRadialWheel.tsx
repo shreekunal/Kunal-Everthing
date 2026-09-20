@@ -343,7 +343,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
         >
           <Heart className="w-5 h-5 fill-current" />
           <span className="text-[8px] font-mono font-bold uppercase mt-0.5 tracking-wider">
-            {activePetalId ? "Release" : "Hold & Slide"}
+            {activePetalId ? "Release" : "Slide"}
           </span>
         </div>
 

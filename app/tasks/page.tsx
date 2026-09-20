@@ -44,6 +44,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { scheduleTaskNotification, cancelTaskNotification } from "@/lib/notifications";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -159,6 +160,10 @@ export default function TasksPage() {
       return updatedTasksList;
     });
 
+    if (newStatus === "DONE") {
+      cancelTaskNotification(taskId);
+    }
+
     // 2. Silent background sync (queues offline when disconnected)
     try {
       await offlineQueue.offlineFetch(
@@ -184,6 +189,7 @@ export default function TasksPage() {
     if (!taskToDelete) return;
     setIsDeletingTask(true);
     haptics.warning();
+    cancelTaskNotification(taskToDelete.id);
     try {
       await offlineQueue.offlineFetch(
         `/api/tasks/${taskToDelete.id}`,
@@ -208,6 +214,7 @@ export default function TasksPage() {
     if (completed.length === 0) return;
 
     haptics.warning();
+    completed.forEach((t) => cancelTaskNotification(t.id));
     try {
       await Promise.all(
         completed.map((t) => fetch(`/api/tasks/${t.id}`, { method: "DELETE" }))
@@ -254,6 +261,19 @@ export default function TasksPage() {
           reminderOffset: preset,
         }),
       });
+
+      if (remindAt) {
+        const targetTask = tasks.find((t) => t.id === taskId);
+        await scheduleTaskNotification({
+          id: taskId,
+          title: targetTask?.title || "Task Reminder",
+          remindAt,
+          description: targetTask?.description || undefined,
+        });
+      } else {
+        await cancelTaskNotification(taskId);
+      }
+
       setQuickReminderTaskId(null);
       fetchTasks();
     } catch (err) {
@@ -285,6 +305,17 @@ export default function TasksPage() {
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const createdTask = data?.task || data;
+        if (remindAt && createdTask?.id) {
+          await scheduleTaskNotification({
+            id: createdTask.id,
+            title: createdTask.title || title,
+            remindAt,
+            description: description || undefined,
+          });
+        }
+
         haptics.success();
         setTitle("");
         setDescription("");
