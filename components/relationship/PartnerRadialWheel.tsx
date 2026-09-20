@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Heart,
   Smile,
   Moon,
   Sun,
-  Sparkles,
-  BookOpen,
-  X,
+  Send,
+  MessageCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
@@ -27,62 +26,78 @@ interface PartnerRadialWheelProps {
   origin?: RadialOrigin | null;
 }
 
-// 6 Core Petals with strictly pure, raw template strings
+// 4 Core Beloved Petals with raw message strings
 const PETALS = [
   {
     id: "love",
     label: "Love You",
     icon: Heart,
-    color: "from-rose-500 to-pink-600",
-    glow: "shadow-[0_0_20px_rgba(244,63,94,0.6)]",
-    borderColor: "border-rose-400",
-    textColor: "text-rose-300",
+    badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/40",
+    gradient: "from-rose-500 via-pink-600 to-rose-700",
+    glowColor: "rgba(244, 63, 94, 0.75)",
+    shadowGlow: "shadow-[0_0_30px_rgba(244,63,94,0.7)]",
+    borderColor: "border-rose-400/80",
+    textColor: "text-rose-400",
+    accentHex: "#F43F5E",
+    title: "Send Love",
     text: "I love you so much ❤️",
   },
   {
     id: "affection",
     label: "Pyara Bacha",
     icon: Smile,
-    color: "from-pink-500 to-rose-600",
-    glow: "shadow-[0_0_20px_rgba(236,72,153,0.6)]",
-    borderColor: "border-pink-400",
-    textColor: "text-pink-300",
+    badgeColor: "bg-pink-500/20 text-pink-300 border-pink-500/40",
+    gradient: "from-pink-500 via-rose-500 to-pink-700",
+    glowColor: "rgba(236, 72, 153, 0.75)",
+    shadowGlow: "shadow-[0_0_30px_rgba(236,72,153,0.7)]",
+    borderColor: "border-pink-400/80",
+    textColor: "text-pink-400",
+    accentHex: "#EC4899",
+    title: "Sweet Affection",
     text: "Mera bacha pyara sa",
   },
   {
     id: "night",
     label: "Good Night",
     icon: Moon,
-    color: "from-indigo-500 to-purple-600",
-    glow: "shadow-[0_0_20px_rgba(99,102,241,0.6)]",
-    borderColor: "border-indigo-400",
-    textColor: "text-indigo-300",
+    badgeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40",
+    gradient: "from-indigo-500 via-purple-600 to-indigo-700",
+    glowColor: "rgba(99, 102, 241, 0.75)",
+    shadowGlow: "shadow-[0_0_30px_rgba(99,102,241,0.7)]",
+    borderColor: "border-indigo-400/80",
+    textColor: "text-indigo-400",
+    accentHex: "#6366F1",
+    title: "Night Blessing",
     text: "Good Night babu .. Take Care",
   },
   {
     id: "morning",
     label: "Good Morning",
     icon: Sun,
-    color: "from-amber-500 to-orange-600",
-    glow: "shadow-[0_0_20px_rgba(245,158,11,0.6)]",
-    borderColor: "border-amber-400",
-    textColor: "text-amber-300",
+    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+    gradient: "from-amber-500 via-orange-500 to-amber-700",
+    glowColor: "rgba(245, 158, 11, 0.75)",
+    shadowGlow: "shadow-[0_0_30px_rgba(245,158,11,0.7)]",
+    borderColor: "border-amber-400/80",
+    textColor: "text-amber-400",
+    accentHex: "#F59E0B",
+    title: "Morning Energy",
     text: "Good Morning Babyyyy",
-  }
+  },
 ];
 
 export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWheelProps) {
   const router = useRouter();
   const [partnerData, setPartnerData] = useState<any>(null);
   const [activePetalId, setActivePetalId] = useState<string | null>(null);
+  const [pointerCoords, setPointerCoords] = useState<{ x: number; y: number } | null>(null);
   const activePetalIdRef = useRef<string | null>(null);
 
-  // Keep ref in sync for release-to-launch event handler
   useEffect(() => {
     activePetalIdRef.current = activePetalId;
   }, [activePetalId]);
 
-  // Load partner data from cache & API
+  // Load partner profile
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -111,13 +126,11 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
 
   const partnerPhone = partnerData?.phone || "";
   const cleanPhone = partnerPhone.replace(/[^0-9]/g, "");
+  const partnerName = partnerData?.nickname || partnerData?.name || "Partner";
 
-  // Execute chosen action (raw message to WhatsApp or Hub navigation)
   const executeAction = useCallback(
     (item: (typeof PETALS)[0]) => {
       haptics.impactMedium();
-
-      // STRICTLY RAW MESSAGE TEXT: Zero prefix, Zero quotes, Zero sender signature
       const messageText = item.text;
       const encoded = encodeURIComponent(messageText);
       const url = cleanPhone
@@ -127,35 +140,57 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
       window.open(url, "_blank");
       onClose();
     },
-    [cleanPhone, onClose, router]
+    [cleanPhone, onClose]
   );
 
-  // Geometry calculations: default origin falls back to bottom-dock Love button
-  const getCenterCoords = useCallback(() => {
-    if (typeof window === "undefined") return { x: 250, y: 600, isTop: false };
-
-    if (origin && origin.x && origin.y) {
-      const isTop = origin.y < window.innerHeight / 2;
-      return { x: origin.x, y: origin.y, isTop };
+  // Viewport-aware origin geometry calculation
+  const centerPos = useMemo(() => {
+    if (typeof window === "undefined") {
+      return { x: 250, y: 600, isTop: false, isLeft: false, isRight: false };
     }
 
-    // Default mobile fallback: tab 4 on bottom nav (70% width, 50px from bottom)
-    return {
-      x: Math.round(window.innerWidth * 0.7),
-      y: window.innerHeight - 50,
-      isTop: false,
-    };
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+
+    let x = Math.round(winW * 0.7);
+    let y = winH - 50;
+
+    if (origin && origin.x && origin.y) {
+      x = origin.x;
+      y = origin.y;
+    }
+
+    const isTop = y < winH * 0.45;
+    const isLeft = x < winW * 0.28;
+    const isRight = x > winW * 0.72;
+
+    return { x, y, isTop, isLeft, isRight };
   }, [origin]);
 
-  const centerPos = getCenterCoords();
-  const radius = 145; // px (expanded gap between center and radial buttons)
+  const radius = typeof window !== "undefined" && window.innerWidth < 380 ? 135 : 150;
 
-  // Angles: upward fan arc if near bottom, downward fan arc if near top
-  const angles = centerPos.isTop
-    ? [30, 60, 90, 120, 150, 180]
-    : [-170, -145, -120, -95, -70, -45];
+  // Viewport-adaptive fan angles for 4 petals
+  const angles = useMemo(() => {
+    if (centerPos.isTop) {
+      if (centerPos.isLeft) return [30, 65, 100, 135];
+      if (centerPos.isRight) return [45, 80, 115, 150];
+      return [40, 75, 105, 140];
+    } else {
+      if (centerPos.isLeft) return [-80, -50, -20, 10];
+      if (centerPos.isRight) return [-190, -160, -130, -100];
+      return [-155, -118, -62, -25];
+    }
+  }, [centerPos.isTop, centerPos.isLeft, centerPos.isRight]);
 
-  // Traditional Radial Drag & Release Engine (pointermove & pointerup)
+  // Real-time gesture angle
+  const pointerAngle = useMemo(() => {
+    if (!pointerCoords) return null;
+    const dx = pointerCoords.x - centerPos.x;
+    const dy = pointerCoords.y - centerPos.y;
+    return (Math.atan2(dy, dx) * 180) / Math.PI;
+  }, [pointerCoords, centerPos.x, centerPos.y]);
+
+  // Touch and pointer tracking engine
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") return;
 
@@ -166,12 +201,14 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
 
       if (clientX === undefined || clientY === undefined) return;
 
+      setPointerCoords({ x: clientX, y: clientY });
+
       const dx = clientX - centerPos.x;
       const dy = clientY - centerPos.y;
       const distance = Math.hypot(dx, dy);
 
-      // Deadzone: within 36px of center is cancel / no selection
-      if (distance < 36) {
+      // Deadzone: within 35px is cancel / idle
+      if (distance < 35) {
         if (activePetalIdRef.current !== null) {
           setActivePetalId(null);
           haptics.selection();
@@ -179,10 +216,8 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
         return;
       }
 
-      // Calculate touch angle in degrees
       const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-      // Find petal with closest angular alignment
       let closestIdx = 0;
       let minDiff = Infinity;
 
@@ -195,7 +230,6 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
         }
       });
 
-      // If finger is pointing away from the fan arc (e.g. downward off-screen), deselect
       if (minDiff > 45) {
         if (activePetalIdRef.current !== null) {
           setActivePetalId(null);
@@ -207,14 +241,13 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
       const candidate = PETALS[closestIdx];
       if (candidate && candidate.id !== activePetalIdRef.current) {
         setActivePetalId(candidate.id);
-        haptics.selection(); // rotary click feedback
+        haptics.selection();
       }
     };
 
     const handlePointerUp = (e: MouseEvent | TouchEvent) => {
       let currentActiveId = activePetalIdRef.current;
 
-      // Direct tap fallback: if user tapped directly on a petal button
       if (!currentActiveId && typeof document !== "undefined") {
         let checkX: number | undefined;
         let checkY: number | undefined;
@@ -241,7 +274,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           return;
         }
       }
-      // Released in deadzone or canceled
+
       onClose();
     };
 
@@ -262,20 +295,91 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
 
   if (!isOpen) return null;
 
-  const activePetal = PETALS.find((p) => p.id === activePetalId);
+  const activeIndex = PETALS.findIndex((p) => p.id === activePetalId);
+  const activePetal = activeIndex >= 0 ? PETALS[activeIndex] : null;
+
+  const activeCoords = activeIndex >= 0
+    ? {
+        x: centerPos.x + Math.round(Math.cos((angles[activeIndex] * Math.PI) / 180) * radius),
+        y: centerPos.y + Math.round(Math.sin((angles[activeIndex] * Math.PI) / 180) * radius),
+      }
+    : null;
 
   return (
-    <div className="fixed inset-0 z-[200] pointer-events-auto select-none">
-      {/* Dark Blurred Backdrop */}
+    <div className="fixed inset-0 z-[200] pointer-events-auto select-none overflow-hidden animate-in fade-in duration-200">
+      {/* Rose-tinted Ambient Hologram Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-200"
+        className="fixed inset-0 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle 380px at ${centerPos.x}px ${centerPos.y}px, rgba(30, 15, 25, 0.90) 0%, rgba(0, 0, 0, 0.95) 85%)`,
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+        }}
         onClick={() => {
           haptics.impactLight();
           onClose();
         }}
       />
 
-      {/* Origin Point anchored exactly at Touch Position */}
+      {/* SVG Orbit Tracks & Laser Guide */}
+      <svg className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+        <defs>
+          <filter id="rose-neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {activePetal && (
+            <linearGradient id="rose-active-laser" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
+              <stop offset="60%" stopColor={activePetal.accentHex} stopOpacity="0.8" />
+              <stop offset="100%" stopColor={activePetal.accentHex} stopOpacity="1" />
+            </linearGradient>
+          )}
+        </defs>
+
+        {/* Outer Orbit Guide Track */}
+        <circle
+          cx={centerPos.x}
+          cy={centerPos.y}
+          r={radius}
+          fill="none"
+          stroke="rgba(244, 63, 94, 0.15)"
+          strokeWidth="1.5"
+          strokeDasharray="4 6"
+        />
+
+        {/* Dynamic Rose Laser Guide */}
+        {activeCoords && activePetal && (
+          <g filter="url(#rose-neon-glow)">
+            <line
+              x1={centerPos.x}
+              y1={centerPos.y}
+              x2={activeCoords.x}
+              y2={activeCoords.y}
+              stroke="url(#rose-active-laser)"
+              strokeWidth="2.5"
+              strokeDasharray="6 4"
+              className="animate-pulse"
+            />
+            <circle
+              cx={activeCoords.x}
+              cy={activeCoords.y}
+              r="26"
+              fill="none"
+              stroke={activePetal.accentHex}
+              strokeWidth="1.5"
+              strokeOpacity="0.6"
+              className="animate-ping"
+              style={{ animationDuration: "2s" }}
+            />
+          </g>
+        )}
+      </svg>
+
+      {/* Anchored Stage at Origin */}
       <div
         className="absolute pointer-events-none"
         style={{
@@ -283,7 +387,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           top: `${centerPos.y}px`,
         }}
       >
-        {/* Dynamic Petals blooming from center */}
+        {/* Fan of Beloved Petals */}
         {PETALS.map((petal, idx) => {
           const angleDeg = angles[idx];
           const angleRad = (angleDeg * Math.PI) / 180;
@@ -297,7 +401,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
               key={petal.id}
               className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out"
               style={{
-                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.45 : 1})`,
+                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.35 : 1})`,
                 zIndex: isSelected ? 50 : 20,
               }}
             >
@@ -306,59 +410,117 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
                 data-petal-id={petal.id}
                 onClick={() => executeAction(petal)}
                 className={clsx(
-                  "w-12 h-12 rounded-full border-2 flex items-center justify-center text-white bg-gradient-to-br transition-all duration-150 shadow-2xl pointer-events-auto",
-                  petal.color,
-                  petal.borderColor,
+                  "relative w-13 h-13 rounded-2xl border flex items-center justify-center text-white backdrop-blur-xl transition-all duration-200 pointer-events-auto",
                   isSelected
-                    ? `${petal.glow} ring-4 ring-white/80 border-white scale-105`
-                    : "opacity-85 hover:opacity-100"
+                    ? clsx(
+                        "bg-gradient-to-br ring-4 ring-white/70 border-white",
+                        petal.gradient,
+                        petal.shadowGlow
+                      )
+                    : "bg-zinc-900/85 hover:bg-zinc-800/90 border-white/15 text-zinc-300 hover:text-white shadow-xl hover:scale-105"
                 )}
+                style={{ width: "52px", height: "52px" }}
               >
-                <Icon className={clsx("w-5 h-5 drop-shadow-md", isSelected && "animate-pulse")} />
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-transparent via-white/[0.04] to-white/20 pointer-events-none" />
+                <Icon
+                  className={clsx(
+                    "w-5 h-5 drop-shadow-md transition-transform duration-200",
+                    isSelected ? "text-white scale-110" : "opacity-90"
+                  )}
+                />
               </button>
 
-              {/* Enlarge and show text of SELECTED button ONLY */}
-              {isSelected && (
-                <span
-                  className={clsx(
-                    "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-3.5 py-1 rounded-full text-xs font-mono font-bold border-2 shadow-2xl backdrop-blur-xl transition-all duration-150 pointer-events-none bg-white text-black border-white scale-110 shadow-[0_0_20px_rgba(255,255,255,0.9)] animate-in fade-in zoom-in-95",
-                    centerPos.isTop ? "top-16" : "-bottom-9"
-                  )}
-                >
-                  {petal.label}
-                </span>
-              )}
+              {/* Floating Pill Label */}
+              <div
+                className={clsx(
+                  "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-2xl transition-all duration-200 pointer-events-none",
+                  isSelected
+                    ? "bg-white text-zinc-950 border-white shadow-[0_0_20px_rgba(255,255,255,0.8)] scale-110 z-50"
+                    : "bg-black/80 text-zinc-400 border-white/10 opacity-70",
+                  centerPos.isTop ? "top-15" : "-bottom-7"
+                )}
+              >
+                {petal.label}
+              </div>
             </div>
           );
         })}
 
-        {/* Center Anchor Hub (Where thumb was placed) */}
+        {/* Center Anchor Hub (Rose Heart Core) */}
         <div
           className={clsx(
-            "absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex flex-col items-center justify-center transition-transform duration-150 border-2",
-            activePetalId
-              ? "bg-zinc-900/90 border-white/20 text-zinc-500 scale-90"
-              : "bg-gradient-to-tr from-rose-600 to-pink-500 border-rose-300 text-white shadow-[0_0_25px_rgba(244,63,94,0.7)] animate-pulse scale-100"
+            "absolute -translate-x-1/2 -translate-y-1/2 w-15 h-15 rounded-full flex flex-col items-center justify-center transition-all duration-200 border-2 backdrop-blur-2xl shadow-2xl",
+            activePetal
+              ? "bg-zinc-950/95 border-rose-400 text-rose-400 scale-95 shadow-[0_0_25px_rgba(244,63,94,0.4)]"
+              : "bg-gradient-to-tr from-rose-600 via-pink-600 to-rose-700 border-rose-300/80 text-white shadow-[0_0_25px_rgba(244,63,94,0.7)] scale-100"
           )}
+          style={{ width: "58px", height: "58px" }}
         >
-          <Heart className="w-5 h-5 fill-current" />
-          <span className="text-[8px] font-mono font-bold uppercase mt-0.5 tracking-wider">
-            {activePetalId ? "Release" : "Slide"}
+          {pointerAngle !== null && activePetal && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              style={{
+                transform: `rotate(${pointerAngle + 90}deg)`,
+              }}
+            >
+              <div
+                className="w-1.5 h-3 rounded-full -translate-y-6 shadow-glow"
+                style={{ backgroundColor: activePetal.accentHex }}
+              />
+            </div>
+          )}
+
+          <Heart
+            className={clsx(
+              "w-6 h-6 fill-current transition-transform duration-200",
+              activePetal ? "scale-90" : "scale-100 animate-pulse"
+            )}
+          />
+          <span className="text-[8px] font-mono font-bold uppercase tracking-wider mt-0.5">
+            {activePetal ? "Send" : "Slide"}
           </span>
         </div>
 
-        {/* Live Message Preview Tooltip (Appears above the arc as you glide) */}
+        {/* Floating WhatsApp Message Preview Card */}
         {activePetal && (
           <div
             className={clsx(
-              "absolute -translate-x-1/2 px-4 py-2 rounded-2xl bg-black/95 border border-white/25 text-white text-xs sm:text-sm font-mono shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap pointer-events-none z-50",
-              centerPos.isTop ? "top-48" : "-top-48"
+              "absolute -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5",
+              centerPos.isTop ? "top-50" : "-top-52"
             )}
+            style={{
+              boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
+            }}
           >
-            <span className="text-zinc-400 mr-2 font-bold uppercase text-[10px] tracking-wider">Preview:</span>
-            <span className={clsx("font-bold tracking-tight", activePetal.textColor)}>
-              {activePetal.id === "hub" ? "Open Full Partner Hub" : activePetal.text}
-            </span>
+            <div
+              className={clsx(
+                "p-2 rounded-xl border flex items-center justify-center",
+                activePetal.badgeColor
+              )}
+            >
+              {React.createElement(activePetal.icon, {
+                className: clsx("w-4 h-4", activePetal.textColor),
+              })}
+            </div>
+
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className={clsx("font-bold text-xs sm:text-sm tracking-tight", activePetal.textColor)}>
+                  {activePetal.title}
+                </span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  To: {partnerName}
+                </span>
+              </div>
+              <span className="text-zinc-200 text-xs font-mono font-medium mt-0.5 italic">
+                &ldquo;{activePetal.text}&rdquo;
+              </span>
+            </div>
+
+            <div className="pl-2 border-l border-white/15 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+              <MessageCircle className="w-3.5 h-3.5 fill-emerald-400/20 text-emerald-400" />
+              <span>WhatsApp</span>
+            </div>
           </div>
         )}
       </div>
