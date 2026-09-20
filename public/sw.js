@@ -1,4 +1,4 @@
-// KunalOS Production Service Worker - Linear/Slack Remote Shell Architecture
+// Everything Production Service Worker - Linear/Slack Remote Shell Architecture
 // Supports instant offline boot (<50ms), static asset caching, and network-first navigation.
 
 const CACHE_VERSION = "v1.2.0";

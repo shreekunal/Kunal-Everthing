@@ -37,7 +37,7 @@ function LoginContent() {
     try {
       const cached = localStorage.getItem("kunal_os_cached_profiles");
       if (cached) return JSON.parse(cached);
-    } catch {}
+    } catch { }
     return [];
   });
 
@@ -64,7 +64,7 @@ function LoginContent() {
         const matched = list.find((p) => p.id === targetUserId);
         if (matched) return matched;
       }
-    } catch {}
+    } catch { }
 
     // 2. Optimistic profile matching from cached name & gender
     const cachedName = localStorage.getItem("kunal_os_current_user_name") || "Kunal";
@@ -120,7 +120,7 @@ function LoginContent() {
               searchParams.get("userId") ||
               (typeof window !== "undefined"
                 ? localStorage.getItem("kunal_os_locked_user_id") ||
-                  localStorage.getItem("kunal_os_current_user_id")
+                localStorage.getItem("kunal_os_current_user_id")
                 : null);
 
             if (targetUserId && !data.authenticated && !isSwitchRequested) {
@@ -350,7 +350,7 @@ function LoginContent() {
       <div className="w-full max-w-md relative z-10">
         {!selectedProfile ? (
           /* ============================================================
-             1. PRIME VIDEO STYLE: "Who is using KunalOS?" Screen
+             1. PRIME VIDEO STYLE: "Who is using Everything?" Screen
              ============================================================ */
           <div className="bg-black/90 backdrop-blur-3xl border border-white/15 rounded-3xl p-8 sm:p-10 shadow-glass-panel flex flex-col items-center text-center animate-in fade-in duration-300">
             {/* Minimal Brand Badge */}
@@ -363,7 +363,7 @@ function LoginContent() {
 
             {/* Prime Video Header */}
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-wide font-sans mb-2">
-              Who is using KunalOS?
+              Who is using Everything?
             </h1>
             <p className="text-xs text-zinc-400 font-mono mb-10">
               Select your profile to access your private workspace
@@ -440,24 +440,22 @@ function LoginContent() {
 
             {/* 4 PIN Dots Indicator */}
             <div
-              className={`flex items-center justify-center gap-4 my-6 py-2 transition-transform duration-200 ${
-                shake ? "animate-shake" : ""
-              }`}
+              className={`flex items-center justify-center gap-4 my-6 py-2 transition-transform duration-200 ${shake ? "animate-shake" : ""
+                }`}
             >
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
                   <div
                     key={index}
-                    className={`w-4 h-4 rounded-full transition-all duration-300 ${
-                      success
+                    className={`w-4 h-4 rounded-full transition-all duration-300 ${success
                         ? "bg-white border-white scale-125 shadow-[0_0_12px_#ffffff]"
                         : isFilled
-                        ? isMradulSelected
-                          ? "bg-rose-500 border border-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.8)] scale-110"
-                          : "bg-brand-red border border-brand-red shadow-glow-red scale-110"
-                        : "bg-white/5 border border-white/20"
-                    }`}
+                          ? isMradulSelected
+                            ? "bg-rose-500 border border-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.8)] scale-110"
+                            : "bg-brand-red border border-brand-red shadow-glow-red scale-110"
+                          : "bg-white/5 border border-white/20"
+                      }`}
                   />
                 );
               })}
@@ -479,11 +477,10 @@ function LoginContent() {
                   type="button"
                   onClick={() => handlePressDigit(digit)}
                   disabled={isVerifying}
-                  className={`h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xl font-bold font-mono text-white flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${
-                    isMradulSelected
+                  className={`h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xl font-bold font-mono text-white flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${isMradulSelected
                       ? "active:bg-rose-500/20 active:border-rose-500/50"
                       : "active:bg-brand-red/20 active:border-brand-red/50"
-                  }`}
+                    }`}
                 >
                   {digit}
                 </button>
@@ -495,13 +492,12 @@ function LoginContent() {
                 onClick={handleBiometricAuth}
                 disabled={isVerifying}
                 title="Unlock with Fingerprint / Biometrics"
-                className={`h-14 rounded-2xl border flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${
-                  (selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics)
+                className={`h-14 rounded-2xl border flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${(selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics)
                     ? isMradulSelected
                       ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-400"
                       : "bg-white/[0.06] hover:bg-brand-red/20 hover:border-brand-red/40 border-white/15 text-brand-red shadow-glow-red-subtle"
                     : "bg-white/[0.02] border-white/5 text-zinc-500 hover:text-zinc-300"
-                }`}
+                  }`}
               >
                 <Fingerprint className="w-6 h-6" />
               </button>
@@ -510,11 +506,10 @@ function LoginContent() {
                 type="button"
                 onClick={() => handlePressDigit("0")}
                 disabled={isVerifying}
-                className={`h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xl font-bold font-mono text-white flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${
-                  isMradulSelected
+                className={`h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xl font-bold font-mono text-white flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${isMradulSelected
                     ? "active:bg-rose-500/20 active:border-rose-500/50"
                     : "active:bg-brand-red/20 active:border-brand-red/50"
-                }`}
+                  }`}
               >
                 0
               </button>
@@ -536,16 +531,14 @@ function LoginContent() {
                 type="button"
                 onClick={handleBiometricAuth}
                 disabled={isVerifying}
-                className={`mt-6 w-full py-2.5 px-4 rounded-xl border text-xs font-mono text-white flex items-center justify-center gap-2 transition-colors group ${
-                  isMradulSelected
+                className={`mt-6 w-full py-2.5 px-4 rounded-xl border text-xs font-mono text-white flex items-center justify-center gap-2 transition-colors group ${isMradulSelected
                     ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30"
                     : "bg-white/[0.04] hover:bg-brand-red/15 border-brand-red/30 shadow-glow-red-subtle"
-                }`}
+                  }`}
               >
                 <Fingerprint
-                  className={`w-4 h-4 group-hover:scale-110 transition-transform ${
-                    isMradulSelected ? "text-rose-400" : "text-brand-red"
-                  }`}
+                  className={`w-4 h-4 group-hover:scale-110 transition-transform ${isMradulSelected ? "text-rose-400" : "text-brand-red"
+                    }`}
                 />
                 <span>Tap for Biometric Unlock</span>
               </button>
@@ -555,9 +548,8 @@ function LoginContent() {
             <div className="mt-6 pt-4 border-t border-white/10 w-full flex items-center justify-between text-[11px] font-mono text-zinc-500">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck
-                  className={`w-3.5 h-3.5 ${
-                    isMradulSelected ? "text-rose-400" : "text-brand-red"
-                  }`}
+                  className={`w-3.5 h-3.5 ${isMradulSelected ? "text-rose-400" : "text-brand-red"
+                    }`}
                 />
                 <span>{selectedProfile.name} Workspace</span>
               </span>

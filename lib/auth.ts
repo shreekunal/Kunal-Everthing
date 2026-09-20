@@ -191,7 +191,7 @@ export async function getAvailableProfiles() {
 }
 
 /**
- * Get or create the default primary user for KunalOS
+ * Get or create the default primary user for Everything
  */
 export async function getOrCreateDefaultUser() {
   const { kunal } = await ensureDualProfiles();

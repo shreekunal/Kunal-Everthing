@@ -1,6 +1,6 @@
-# KunalOS — Production Deployment Guide for Render
+# Everything — Production Deployment Guide for Render
 
-This guide walks you through deploying **KunalOS** to [Render](https://render.com) for production.
+This guide walks you through deploying **Everything** to [Render](https://render.com) for production.
 
 ---
 
@@ -9,14 +9,14 @@ This guide walks you through deploying **KunalOS** to [Render](https://render.co
 1. **Push your code to GitHub / GitLab**:
    ```bash
    git add .
-   git commit -m "Prepare KunalOS for production deployment on Render"
+   git commit -m "Prepare Everything for production deployment on Render"
    git push origin main
    ```
 
 2. **Connect to Render**:
    - Log in to your [Render Dashboard](https://dashboard.render.com).
    - Click **New +** → **Blueprint**.
-   - Select your repository (`KunalOS`).
+   - Select your repository (`Everything`).
    - Render will automatically detect [`render.yaml`](./render.yaml).
    - Click **Apply**.
 
@@ -54,7 +54,7 @@ If you prefer configuring via the Render UI:
 
 ## 🛡️ Permanent Cloud Storage (Neon PostgreSQL)
 
-KunalOS is connected to **Neon Serverless PostgreSQL**.
+Everything is connected to **Neon Serverless PostgreSQL**.
 - **Permanent & Free Forever**: Your data will never expire or be deleted after 30 days.
 - **Auto-Sync**: Any schema changes automatically sync on deployment.
 
@@ -63,7 +63,7 @@ KunalOS is connected to **Neon Serverless PostgreSQL**.
 
 ## 🐳 Option C: Deploy with Docker Container
 
-KunalOS includes a production multi-stage [`Dockerfile`](./Dockerfile):
+Everything includes a production multi-stage [`Dockerfile`](./Dockerfile):
 
 1. In Render Dashboard, click **New +** → **Web Service**.
 2. Choose **Docker** as the environment.
@@ -73,11 +73,11 @@ KunalOS includes a production multi-stage [`Dockerfile`](./Dockerfile):
 
 ## 📱 Option D: Build Android APK (GitHub Actions)
 
-KunalOS includes an automated **GitHub Actions CI/CD workflow** ([`.github/workflows/build-android-apk.yml`](./.github/workflows/build-android-apk.yml)):
+Everything includes an automated **GitHub Actions CI/CD workflow** ([`.github/workflows/build-android-apk.yml`](./.github/workflows/build-android-apk.yml)):
 
 1. **Automatic Build on Push**: Every time you push to `main` or `master`, GitHub Actions will build the web bundle, sync Capacitor Android assets, and compile the **Release/Debug APK** using Gradle.
 2. **Manual Dispatch**: Go to your GitHub repository → **Actions** tab → **Build Android APK** → **Run workflow**.
-3. **Download Artifact**: Once the action completes, download the **`KunalOS-Debug-APK`** zip containing `app-debug.apk` directly from the workflow run summary.
+3. **Download Artifact**: Once the action completes, download the **`Everything-Debug-APK`** zip containing `app-debug.apk` directly from the workflow run summary.
 
 ---
 

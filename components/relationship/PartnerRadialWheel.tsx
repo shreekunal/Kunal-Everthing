@@ -68,27 +68,7 @@ const PETALS = [
     borderColor: "border-amber-400",
     textColor: "text-amber-300",
     text: "Good Morning Babyyyy",
-  },
-  {
-    id: "shayari",
-    label: "Shayari",
-    icon: Sparkles,
-    color: "from-purple-500 to-pink-500",
-    glow: "shadow-[0_0_20px_rgba(168,85,247,0.6)]",
-    borderColor: "border-purple-400",
-    textColor: "text-purple-300",
-    text: "Sometimes I just randomly smile because I remember that you're mine. ❤️",
-  },
-  {
-    id: "hub",
-    label: "Partner Hub",
-    icon: BookOpen,
-    color: "from-zinc-700 to-zinc-800",
-    glow: "shadow-[0_0_15px_rgba(255,255,255,0.3)]",
-    borderColor: "border-white/30",
-    textColor: "text-zinc-200",
-    text: "",
-  },
+  }
 ];
 
 export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWheelProps) {
@@ -136,12 +116,6 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
   const executeAction = useCallback(
     (item: (typeof PETALS)[0]) => {
       haptics.impactMedium();
-
-      if (item.id === "hub") {
-        onClose();
-        router.push("/relationship");
-        return;
-      }
 
       // STRICTLY RAW MESSAGE TEXT: Zero prefix, Zero quotes, Zero sender signature
       const messageText = item.text;

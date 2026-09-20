@@ -53,7 +53,7 @@ export function ProfileSwitcherModal({
           setProfiles(data.profiles);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [isOpen]);
 
   const handleSelectTarget = (profile: ProfileItem) => {
@@ -148,7 +148,7 @@ export function ProfileSwitcherModal({
              ============================================================ */
           <div className="flex flex-col items-center text-center">
             <p className="text-xs text-zinc-400 font-mono mb-6">
-              Who is using KunalOS? Select a profile to switch:
+              Who is using Everything? Select a profile to switch:
             </p>
 
             {/* Two Circular Profile Cards */}
@@ -164,13 +164,12 @@ export function ProfileSwitcherModal({
                   <div
                     key={profile.id}
                     onClick={() => !isCurrent && handleSelectTarget(profile)}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col items-center justify-between group ${
-                      isCurrent
+                    className={`p-4 rounded-2xl border transition-all flex flex-col items-center justify-between group ${isCurrent
                         ? isFemale
                           ? "bg-rose-950/20 border-rose-500/40 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
                           : "bg-red-950/20 border-brand-red/40 shadow-[0_0_20px_rgba(239,68,68,0.15)]"
                         : "bg-white/[0.03] border-white/10 hover:border-white/25 hover:bg-white/[0.06] cursor-pointer hover:scale-105 active:scale-95"
-                    }`}
+                      }`}
                   >
                     <ProfileAvatar
                       name={profile.name}
@@ -255,24 +254,22 @@ export function ProfileSwitcherModal({
 
             {/* 4 PIN Dots Indicator */}
             <div
-              className={`flex items-center justify-center gap-3.5 my-3 py-1 transition-transform duration-200 ${
-                shake ? "animate-shake" : ""
-              }`}
+              className={`flex items-center justify-center gap-3.5 my-3 py-1 transition-transform duration-200 ${shake ? "animate-shake" : ""
+                }`}
             >
               {[0, 1, 2, 3].map((index) => {
                 const isFilled = pin.length > index;
                 return (
                   <div
                     key={index}
-                    className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${
-                      success
+                    className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${success
                         ? "bg-white border-white scale-125 shadow-[0_0_12px_#ffffff]"
                         : isFilled
-                        ? isTargetFemale
-                          ? "bg-rose-500 border border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)] scale-110"
-                          : "bg-brand-red border border-brand-red shadow-glow-red scale-110"
-                        : "bg-white/5 border border-white/20"
-                    }`}
+                          ? isTargetFemale
+                            ? "bg-rose-500 border border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)] scale-110"
+                            : "bg-brand-red border border-brand-red shadow-glow-red scale-110"
+                          : "bg-white/5 border border-white/20"
+                      }`}
                   />
                 );
               })}
