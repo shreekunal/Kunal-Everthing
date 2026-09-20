@@ -7,7 +7,6 @@ import {
   Smile,
   Moon,
   Sun,
-  Send,
   MessageCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
@@ -26,7 +25,7 @@ interface PartnerRadialWheelProps {
   origin?: RadialOrigin | null;
 }
 
-// 4 Core Beloved Petals with raw message strings
+// 4 Core Beloved Petals with raw WhatsApp message strings
 const PETALS = [
   {
     id: "love",
@@ -90,14 +89,13 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
   const router = useRouter();
   const [partnerData, setPartnerData] = useState<any>(null);
   const [activePetalId, setActivePetalId] = useState<string | null>(null);
-  const [pointerCoords, setPointerCoords] = useState<{ x: number; y: number } | null>(null);
   const activePetalIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     activePetalIdRef.current = activePetalId;
   }, [activePetalId]);
 
-  // Load partner profile
+  // Load partner profile from cache & API
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -146,13 +144,13 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
   // Viewport-aware origin geometry calculation
   const centerPos = useMemo(() => {
     if (typeof window === "undefined") {
-      return { x: 250, y: 600, isTop: false, isLeft: false, isRight: false };
+      return { x: 250, y: 600, isTop: false, isRightSide: true };
     }
 
     const winW = window.innerWidth;
     const winH = window.innerHeight;
 
-    let x = Math.round(winW * 0.7);
+    let x = Math.round(winW * 0.72);
     let y = winH - 50;
 
     if (origin && origin.x && origin.y) {
@@ -161,34 +159,34 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
     }
 
     const isTop = y < winH * 0.45;
-    const isLeft = x < winW * 0.28;
-    const isRight = x > winW * 0.72;
+    // On the bottom nav, Relationship is in the right half (button 4 of 5)
+    const isRightSide = x > winW * 0.45;
 
-    return { x, y, isTop, isLeft, isRight };
+    return { x, y, isTop, isRightSide };
   }, [origin]);
 
-  const radius = typeof window !== "undefined" && window.innerWidth < 380 ? 135 : 150;
+  const radius = typeof window !== "undefined" && window.innerWidth < 400 ? 128 : 138;
 
-  // Viewport-adaptive fan angles for 4 petals
+  // Viewport-adaptive fan angles:
+  // When origin is on the right side of the screen, fan UP and LEFTWARD (-100° to -175°)
+  // so NO petals ever bleed off the right screen edge!
   const angles = useMemo(() => {
     if (centerPos.isTop) {
-      if (centerPos.isLeft) return [30, 65, 100, 135];
-      if (centerPos.isRight) return [45, 80, 115, 150];
-      return [40, 75, 105, 140];
+      // If triggered from top navigation
+      if (centerPos.isRightSide) {
+        // Fan downward and leftward into the open viewport
+        return [100, 125, 150, 175];
+      }
+      return [5, 30, 55, 80];
     } else {
-      if (centerPos.isLeft) return [-80, -50, -20, 10];
-      if (centerPos.isRight) return [-190, -160, -130, -100];
-      return [-155, -118, -62, -25];
+      // Bottom dock (standard mobile position)
+      if (centerPos.isRightSide) {
+        // Fan upward and leftward into open screen space!
+        return [-100, -125, -150, -175];
+      }
+      return [-80, -55, -30, -5];
     }
-  }, [centerPos.isTop, centerPos.isLeft, centerPos.isRight]);
-
-  // Real-time gesture angle
-  const pointerAngle = useMemo(() => {
-    if (!pointerCoords) return null;
-    const dx = pointerCoords.x - centerPos.x;
-    const dy = pointerCoords.y - centerPos.y;
-    return (Math.atan2(dy, dx) * 180) / Math.PI;
-  }, [pointerCoords, centerPos.x, centerPos.y]);
+  }, [centerPos.isTop, centerPos.isRightSide]);
 
   // Touch and pointer tracking engine
   useEffect(() => {
@@ -200,8 +198,6 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
       const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
 
       if (clientX === undefined || clientY === undefined) return;
-
-      setPointerCoords({ x: clientX, y: clientY });
 
       const dx = clientX - centerPos.x;
       const dy = clientY - centerPos.y;
@@ -230,6 +226,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
         }
       });
 
+      // Release selection if user gestures away from the fan quadrant
       if (minDiff > 45) {
         if (activePetalIdRef.current !== null) {
           setActivePetalId(null);
@@ -298,13 +295,6 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
   const activeIndex = PETALS.findIndex((p) => p.id === activePetalId);
   const activePetal = activeIndex >= 0 ? PETALS[activeIndex] : null;
 
-  const activeCoords = activeIndex >= 0
-    ? {
-        x: centerPos.x + Math.round(Math.cos((angles[activeIndex] * Math.PI) / 180) * radius),
-        y: centerPos.y + Math.round(Math.sin((angles[activeIndex] * Math.PI) / 180) * radius),
-      }
-    : null;
-
   return (
     <div className="fixed inset-0 z-[200] pointer-events-auto select-none overflow-hidden animate-in fade-in duration-200">
       {/* Rose-tinted Ambient Hologram Backdrop */}
@@ -321,62 +311,17 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
         }}
       />
 
-      {/* SVG Orbit Tracks & Laser Guide */}
+      {/* SVG Orbit Track (Clean without any connecting lasers) */}
       <svg className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
-        <defs>
-          <filter id="rose-neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          {activePetal && (
-            <linearGradient id="rose-active-laser" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-              <stop offset="60%" stopColor={activePetal.accentHex} stopOpacity="0.8" />
-              <stop offset="100%" stopColor={activePetal.accentHex} stopOpacity="1" />
-            </linearGradient>
-          )}
-        </defs>
-
-        {/* Outer Orbit Guide Track */}
         <circle
           cx={centerPos.x}
           cy={centerPos.y}
           r={radius}
           fill="none"
-          stroke="rgba(244, 63, 94, 0.15)"
+          stroke="rgba(244, 63, 94, 0.12)"
           strokeWidth="1.5"
           strokeDasharray="4 6"
         />
-
-        {/* Dynamic Rose Laser Guide */}
-        {activeCoords && activePetal && (
-          <g filter="url(#rose-neon-glow)">
-            <line
-              x1={centerPos.x}
-              y1={centerPos.y}
-              x2={activeCoords.x}
-              y2={activeCoords.y}
-              stroke="url(#rose-active-laser)"
-              strokeWidth="2.5"
-              strokeDasharray="6 4"
-              className="animate-pulse"
-            />
-            <circle
-              cx={activeCoords.x}
-              cy={activeCoords.y}
-              r="26"
-              fill="none"
-              stroke={activePetal.accentHex}
-              strokeWidth="1.5"
-              strokeOpacity="0.6"
-              className="animate-ping"
-              style={{ animationDuration: "2s" }}
-            />
-          </g>
-        )}
       </svg>
 
       {/* Anchored Stage at Origin */}
@@ -387,7 +332,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           top: `${centerPos.y}px`,
         }}
       >
-        {/* Fan of Beloved Petals */}
+        {/* Fan of Beloved Petals (Blooming UP-LEFT into view) */}
         {PETALS.map((petal, idx) => {
           const angleDeg = angles[idx];
           const angleRad = (angleDeg * Math.PI) / 180;
@@ -446,7 +391,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           );
         })}
 
-        {/* Center Anchor Hub (Rose Heart Core) */}
+        {/* Center Anchor Hub (Rose Heart Core without laser lines) */}
         <div
           className={clsx(
             "absolute -translate-x-1/2 -translate-y-1/2 w-15 h-15 rounded-full flex flex-col items-center justify-center transition-all duration-200 border-2 backdrop-blur-2xl shadow-2xl",
@@ -456,20 +401,6 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           )}
           style={{ width: "58px", height: "58px" }}
         >
-          {pointerAngle !== null && activePetal && (
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              style={{
-                transform: `rotate(${pointerAngle + 90}deg)`,
-              }}
-            >
-              <div
-                className="w-1.5 h-3 rounded-full -translate-y-6 shadow-glow"
-                style={{ backgroundColor: activePetal.accentHex }}
-              />
-            </div>
-          )}
-
           <Heart
             className={clsx(
               "w-6 h-6 fill-current transition-transform duration-200",
@@ -480,50 +411,50 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
             {activePetal ? "Send" : "Slide"}
           </span>
         </div>
+      </div>
 
-        {/* Floating WhatsApp Message Preview Card */}
-        {activePetal && (
+      {/* Floating WhatsApp Message Preview Card - Centered Horizontally on Screen */}
+      {activePetal && (
+        <div
+          className={clsx(
+            "fixed left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5 max-w-[92vw]",
+            centerPos.isTop ? "top-28" : "bottom-48"
+          )}
+          style={{
+            boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
+          }}
+        >
           <div
             className={clsx(
-              "absolute -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5",
-              centerPos.isTop ? "top-50" : "-top-52"
+              "p-2 rounded-xl border flex items-center justify-center flex-shrink-0",
+              activePetal.badgeColor
             )}
-            style={{
-              boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
-            }}
           >
-            <div
-              className={clsx(
-                "p-2 rounded-xl border flex items-center justify-center",
-                activePetal.badgeColor
-              )}
-            >
-              {React.createElement(activePetal.icon, {
-                className: clsx("w-4 h-4", activePetal.textColor),
-              })}
-            </div>
+            {React.createElement(activePetal.icon, {
+              className: clsx("w-4 h-4", activePetal.textColor),
+            })}
+          </div>
 
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className={clsx("font-bold text-xs sm:text-sm tracking-tight", activePetal.textColor)}>
-                  {activePetal.title}
-                </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  To: {partnerName}
-                </span>
-              </div>
-              <span className="text-zinc-200 text-xs font-mono font-medium mt-0.5 italic">
-                &ldquo;{activePetal.text}&rdquo;
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={clsx("font-bold text-xs sm:text-sm tracking-tight", activePetal.textColor)}>
+                {activePetal.title}
+              </span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                To: {partnerName}
               </span>
             </div>
-
-            <div className="pl-2 border-l border-white/15 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
-              <MessageCircle className="w-3.5 h-3.5 fill-emerald-400/20 text-emerald-400" />
-              <span>WhatsApp</span>
-            </div>
+            <span className="text-zinc-200 text-xs font-mono font-medium mt-0.5 italic truncate max-w-[200px] sm:max-w-[280px]">
+              &ldquo;{activePetal.text}&rdquo;
+            </span>
           </div>
-        )}
-      </div>
+
+          <div className="pl-2 border-l border-white/15 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex-shrink-0">
+            <MessageCircle className="w-3.5 h-3.5 fill-emerald-400/20 text-emerald-400" />
+            <span>WhatsApp</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

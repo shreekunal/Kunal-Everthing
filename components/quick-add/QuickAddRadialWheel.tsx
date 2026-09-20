@@ -9,8 +9,6 @@ import {
   Calendar,
   Trophy,
   Plus,
-  Sparkles,
-  Zap,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
@@ -131,7 +129,6 @@ export function QuickAddRadialWheel({
   origin,
 }: QuickAddRadialWheelProps) {
   const [activePetalId, setActivePetalId] = useState<QuickAddTabType | null>(null);
-  const [pointerCoords, setPointerCoords] = useState<{ x: number; y: number } | null>(null);
   const activePetalIdRef = useRef<QuickAddTabType | null>(null);
 
   useEffect(() => {
@@ -180,7 +177,7 @@ export function QuickAddRadialWheel({
     return { x, y, isTop, isLeft, isRight };
   }, [origin]);
 
-  const radius = typeof window !== "undefined" && window.innerWidth < 380 ? 132 : 148;
+  const radius = typeof window !== "undefined" && window.innerWidth < 400 ? 128 : 142;
 
   // Viewport-adaptive fan angles preventing off-screen clipping
   const angles = useMemo(() => {
@@ -195,14 +192,6 @@ export function QuickAddRadialWheel({
     }
   }, [centerPos.isTop, centerPos.isLeft, centerPos.isRight]);
 
-  // Real-time gesture angle & compass calculation
-  const pointerAngle = useMemo(() => {
-    if (!pointerCoords) return null;
-    const dx = pointerCoords.x - centerPos.x;
-    const dy = pointerCoords.y - centerPos.y;
-    return (Math.atan2(dy, dx) * 180) / Math.PI;
-  }, [pointerCoords, centerPos.x, centerPos.y]);
-
   // Touch and pointer tracking engine
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") return;
@@ -213,8 +202,6 @@ export function QuickAddRadialWheel({
       const clientY = touch ? touch.clientY : (e as MouseEvent).clientY;
 
       if (clientX === undefined || clientY === undefined) return;
-
-      setPointerCoords({ x: clientX, y: clientY });
 
       const dx = clientX - centerPos.x;
       const dy = clientY - centerPos.y;
@@ -245,7 +232,7 @@ export function QuickAddRadialWheel({
         }
       });
 
-      // If finger points outside the angular fan threshold (e.g. downward off-screen), release selection
+      // Release selection if user gestures outside the fan threshold
       if (minDiff > 42) {
         if (activePetalIdRef.current !== null) {
           setActivePetalId(null);
@@ -312,14 +299,6 @@ export function QuickAddRadialWheel({
   const activeIndex = QUICK_ADD_PETALS.findIndex((p) => p.id === activePetalId);
   const activePetal = activeIndex >= 0 ? QUICK_ADD_PETALS[activeIndex] : null;
 
-  // Active target coordinates for the magnetic laser beam
-  const activeCoords = activeIndex >= 0
-    ? {
-        x: centerPos.x + Math.round(Math.cos((angles[activeIndex] * Math.PI) / 180) * radius),
-        y: centerPos.y + Math.round(Math.sin((angles[activeIndex] * Math.PI) / 180) * radius),
-      }
-    : null;
-
   return (
     <div className="fixed inset-0 z-[200] pointer-events-auto select-none overflow-hidden animate-in fade-in duration-200">
       {/* High-tech Vignette Backdrop with Subtle Radial Ambient Halo */}
@@ -336,26 +315,8 @@ export function QuickAddRadialWheel({
         }}
       />
 
-      {/* SVG Vector Hologram Layer (Rings, Reticles, Laser Beam) */}
+      {/* SVG Vector Orbital Track (Clean, no connecting lasers) */}
       <svg className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
-        <defs>
-          <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          {activePetal && (
-            <linearGradient id="active-laser" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-              <stop offset="60%" stopColor={activePetal.accentHex} stopOpacity="0.8" />
-              <stop offset="100%" stopColor={activePetal.accentHex} stopOpacity="1" />
-            </linearGradient>
-          )}
-        </defs>
-
-        {/* Outer Orbital Track */}
         <circle
           cx={centerPos.x}
           cy={centerPos.y}
@@ -365,45 +326,6 @@ export function QuickAddRadialWheel({
           strokeWidth="1.5"
           strokeDasharray="4 6"
         />
-
-        {/* Inner Guide Ring */}
-        <circle
-          cx={centerPos.x}
-          cy={centerPos.y}
-          r={radius * 0.52}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.05)"
-          strokeWidth="1"
-          strokeDasharray="2 8"
-        />
-
-        {/* Dynamic Magnetic Laser Beam connecting Center to Selected Petal */}
-        {activeCoords && activePetal && (
-          <g filter="url(#neon-glow)">
-            <line
-              x1={centerPos.x}
-              y1={centerPos.y}
-              x2={activeCoords.x}
-              y2={activeCoords.y}
-              stroke="url(#active-laser)"
-              strokeWidth="2.5"
-              strokeDasharray="6 4"
-              className="animate-pulse"
-            />
-            {/* Luminous Target Reticle Node */}
-            <circle
-              cx={activeCoords.x}
-              cy={activeCoords.y}
-              r="26"
-              fill="none"
-              stroke={activePetal.accentHex}
-              strokeWidth="1.5"
-              strokeOpacity="0.6"
-              className="animate-ping"
-              style={{ animationDuration: "2s" }}
-            />
-          </g>
-        )}
       </svg>
 
       {/* Anchored Stage at Center Coordinates */}
@@ -479,7 +401,7 @@ export function QuickAddRadialWheel({
           );
         })}
 
-        {/* Center Anchor Hub (Touch Origin Reactor) */}
+        {/* Center Anchor Hub (Touch Origin Reactor, no laser lines) */}
         <div
           className={clsx(
             "absolute -translate-x-1/2 -translate-y-1/2 w-15 h-15 rounded-full flex flex-col items-center justify-center transition-all duration-200 border-2 backdrop-blur-2xl shadow-2xl",
@@ -489,21 +411,6 @@ export function QuickAddRadialWheel({
           )}
           style={{ width: "58px", height: "58px" }}
         >
-          {/* Dynamic Compass Pointer Arrow targeting touch position */}
-          {pointerAngle !== null && activePetal && (
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              style={{
-                transform: `rotate(${pointerAngle + 90}deg)`,
-              }}
-            >
-              <div
-                className="w-1.5 h-3 rounded-full -translate-y-6 shadow-glow"
-                style={{ backgroundColor: activePetal.accentHex }}
-              />
-            </div>
-          )}
-
           <Plus
             className={clsx(
               "w-6 h-6 transition-transform duration-200",
@@ -514,53 +421,53 @@ export function QuickAddRadialWheel({
             {activePetal ? "Release" : "Slide"}
           </span>
         </div>
+      </div>
 
-        {/* Futuristic Floating HUD Action Preview Card */}
-        {activePetal && (
+      {/* Futuristic Floating HUD Action Preview Card - Centered Horizontally on Screen */}
+      {activePetal && (
+        <div
+          className={clsx(
+            "fixed left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5 max-w-[92vw]",
+            centerPos.isTop ? "top-28" : "bottom-48"
+          )}
+          style={{
+            boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
+          }}
+        >
+          {/* Holographic Glowing Category Icon Pill */}
           <div
             className={clsx(
-              "absolute -translate-x-1/2 px-4 py-3 rounded-2xl bg-zinc-950/95 border border-white/20 text-white shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap pointer-events-none z-50 flex items-center gap-3.5",
-              centerPos.isTop ? "top-50" : "-top-52"
+              "p-2 rounded-xl border flex items-center justify-center flex-shrink-0",
+              activePetal.badgeColor
             )}
-            style={{
-              boxShadow: `0 0 35px ${activePetal.glowColor}, 0 20px 40px rgba(0,0,0,0.8)`,
-            }}
           >
-            {/* Holographic Glowing Category Icon Pill */}
-            <div
-              className={clsx(
-                "p-2 rounded-xl border flex items-center justify-center",
-                activePetal.badgeColor
-              )}
-            >
-              {React.createElement(activePetal.icon, {
-                className: clsx("w-4 h-4", activePetal.textColor),
-              })}
-            </div>
+            {React.createElement(activePetal.icon, {
+              className: clsx("w-4 h-4", activePetal.textColor),
+            })}
+          </div>
 
-            {/* Title & Description */}
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className={clsx("font-bold text-xs sm:text-sm tracking-tight", activePetal.textColor)}>
-                  {activePetal.title}
-                </span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase tracking-wider bg-white/10 text-white/80 border border-white/15">
-                  Action
-                </span>
-              </div>
-              <span className="text-zinc-400 text-[11px] font-mono mt-0.5 hidden xs:inline">
-                {activePetal.description}
+          {/* Title & Description */}
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={clsx("font-bold text-xs sm:text-sm tracking-tight", activePetal.textColor)}>
+                {activePetal.title}
+              </span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase tracking-wider bg-white/10 text-white/80 border border-white/15">
+                Action
               </span>
             </div>
-
-            {/* Tactile Gesture Cue */}
-            <div className="pl-2 border-l border-white/15 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Release</span>
-            </div>
+            <span className="text-zinc-400 text-[11px] font-mono mt-0.5 truncate max-w-[200px] sm:max-w-[300px]">
+              {activePetal.description}
+            </span>
           </div>
-        )}
-      </div>
+
+          {/* Tactile Gesture Cue */}
+          <div className="pl-2 border-l border-white/15 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex-shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Release</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
