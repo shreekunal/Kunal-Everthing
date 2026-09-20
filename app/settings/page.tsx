@@ -31,6 +31,9 @@ import {
   Users,
   Upload,
   FileCheck,
+  Droplets,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
 import {
   Select,
@@ -50,6 +53,12 @@ import {
   areCoreNotificationsActive,
   checkExactAlarmPermission,
   requestExactAlarmPermission,
+  scheduleWaterReminders,
+  cancelWaterReminders,
+  sendTestWaterNotification,
+  areWaterNotificationsActive,
+  getLiveNotificationDiagnostics,
+  LiveNotificationDiagnostic,
 } from "@/lib/notifications";
 
 export default function SettingsPage() {
@@ -86,9 +95,16 @@ export default function SettingsPage() {
 
   // Notification states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [waterRemindersEnabled, setWaterRemindersEnabled] = useState(false);
+  const [waterNotifLoading, setWaterNotifLoading] = useState(false);
   const [hasExactAlarms, setHasExactAlarms] = useState(true);
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
+
+  // Live Alarms Diagnostics Modal States
+  const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [liveDiagnostics, setLiveDiagnostics] = useState<LiveNotificationDiagnostic | null>(null);
 
   // Destructive Confirmation States
   const [isConfirmWipeOpen, setIsConfirmWipeOpen] = useState(false);
@@ -168,6 +184,8 @@ export default function SettingsPage() {
 
         const isCoreActive = await areCoreNotificationsActive();
         setNotificationsEnabled(isCoreActive);
+        const isWaterActive = await areWaterNotificationsActive();
+        setWaterRemindersEnabled(isWaterActive);
         const exactOk = await checkExactAlarmPermission();
         setHasExactAlarms(exactOk);
       } catch {
@@ -214,6 +232,33 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleWaterNotifications = async () => {
+    setWaterNotifLoading(true);
+    setNotifMessage(null);
+    try {
+      if (!waterRemindersEnabled) {
+        const success = await scheduleWaterReminders(2, 9, 21);
+        if (success) {
+          setWaterRemindersEnabled(true);
+          setNotifMessage("✓ Scheduled: 2h Hydration Reminders (9:00 AM – 9:00 PM)!");
+          haptics.success();
+        } else {
+          setNotifMessage("⚠️ Notification permission denied or not supported.");
+          haptics.warning();
+        }
+      } else {
+        await cancelWaterReminders();
+        setWaterRemindersEnabled(false);
+        setNotifMessage("Hydration reminders cancelled.");
+        haptics.impactLight();
+      }
+      const exactOk = await checkExactAlarmPermission();
+      setHasExactAlarms(exactOk);
+    } finally {
+      setWaterNotifLoading(false);
+    }
+  };
+
   const handleRequestExactAlarms = async () => {
     haptics.impactLight();
     const granted = await requestExactAlarmPermission();
@@ -233,6 +278,32 @@ export default function SettingsPage() {
     } else {
       setNotifMessage("Test notification failed. Ensure notification permissions are granted.");
       haptics.warning();
+    }
+  };
+
+  const handleTestWaterNotification = async () => {
+    haptics.impactLight();
+    const sent = await sendTestWaterNotification();
+    if (sent) {
+      setNotifMessage("💧 Test water alert scheduled! Check your notification tray in 2 seconds.");
+      haptics.success();
+    } else {
+      setNotifMessage("Test water notification failed. Ensure notification permissions are granted.");
+      haptics.warning();
+    }
+  };
+
+  const handleOpenDiagnostics = async () => {
+    haptics.impactLight();
+    setDiagnosticsLoading(true);
+    setIsDiagnosticsModalOpen(true);
+    try {
+      const data = await getLiveNotificationDiagnostics();
+      setLiveDiagnostics(data);
+    } catch (err) {
+      console.error("Failed to fetch diagnostics:", err);
+    } finally {
+      setDiagnosticsLoading(false);
     }
   };
 
@@ -706,48 +777,110 @@ export default function SettingsPage() {
             <Bell className="w-4 h-4 text-brand-red" />
             <CardTitle>Smart Device Alarms &amp; Notifications</CardTitle>
           </div>
-          <Badge variant={notificationsEnabled ? "red" : "outline"} size="sm">
-            {notificationsEnabled ? "Scheduled & Active" : "Disabled"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={notificationsEnabled || waterRemindersEnabled ? "red" : "outline"} size="sm">
+              {notificationsEnabled && waterRemindersEnabled
+                ? "All Alarms Active (9 Alarms)"
+                : notificationsEnabled
+                ? "Core Alarms Active (2)"
+                : waterRemindersEnabled
+                ? "Water Alarms Active (7)"
+                : "All Disabled"}
+            </Badge>
+          </div>
         </CardHeader>
 
         <div className="space-y-4 text-xs">
           <p className="text-zinc-400 font-mono">
-            Autonomous native Android alarms running directly on your phone hardware with zero cloud delay.
+            Autonomous native Android alarms running directly on your phone hardware via Android AlarmManager with zero cloud latency.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Morning Briefing */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red flex-shrink-0">
-                <Clock className="w-4 h-4" />
+            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red flex-shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-white font-mono block">Morning Focus (8:00 AM)</span>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    Daily focus call: review tasks, routines, and daily objectives.
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="font-bold text-white font-mono block">Morning Briefing (8:00 AM)</span>
-                <p className="text-zinc-400 text-[11px] mt-0.5">
-                  Daily focus call: review tasks, pending routines, and daily objectives.
-                </p>
+              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                <span>Status:</span>
+                <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                  {notificationsEnabled ? "Active" : "Off"}
+                </span>
               </div>
             </div>
 
             {/* Streak Defender */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
-                <Shield className="w-4 h-4" />
+            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-white font-mono block">Streak Defender (9:00 PM)</span>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    Monk integrity alert: ensures clean diet and purity streaks stay intact.
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="font-bold text-white font-mono block">Streak Defender (9:00 PM)</span>
-                <p className="text-zinc-400 text-[11px] mt-0.5">
-                  Monk integrity alert: ensures clean diet and purity streaks stay intact.
-                </p>
+              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                <span>Status:</span>
+                <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                  {notificationsEnabled ? "Active" : "Off"}
+                </span>
+              </div>
+            </div>
+
+            {/* Hydration Reminders */}
+            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-cyan-500/20 flex flex-col justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                  <Droplets className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-white font-mono block">Hydration Checks (Every 2h)</span>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">
+                    7 recurring alarms (9 AM - 9 PM) ensuring water intake and +30 XP rewards.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                <span className={`text-[10px] font-mono font-bold ${waterRemindersEnabled ? "text-cyan-400" : "text-zinc-500"}`}>
+                  {waterRemindersEnabled ? "7 Alarms Active" : "Disabled"}
+                </span>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={handleToggleWaterNotifications}
+                  isLoading={waterNotifLoading}
+                  className="text-[10px] h-6 px-2 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                >
+                  <span>{waterRemindersEnabled ? "Disable" : "Enable 2h"}</span>
+                </Button>
               </div>
             </div>
           </div>
 
           {notifMessage && (
-            <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
-              <span>{notifMessage}</span>
+            <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
+                <span>{notifMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotifMessage(null)}
+                className="text-zinc-400 hover:text-white p-0.5 text-xs"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -769,15 +902,36 @@ export default function SettingsPage() {
           )}
 
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-400">Manage device alarms:</span>
             <div className="flex items-center gap-2">
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={handleOpenDiagnostics}
+                className="text-xs text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+                title="Inspect real alarms registered in Android AlarmManager"
+              >
+                <Activity className="w-3.5 h-3.5 text-cyan-400 mr-1 animate-pulse" />
+                <span>Verify Live Alarms</span>
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={handleTestWaterNotification}
+                className="text-xs text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/10"
+              >
+                <Droplets className="w-3.5 h-3.5 mr-1 text-cyan-400" />
+                <span>Test Water (2s)</span>
+              </Button>
               <Button
                 variant="glass"
                 size="sm"
                 onClick={handleTestNotification}
                 className="text-xs"
               >
-                <span>Send Test Alert (3s)</span>
+                <Bell className="w-3.5 h-3.5 mr-1 text-brand-red" />
+                <span>Test Core (3s)</span>
               </Button>
               <Button
                 variant={notificationsEnabled ? "glass" : "red"}
@@ -786,7 +940,7 @@ export default function SettingsPage() {
                 isLoading={notifLoading}
                 className="text-xs"
               >
-                <span>{notificationsEnabled ? "Disable Alarms" : "Enable Daily Alarms"}</span>
+                <span>{notificationsEnabled ? "Disable Core Alarms" : "Enable Core Alarms"}</span>
               </Button>
             </div>
           </div>
@@ -1452,6 +1606,135 @@ export default function SettingsPage() {
             >
               <Upload className="w-3.5 h-3.5 mr-1" />
               <span>Confirm &amp; Restore</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Live Alarm Diagnostics & Hardware Verification Modal */}
+      <Modal
+        isOpen={isDiagnosticsModalOpen}
+        onClose={() => setIsDiagnosticsModalOpen(false)}
+        title="🔔 Android AlarmManager Verification"
+      >
+        <div className="space-y-4 text-xs font-mono">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
+              <span className="text-white font-bold">Hardware Alarm Inspector</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              {liveDiagnostics?.isNative ? "Android Native OS" : "Web / PWA Mode"}
+            </span>
+          </div>
+
+          <p className="text-zinc-300 text-[11px] leading-relaxed">
+            Directly interrogating Android's native <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">AlarmManager</code> via <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">LocalNotifications.getPending()</code>. These alarms wake the CPU and trigger alerts even when Everything OS is completely closed.
+          </p>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/10">
+              <span className="text-zinc-500 text-[10px] block">TOTAL PENDING ALARMS</span>
+              <span className="text-lg font-bold text-white">
+                {diagnosticsLoading ? "..." : liveDiagnostics?.totalPending ?? 0}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/10">
+              <span className="text-zinc-500 text-[10px] block">EXACT ALARM PERMISSION</span>
+              <span className={`text-sm font-bold ${liveDiagnostics?.hasExactAlarms ? "text-emerald-400" : "text-amber-400"}`}>
+                {liveDiagnostics?.hasExactAlarms ? "✓ Granted (Exact)" : "⚠️ Inexact / Doze"}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/10">
+              <span className="text-zinc-500 text-[10px] block">CORE DAILY ALARMS</span>
+              <span className="text-sm font-bold text-brand-red">
+                {liveDiagnostics?.coreAlarmsActive ? "2 Active (8 AM, 9 PM)" : "0 Inactive"}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/10">
+              <span className="text-zinc-500 text-[10px] block">HYDRATION REMINDERS</span>
+              <span className="text-sm font-bold text-cyan-400">
+                {liveDiagnostics?.waterAlarmsCount ? `${liveDiagnostics.waterAlarmsCount} Active (Every 2h)` : "0 Inactive"}
+              </span>
+            </div>
+          </div>
+
+          {/* Detailed Alarms List */}
+          <div>
+            <span className="text-zinc-400 text-[10px] uppercase font-bold tracking-wider block mb-2">
+              Registered Alarms in OS Queue:
+            </span>
+            {diagnosticsLoading ? (
+              <div className="p-4 text-center text-zinc-500">Querying AlarmManager...</div>
+            ) : liveDiagnostics?.notifications && liveDiagnostics.notifications.length > 0 ? (
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {liveDiagnostics.notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    className="p-2 rounded-lg bg-white/[0.02] border border-white/5 flex items-start justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-zinc-400 text-[10px] font-mono">#{notif.id}</span>
+                        <span className="font-semibold text-white text-[11px]">{notif.title}</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">{notif.scheduleDesc}</p>
+                    </div>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+                      Pending
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center space-y-2">
+                <p className="text-amber-300 text-xs">No pending alarms found in Android OS.</p>
+                <p className="text-zinc-400 text-[10px]">
+                  Turn on Hydration Reminders or Daily Core Alarms above to register hardware alarms.
+                </p>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={async () => {
+                    await handleToggleWaterNotifications();
+                    await handleOpenDiagnostics();
+                  }}
+                  className="text-xs text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                >
+                  Schedule Hydration Alarms Now
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* ADB Terminal Verification Instruction */}
+          <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 space-y-1">
+            <span className="text-zinc-500 text-[9px] block">VERIFY VIA ADB TERMINAL:</span>
+            <code className="text-emerald-400 text-[10px] block select-all">
+              adb shell dumpsys alarm | grep com.kunal.everything
+            </code>
+          </div>
+
+          <div className="flex justify-between items-center pt-2 border-t border-white/10">
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={handleOpenDiagnostics}
+              isLoading={diagnosticsLoading}
+              className="text-xs text-zinc-300"
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+              <span>Refresh</span>
+            </Button>
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={() => setIsDiagnosticsModalOpen(false)}
+            >
+              Done
             </Button>
           </div>
         </div>

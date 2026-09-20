@@ -5,6 +5,7 @@ export const NOTIFICATION_IDS = {
   MORNING_BRIEFING: 1001,
   STREAK_DEFENDER: 1002,
   WATER_REMINDER_BASE: 2000,
+  TEST_WATER_NOTIFICATION: 9998,
   TEST_NOTIFICATION: 9999,
 };
 
@@ -59,8 +60,8 @@ export async function setupNotificationChannels(): Promise<void> {
         id: NOTIFICATION_CHANNELS.HYDRATION,
         name: "Hydration & Health",
         description: "Periodic hydration and health check reminders",
-        importance: 3, // Default importance
-        visibility: 1,
+        importance: 4, // Upgraded to High importance (heads-up notification banner & sound)
+        visibility: 1, // Public on lockscreen
         vibration: true,
         lights: true,
         lightColor: "#06B6D4",
@@ -280,6 +281,178 @@ export async function sendTestNotification(): Promise<boolean> {
   } catch (err) {
     console.error("Test notification failed:", err);
     return false;
+  }
+}
+
+/**
+ * Send an immediate test hydration reminder (fires in 2 seconds) on the HYDRATION channel
+ */
+export async function sendTestWaterNotification(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission !== "granted") {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === "granted") {
+        new Notification("💧 Hydration Check • Drink Water (Test)", {
+          body: "Stay sharp and energized! Take a sip or log a fresh glass of water.",
+          icon: "/favicon.ico",
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+
+  try {
+    const triggerAt = new Date(Date.now() + 2000);
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: NOTIFICATION_IDS.TEST_WATER_NOTIFICATION,
+          title: "💧 Hydration Check • Drink Water (Test)",
+          body: "Stay sharp and energized! Take a sip or log a fresh glass of water.",
+          schedule: { at: triggerAt, allowWhileIdle: true },
+          channelId: NOTIFICATION_CHANNELS.HYDRATION,
+          smallIcon: "ic_stat_notification",
+          iconColor: "#06B6D4",
+          extra: {
+            route: "/",
+            type: "WATER_REMINDER",
+          },
+        },
+      ],
+    });
+    return true;
+  } catch (err) {
+    console.error("Test water notification failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Check whether hydration notifications are currently active
+ */
+export async function areWaterNotificationsActive(): Promise<boolean> {
+  if (typeof window !== "undefined") {
+    const isEnabled = localStorage.getItem("kunal_os_water_notifications_enabled") === "true";
+    if (!Capacitor.isNativePlatform()) return isEnabled;
+  }
+
+  try {
+    const pending = await LocalNotifications.getPending();
+    return (pending.notifications || []).some(
+      (n) => n.id >= NOTIFICATION_IDS.WATER_REMINDER_BASE && n.id <= NOTIFICATION_IDS.WATER_REMINDER_BASE + 20
+    );
+  } catch (err) {
+    return false;
+  }
+}
+
+export interface LiveNotificationDiagnostic {
+  totalPending: number;
+  coreAlarmsActive: boolean;
+  waterAlarmsCount: number;
+  taskAlarmsCount: number;
+  hasExactAlarms: boolean;
+  isNative: boolean;
+  notifications: {
+    id: number;
+    title?: string;
+    body?: string;
+    scheduleDesc?: string;
+  }[];
+}
+
+/**
+ * Inspect live pending alarms in Android AlarmManager
+ */
+export async function getLiveNotificationDiagnostics(): Promise<LiveNotificationDiagnostic> {
+  const isNative = Capacitor.isNativePlatform();
+  const hasExact = await checkExactAlarmPermission();
+  const coreActive = await areCoreNotificationsActive();
+
+  if (!isNative) {
+    const waterActive = typeof window !== "undefined" && localStorage.getItem("kunal_os_water_notifications_enabled") === "true";
+    return {
+      totalPending: (coreActive ? 2 : 0) + (waterActive ? 7 : 0),
+      coreAlarmsActive: coreActive,
+      waterAlarmsCount: waterActive ? 7 : 0,
+      taskAlarmsCount: 0,
+      hasExactAlarms: true,
+      isNative: false,
+      notifications: [
+        ...(coreActive
+          ? [
+              { id: 1001, title: "Morning Priorities (8:00 AM)", scheduleDesc: "Daily at 8:00 AM" },
+              { id: 1002, title: "Streak Defender (9:00 PM)", scheduleDesc: "Daily at 9:00 PM" },
+            ]
+          : []),
+        ...(waterActive
+          ? [
+              { id: 2000, title: "💧 Hydration Check", scheduleDesc: "Recurring every 2 hours (9 AM - 9 PM)" },
+            ]
+          : []),
+      ],
+    };
+  }
+
+  try {
+    const pending = await LocalNotifications.getPending();
+    const list = pending.notifications || [];
+    const waterList = list.filter(
+      (n) => n.id >= NOTIFICATION_IDS.WATER_REMINDER_BASE && n.id <= NOTIFICATION_IDS.WATER_REMINDER_BASE + 20
+    );
+    const taskList = list.filter((n) => n.id >= 10000);
+
+    return {
+      totalPending: list.length,
+      coreAlarmsActive: coreActive,
+      waterAlarmsCount: waterList.length,
+      taskAlarmsCount: taskList.length,
+      hasExactAlarms: hasExact,
+      isNative: true,
+      notifications: list.map((n) => {
+        let title = (n as any).title;
+        let scheduleDesc = "Registered in Android AlarmManager";
+        if (n.id === NOTIFICATION_IDS.MORNING_BRIEFING) {
+          title = "Morning Priorities (8:00 AM)";
+          scheduleDesc = "Daily at 8:00 AM (daily-briefing channel)";
+        } else if (n.id === NOTIFICATION_IDS.STREAK_DEFENDER) {
+          title = "Streak Defender (9:00 PM)";
+          scheduleDesc = "Daily at 9:00 PM (daily-briefing channel)";
+        } else if (n.id >= NOTIFICATION_IDS.WATER_REMINDER_BASE && n.id <= NOTIFICATION_IDS.WATER_REMINDER_BASE + 20) {
+          const offset = n.id - NOTIFICATION_IDS.WATER_REMINDER_BASE;
+          const hour = 9 + offset * 2;
+          const hourFormatted = hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? "12:00 PM" : `${hour}:00 AM`;
+          title = `💧 Hydration Check (${hourFormatted})`;
+          scheduleDesc = `Recurring at ${hourFormatted} (hydration-reminders channel)`;
+        } else if (n.id >= 10000) {
+          title = (n as any).title || "Task Reminder Alarm";
+          scheduleDesc = "Exact task deadline alarm (task-reminders channel)";
+        }
+        return {
+          id: n.id,
+          title,
+          body: (n as any).body,
+          scheduleDesc,
+        };
+      }),
+    };
+  } catch (err) {
+    console.error("Failed to get pending diagnostics:", err);
+    return {
+      totalPending: 0,
+      coreAlarmsActive: coreActive,
+      waterAlarmsCount: 0,
+      taskAlarmsCount: 0,
+      hasExactAlarms: hasExact,
+      isNative: true,
+      notifications: [],
+    };
   }
 }
 

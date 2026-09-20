@@ -21,6 +21,8 @@ import clsx from "clsx";
 import {
   scheduleWaterReminders,
   cancelWaterReminders,
+  sendTestWaterNotification,
+  areWaterNotificationsActive,
 } from "@/lib/notifications";
 
 const ML_PER_GLASS = 250;
@@ -40,6 +42,8 @@ export function WaterTrackerCard() {
   const [hasClaimedReward, setHasClaimedReward] = useState<boolean>(false);
   const [showRewardToast, setShowRewardToast] = useState<boolean>(false);
   const [rewardMessage, setRewardMessage] = useState<string>("+30 Monk Karma XP Earned!");
+  const [testingNotif, setTestingNotif] = useState<boolean>(false);
+  const [notifFeedback, setNotifFeedback] = useState<string | null>(null);
 
   // Claim XP reward from API
   const claimReward = async (showToast = true) => {
@@ -88,6 +92,22 @@ export function WaterTrackerCard() {
     }
   };
 
+  // Test instant water reminder
+  const handleTestWaterAlert = async () => {
+    setTestingNotif(true);
+    haptics.impactLight();
+    setNotifFeedback("Sending test alert (fires in 2s)...");
+    const ok = await sendTestWaterNotification();
+    setTestingNotif(false);
+    if (ok) {
+      setNotifFeedback("✓ Test notification scheduled! Check your notification shade in 2s.");
+      setTimeout(() => setNotifFeedback(null), 5000);
+    } else {
+      setNotifFeedback("⚠️ Could not trigger notification. Ensure notifications are allowed.");
+      setTimeout(() => setNotifFeedback(null), 5000);
+    }
+  };
+
   // Initialize from storage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -118,6 +138,9 @@ export function WaterTrackerCard() {
     // Load notification state
     const savedNotif = localStorage.getItem(storageNotifKey);
     setNotificationsEnabled(savedNotif === "true");
+    areWaterNotificationsActive().then((active) => {
+      if (active) setNotificationsEnabled(true);
+    });
 
     // Load reward claimed state
     const savedReward = localStorage.getItem(storageRewardKey);
@@ -190,10 +213,17 @@ export function WaterTrackerCard() {
     if (notificationsEnabled) {
       await cancelWaterReminders();
       setNotificationsEnabled(false);
+      setNotifFeedback("Hydration reminders cancelled.");
+      setTimeout(() => setNotifFeedback(null), 3000);
     } else {
       const success = await scheduleWaterReminders(2, 9, 21);
       if (success) {
         setNotificationsEnabled(true);
+        setNotifFeedback("✓ 2h Hydration Reminders Active (9:00 AM – 9:00 PM)!");
+        setTimeout(() => setNotifFeedback(null), 4000);
+      } else {
+        setNotifFeedback("⚠️ Permission denied. Please enable notifications in Android Settings.");
+        setTimeout(() => setNotifFeedback(null), 5000);
       }
     }
   };
@@ -287,6 +317,24 @@ export function WaterTrackerCard() {
             </button>
           </div>
         )}
+
+        {/* Notification Status / Feedback Banner */}
+        {notifFeedback && (
+          <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-mono text-cyan-300 flex items-center justify-between animate-in fade-in duration-200">
+            <span className="flex items-center gap-2">
+              <Bell className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 animate-pulse" />
+              <span>{notifFeedback}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setNotifFeedback(null)}
+              className="text-zinc-400 hover:text-white p-0.5 ml-2 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Metric & Liquid Progress Bar */}
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
@@ -421,6 +469,35 @@ export function WaterTrackerCard() {
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+
+        {/* Notification Status & 1-Click Verification Trigger */}
+        <div className="pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono">
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <span
+              className={clsx(
+                "w-2 h-2 rounded-full transition-all",
+                notificationsEnabled
+                  ? "bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                  : "bg-zinc-600"
+              )}
+            />
+            <span>
+              {notificationsEnabled
+                ? "2h Reminders (9 AM – 9 PM)"
+                : "Reminders Disabled"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleTestWaterAlert}
+            disabled={testingNotif}
+            className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 active:scale-95 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.15)] disabled:opacity-50"
+            title="Fire an instant water notification in 2 seconds"
+          >
+            <Bell className="w-3 h-3 text-cyan-400" />
+            <span>{testingNotif ? "Scheduling..." : "Test Alert (2s)"}</span>
+          </button>
         </div>
       </div>
     </Card>
