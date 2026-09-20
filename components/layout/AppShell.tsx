@@ -8,6 +8,7 @@ import { QuickAddModal } from "../quick-add/QuickAddModal";
 import { CommandPalette } from "../search/CommandPalette";
 import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 import { PartnerRadialWheel } from "../relationship/PartnerRadialWheel";
+import { QuickAddRadialWheel } from "../quick-add/QuickAddRadialWheel";
 import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
@@ -26,6 +27,10 @@ export function AppShell({ children }: AppShellProps) {
   const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
   const [isPartnerRadialOpen, setIsPartnerRadialOpen] = useState(false);
   const [radialOrigin, setRadialOrigin] = useState<{ x: number; y: number } | null>(null);
+
+  const [isQuickAddRadialOpen, setIsQuickAddRadialOpen] = useState(false);
+  const [quickAddRadialOrigin, setQuickAddRadialOrigin] = useState<{ x: number; y: number } | null>(null);
+
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
   const [exitToast, setExitToast] = useState<string | null>(null);
@@ -103,11 +108,19 @@ export function AppShell({ children }: AppShellProps) {
       }
       setIsPartnerRadialOpen(true);
     };
+    const handleOpenQuickAddRadial = (e: any) => {
+      if (e?.detail?.origin) {
+        setQuickAddRadialOrigin(e.detail.origin);
+      }
+      setIsQuickAddRadialOpen(true);
+    };
     window.addEventListener("open-profile-switcher", handleOpenProfileSwitcher);
     window.addEventListener("open-partner-radial", handleOpenPartnerRadial);
+    window.addEventListener("open-quickadd-radial", handleOpenQuickAddRadial);
     return () => {
       window.removeEventListener("open-profile-switcher", handleOpenProfileSwitcher);
       window.removeEventListener("open-partner-radial", handleOpenPartnerRadial);
+      window.removeEventListener("open-quickadd-radial", handleOpenQuickAddRadial);
     };
   }, []);
 
@@ -201,12 +214,19 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Floating Glass Island Navbar */}
       <Navbar
-        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onOpenQuickAdd={() => {
+          setQuickAddInitialTab("task");
+          setIsQuickAddOpen(true);
+        }}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
         onOpenPartnerRadial={(origin) => {
           if (origin) setRadialOrigin(origin);
           setIsPartnerRadialOpen(true);
+        }}
+        onOpenQuickAddRadial={(origin) => {
+          if (origin) setQuickAddRadialOrigin(origin);
+          setIsQuickAddRadialOpen(true);
         }}
       />
 
@@ -217,11 +237,18 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Mobile Floating Bottom Dock */}
       <BottomNav
-        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onOpenQuickAdd={() => {
+          setQuickAddInitialTab("task");
+          setIsQuickAddOpen(true);
+        }}
         onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
         onOpenPartnerRadial={(origin) => {
           if (origin) setRadialOrigin(origin);
           setIsPartnerRadialOpen(true);
+        }}
+        onOpenQuickAddRadial={(origin) => {
+          if (origin) setQuickAddRadialOrigin(origin);
+          setIsQuickAddRadialOpen(true);
         }}
       />
 
@@ -232,6 +259,20 @@ export function AppShell({ children }: AppShellProps) {
         onClose={() => {
           setIsPartnerRadialOpen(false);
           setRadialOrigin(null);
+        }}
+      />
+
+      {/* Global Quick Add Radial Wheel */}
+      <QuickAddRadialWheel
+        isOpen={isQuickAddRadialOpen}
+        origin={quickAddRadialOrigin}
+        onClose={() => {
+          setIsQuickAddRadialOpen(false);
+          setQuickAddRadialOrigin(null);
+        }}
+        onSelectTab={(tab) => {
+          setQuickAddInitialTab(tab);
+          setIsQuickAddOpen(true);
         }}
       />
 

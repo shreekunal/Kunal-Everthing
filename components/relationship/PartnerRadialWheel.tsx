@@ -174,7 +174,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
   }, [origin]);
 
   const centerPos = getCenterCoords();
-  const radius = 115; // px
+  const radius = 145; // px (expanded gap between center and radial buttons)
 
   // Angles: upward fan arc if near bottom, downward fan arc if near top
   const angles = centerPos.isTop
@@ -196,8 +196,8 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
       const dy = clientY - centerPos.y;
       const distance = Math.hypot(dx, dy);
 
-      // Deadzone: within 32px of center is cancel / no selection
-      if (distance < 32) {
+      // Deadzone: within 36px of center is cancel / no selection
+      if (distance < 36) {
         if (activePetalIdRef.current !== null) {
           setActivePetalId(null);
           haptics.selection();
@@ -323,8 +323,8 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
               key={petal.id}
               className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out"
               style={{
-                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.3 : 1})`,
-                zIndex: isSelected ? 40 : 20,
+                transform: `translate(${x}px, ${y}px) scale(${isSelected ? 1.45 : 1})`,
+                zIndex: isSelected ? 50 : 20,
               }}
             >
               <button
@@ -336,25 +336,24 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
                   petal.color,
                   petal.borderColor,
                   isSelected
-                    ? `${petal.glow} ring-4 ring-white/50 border-white`
-                    : "opacity-85"
+                    ? `${petal.glow} ring-4 ring-white/80 border-white scale-105`
+                    : "opacity-85 hover:opacity-100"
                 )}
               >
                 <Icon className={clsx("w-5 h-5 drop-shadow-md", isSelected && "animate-pulse")} />
               </button>
 
-              {/* Label Pill */}
-              <span
-                className={clsx(
-                  "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shadow-xl backdrop-blur-md transition-all duration-150 pointer-events-none",
-                  centerPos.isTop ? "top-14" : "-bottom-6",
-                  isSelected
-                    ? "bg-white text-black border-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.8)]"
-                    : "bg-black/90 text-zinc-300 border-white/20"
-                )}
-              >
-                {petal.label}
-              </span>
+              {/* Enlarge and show text of SELECTED button ONLY */}
+              {isSelected && (
+                <span
+                  className={clsx(
+                    "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-3.5 py-1 rounded-full text-xs font-mono font-bold border-2 shadow-2xl backdrop-blur-xl transition-all duration-150 pointer-events-none bg-white text-black border-white scale-110 shadow-[0_0_20px_rgba(255,255,255,0.9)] animate-in fade-in zoom-in-95",
+                    centerPos.isTop ? "top-16" : "-bottom-9"
+                  )}
+                >
+                  {petal.label}
+                </span>
+              )}
             </div>
           );
         })}
@@ -374,16 +373,16 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           </span>
         </div>
 
-        {/* Live Message Preview Tooltip (Appears above the thumb as you glide) */}
+        {/* Live Message Preview Tooltip (Appears above the arc as you glide) */}
         {activePetal && (
           <div
             className={clsx(
-              "absolute -translate-x-1/2 px-3 py-1.5 rounded-xl bg-black/95 border border-white/20 text-white text-xs font-mono shadow-2xl backdrop-blur-xl animate-in fade-in duration-100 whitespace-nowrap pointer-events-none",
-              centerPos.isTop ? "top-28" : "-top-24"
+              "absolute -translate-x-1/2 px-4 py-2 rounded-2xl bg-black/95 border border-white/25 text-white text-xs sm:text-sm font-mono shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap pointer-events-none z-50",
+              centerPos.isTop ? "top-48" : "-top-48"
             )}
           >
-            <span className="text-zinc-400 mr-1.5 font-bold">Preview:</span>
-            <span className={clsx("font-semibold", activePetal.textColor)}>
+            <span className="text-zinc-400 mr-2 font-bold uppercase text-[10px] tracking-wider">Preview:</span>
+            <span className={clsx("font-bold tracking-tight", activePetal.textColor)}>
               {activePetal.id === "hub" ? "Open Full Partner Hub" : activePetal.text}
             </span>
           </div>

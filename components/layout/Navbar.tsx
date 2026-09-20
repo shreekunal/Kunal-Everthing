@@ -37,6 +37,7 @@ interface NavbarProps {
   onOpenSearch?: () => void;
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
+  onOpenQuickAddRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function Navbar({
@@ -44,11 +45,16 @@ export function Navbar({
   onOpenSearch,
   onOpenProfileSwitcher,
   onOpenPartnerRadial,
+  onOpenQuickAddRadial,
 }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const desktopHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
   const desktopLongPressRef = useRef(false);
+
+  const desktopQuickAddHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const desktopQuickAddLongPressRef = useRef(false);
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -240,16 +246,65 @@ export function Navbar({
             </span>
           </button>
 
-          {/* Quick Add CTA */}
-          <Button
-            variant="red"
-            size="sm"
-            onClick={onOpenQuickAdd}
-            className="text-xs h-8 px-3 gap-1.5"
+          {/* Quick Add CTA (Click for Modal, Hold or Right-click for Radial Wheel) */}
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              desktopQuickAddLongPressRef.current = false;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const origin = {
+                x: Math.round(rect.left + rect.width / 2),
+                y: Math.round(rect.bottom + 10),
+              };
+              desktopQuickAddHoldTimerRef.current = setTimeout(() => {
+                desktopQuickAddLongPressRef.current = true;
+                haptics.impactMedium();
+                if (onOpenQuickAddRadial) {
+                  onOpenQuickAddRadial(origin);
+                } else {
+                  window.dispatchEvent(
+                    new CustomEvent("open-quickadd-radial", { detail: { origin } })
+                  );
+                }
+              }, 200);
+            }}
+            onPointerUp={() => {
+              if (desktopQuickAddHoldTimerRef.current) {
+                clearTimeout(desktopQuickAddHoldTimerRef.current);
+                desktopQuickAddHoldTimerRef.current = null;
+              }
+              if (desktopQuickAddLongPressRef.current) return;
+              haptics.impactMedium();
+              onOpenQuickAdd();
+            }}
+            onPointerCancel={() => {
+              if (desktopQuickAddHoldTimerRef.current) {
+                clearTimeout(desktopQuickAddHoldTimerRef.current);
+                desktopQuickAddHoldTimerRef.current = null;
+              }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const rect = e.currentTarget.getBoundingClientRect();
+              const origin = {
+                x: Math.round(rect.left + rect.width / 2),
+                y: Math.round(rect.bottom + 10),
+              };
+              if (onOpenQuickAddRadial) {
+                onOpenQuickAddRadial(origin);
+              } else {
+                window.dispatchEvent(
+                  new CustomEvent("open-quickadd-radial", { detail: { origin } })
+                );
+              }
+            }}
+            className="text-xs h-8 px-3 gap-1.5 rounded-lg font-medium transition-all flex items-center justify-center bg-brand-red hover:bg-brand-redDark text-white shadow-glow-red border border-red-400/30 active:scale-95 touch-none select-none"
+            title="Click: Quick Add • Hold or Right-click: Radial Creation Menu"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden sm:inline">Add</span>
-          </Button>
+            <span className="hidden sm:inline font-semibold">Add</span>
+          </button>
 
           {/* Notification Center */}
           <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>

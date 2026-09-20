@@ -27,12 +27,14 @@ interface BottomNavProps {
   onOpenQuickAdd: () => void;
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
+  onOpenQuickAddRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function BottomNav({
   onOpenQuickAdd,
   onOpenProfileSwitcher,
   onOpenPartnerRadial,
+  onOpenQuickAddRadial,
 }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -40,8 +42,59 @@ export function BottomNav({
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
 
+  // Love Radial Hold State
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
+
+  // Quick Add (+) Radial Hold State
+  const quickAddHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isQuickAddLongPressRef = useRef(false);
+
+  const handleQuickAddPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    isQuickAddLongPressRef.current = false;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+    };
+
+    quickAddHoldTimerRef.current = setTimeout(() => {
+      isQuickAddLongPressRef.current = true;
+      haptics.impactMedium();
+      if (isDrawerOpen) setIsDrawerOpen(false);
+      if (onOpenQuickAddRadial) {
+        onOpenQuickAddRadial(origin);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("open-quickadd-radial", { detail: { origin } })
+        );
+      }
+    }, 200);
+  };
+
+  const handleQuickAddPointerUp = () => {
+    if (quickAddHoldTimerRef.current) {
+      clearTimeout(quickAddHoldTimerRef.current);
+      quickAddHoldTimerRef.current = null;
+    }
+
+    if (isQuickAddLongPressRef.current) {
+      return;
+    }
+
+    haptics.impactMedium();
+    if (isDrawerOpen) setIsDrawerOpen(false);
+    onOpenQuickAdd();
+  };
+
+  const handleQuickAddPointerCancel = () => {
+    if (quickAddHoldTimerRef.current) {
+      clearTimeout(quickAddHoldTimerRef.current);
+      quickAddHoldTimerRef.current = null;
+    }
+  };
 
   const handleLovePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -284,15 +337,16 @@ export function BottomNav({
             <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/tasks" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
-          {/* 3. Floating Quick Add Button */}
+          {/* 3. Floating Quick Add Button (Tap for Modal, Hold for Radial Wheel) */}
           <div className="flex-1 flex justify-center -mt-5">
             <button
-              onClick={() => {
-                haptics.impactMedium();
-                if (isDrawerOpen) setIsDrawerOpen(false);
-                onOpenQuickAdd();
-              }}
-              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-90 transition-transform"
+              type="button"
+              onPointerDown={handleQuickAddPointerDown}
+              onPointerUp={handleQuickAddPointerUp}
+              onPointerCancel={handleQuickAddPointerCancel}
+              onContextMenu={(e) => e.preventDefault()}
+              onClick={(e) => e.preventDefault()}
+              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-90 transition-transform touch-none select-none"
               aria-label="Quick Add"
             >
               <Plus className="w-6 h-6 stroke-[2.5]" />
