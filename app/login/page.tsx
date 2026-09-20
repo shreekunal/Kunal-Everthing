@@ -55,6 +55,28 @@ function LoginContent() {
           const data = await res.json();
           if (data.profiles && Array.isArray(data.profiles)) {
             setProfiles(data.profiles);
+
+            // AUTO-LOCK ENHANCEMENT:
+            // If arriving from auto-lock or a locked user exists, open their PIN pad directly
+            const targetUserId =
+              searchParams.get("userId") ||
+              (typeof window !== "undefined"
+                ? localStorage.getItem("kunal_os_locked_user_id") ||
+                  localStorage.getItem("kunal_os_current_user_id")
+                : null);
+
+            if (targetUserId && !data.authenticated) {
+              const matched = data.profiles.find((p: ProfileItem) => p.id === targetUserId);
+              if (matched) {
+                setSelectedProfile(matched);
+                // Auto-prompt fingerprint if biometric is enrolled
+                if (matched.hasBiometrics && bioStatus.isAvailable) {
+                  setTimeout(() => {
+                    handleBiometricAuth(matched);
+                  }, 350);
+                }
+              }
+            }
           }
           setHasBiometrics(!!data.hasBiometrics);
 
@@ -84,6 +106,9 @@ function LoginContent() {
   const handleBackToProfiles = () => {
     haptics.impactLight();
     setSelectedProfile(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("kunal_os_locked_user_id");
+    }
     setPin("");
     setError("");
   };
@@ -120,6 +145,11 @@ function LoginContent() {
         if (res.ok && data.success) {
           haptics.success();
           setSuccess(true);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("kunal_os_locked_user_id");
+            localStorage.setItem("kunal_os_current_user_id", selectedProfile.id);
+            localStorage.setItem("kunal_os_current_user_name", selectedProfile.name);
+          }
           // Smooth transition to dashboard
           setTimeout(() => {
             router.push(redirectUrl);
@@ -177,11 +207,12 @@ function LoginContent() {
   }, [isVerifying, pin.length]);
 
   // Handle Biometric Unlock
-  const handleBiometricAuth = async () => {
+  const handleBiometricAuth = async (profileOverride?: ProfileItem | React.MouseEvent) => {
     if (isVerifying) return;
-    const isEnrolled = selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics;
+    const target = (profileOverride && "id" in profileOverride) ? profileOverride : selectedProfile;
+    const isEnrolled = target ? target.hasBiometrics : hasBiometrics;
     if (!isEnrolled) {
-      const name = selectedProfile ? selectedProfile.name : "this profile";
+      const name = target ? target.name : "this profile";
       setError(`No fingerprint enrolled yet for ${name}. Enter PIN, then enroll in Settings.`);
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -191,10 +222,17 @@ function LoginContent() {
     setError("");
 
     try {
-      const ok = await authenticateDeviceBiometrics(selectedProfile?.id);
+      const ok = await authenticateDeviceBiometrics(target?.id);
       if (ok) {
         haptics.success();
         setSuccess(true);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("kunal_os_locked_user_id");
+          if (target?.id) {
+            localStorage.setItem("kunal_os_current_user_id", target.id);
+            localStorage.setItem("kunal_os_current_user_name", target.name);
+          }
+        }
         setTimeout(() => {
           router.push(redirectUrl);
           router.refresh();

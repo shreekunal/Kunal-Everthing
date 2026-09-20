@@ -82,8 +82,14 @@ export function AppShell({ children }: AppShellProps) {
     fetch("/api/auth/status")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.userId) setCurrentUserId(data.userId);
-        if (data?.userName) setCurrentUserName(data.userName);
+        if (data?.userId) {
+          setCurrentUserId(data.userId);
+          localStorage.setItem("kunal_os_current_user_id", data.userId);
+        }
+        if (data?.userName) {
+          setCurrentUserName(data.userName);
+          localStorage.setItem("kunal_os_current_user_name", data.userName);
+        }
       })
       .catch(() => {});
 

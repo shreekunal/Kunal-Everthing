@@ -33,12 +33,20 @@ class AutoLockManager {
     if (typeof window === "undefined") return;
     if (window.location.pathname === "/login") return;
 
+    // Capture currently active user ID to present their lock screen directly
+    const currentUserId = localStorage.getItem("kunal_os_current_user_id") || "";
+
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch (err) {
       console.error("Auto-lock logout error:", err);
     } finally {
-      window.location.href = "/login";
+      if (currentUserId) {
+        localStorage.setItem("kunal_os_locked_user_id", currentUserId);
+        window.location.href = `/login?locked=true&userId=${encodeURIComponent(currentUserId)}`;
+      } else {
+        window.location.href = "/login";
+      }
     }
   }
 
