@@ -8,8 +8,8 @@
     <string name="shortcut_new_task_long">Create Priority Task</string>
     <string name="shortcut_love_short">My Love</string>
     <string name="shortcut_love_long">Send Love to Partner</string>
-    <string name="shortcut_vault_short">Secret Vault</string>
-    <string name="shortcut_vault_long">Open Zero-Knowledge Vault</string>
+    <string name="shortcut_money_short">Money Hub</string>
+    <string name="shortcut_money_long">Finances &amp; Expense Tracker</string>
     <string name="shortcut_karma_short">Monk Karma</string>
     <string name="shortcut_karma_long">Discipline &amp; Rewards Hub</string>
 </resources>

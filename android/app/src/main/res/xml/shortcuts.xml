@@ -25,16 +25,16 @@
             android:data="https://kunal-os.onrender.com/?action=quickadd&amp;tab=message" />
     </shortcut>
     <shortcut
-        android:shortcutId="open_vault"
+        android:shortcutId="open_money"
         android:enabled="true"
         android:icon="@mipmap/ic_launcher"
-        android:shortcutShortLabel="@string/shortcut_vault_short"
-        android:shortcutLongLabel="@string/shortcut_vault_long">
+        android:shortcutShortLabel="@string/shortcut_money_short"
+        android:shortcutLongLabel="@string/shortcut_money_long">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.kunal.os"
             android:targetClass="com.kunal.os.MainActivity"
-            android:data="https://kunal-os.onrender.com/vault" />
+            android:data="https://kunal-os.onrender.com/money" />
     </shortcut>
     <shortcut
         android:shortcutId="monk_karma"

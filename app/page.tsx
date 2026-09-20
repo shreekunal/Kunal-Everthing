@@ -753,46 +753,8 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Right Col: Credit Card Dues & Relationship Spotlight */}
+        {/* Right Col: Relationship Spotlight */}
         <div className="space-y-6">
-          {/* Credit Card Dues */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-red-400" />
-                <CardTitle>Credit Card Dues</CardTitle>
-              </div>
-              <Link
-                href="/money"
-                className="text-xs text-red-400 hover:text-red-300 font-mono"
-              >
-                Cards Hub
-              </Link>
-            </CardHeader>
-
-            <div className="space-y-2.5">
-              {!upcomingDues || upcomingDues.length === 0 ? (
-                <div className="text-xs text-zinc-500 text-center py-4 font-mono">
-                  No upcoming card dues!
-                </div>
-              ) : (
-                upcomingDues.map((card: any) => (
-                  <div
-                    key={card.id}
-                    className="p-3 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between"
-                  >
-                    <span className="text-xs font-bold text-white truncate">
-                      {card.bank ? `${card.bank} ` : ""}{card.name}
-                    </span>
-
-                    <Badge variant="red" size="sm">
-                      {card.dueDateLabel}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
 
           {/* Relationship Spotlight */}
           {partner && (
