@@ -104,10 +104,6 @@ export async function enrollDeviceBiometrics(userName?: string): Promise<{ succe
  */
 export async function authenticateDeviceBiometrics(userId?: string): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      throw new Error("Device is offline. Server connection is required for biometric session renewal. Please unlock with 4-digit PIN.");
-    }
-
     const deviceId = getOrCreateDeviceId();
 
     // 1. Trigger native Android system BiometricPrompt
@@ -118,19 +114,24 @@ export async function authenticateDeviceBiometrics(userId?: string): Promise<boo
     });
 
     // 2. Notify backend to issue verified session token & cookie for selected profile
-    const res = await fetch("/api/auth/biometrics", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "verify",
-        userId: userId || undefined,
-        credential: {
-          id: `native_bio_${deviceId}`,
-          type: "native_biometric",
-          deviceId,
-        },
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/biometrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          userId: userId || undefined,
+          credential: {
+            id: `native_bio_${deviceId}`,
+            type: "native_biometric",
+            deviceId,
+          },
+        }),
+      });
+    } catch {
+      throw new Error("Unable to connect to authentication server. Please check your connection or use your PIN.");
+    }
 
     const data = await res.json();
     if (!res.ok) {

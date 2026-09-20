@@ -76,15 +76,6 @@ public class NativeBiometricPlugin extends Plugin {
 
         getActivity().runOnUiThread(() -> {
             try {
-                if (isPromptActive && activePrompt != null) {
-                    // Cancel active prompt cleanly before starting new request
-                    try {
-                        activePrompt.cancelAuthentication();
-                    } catch (Exception ignored) {}
-                    activePrompt = null;
-                    isPromptActive = false;
-                }
-
                 isPromptActive = true;
                 Executor executor = ContextCompat.getMainExecutor(getContext());
 

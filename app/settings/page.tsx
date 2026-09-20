@@ -288,6 +288,17 @@ export default function SettingsPage() {
       await enrollDeviceBiometrics();
       setHasBiometrics(true);
       setBioMessage({ text: "Fingerprint / Biometric credential enrolled successfully!" });
+
+      // Sync cached profiles in localStorage immediately
+      try {
+        const res = await fetch("/api/auth/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.profiles) {
+            localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
+          }
+        }
+      } catch {}
     } catch (err: any) {
       setBioMessage({ text: err.message || "Failed to enroll biometrics", error: true });
     } finally {
@@ -303,6 +314,17 @@ export default function SettingsPage() {
         setHasBiometrics(false);
         setIsConfirmRemoveBioOpen(false);
         setBioMessage({ text: "Biometric authentication removed." });
+
+        // Sync cached profiles in localStorage immediately
+        try {
+          const res = await fetch("/api/auth/status");
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.profiles) {
+              localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
+            }
+          }
+        } catch {}
       }
     } catch {
       setBioMessage({ text: "Failed to remove biometrics.", error: true });

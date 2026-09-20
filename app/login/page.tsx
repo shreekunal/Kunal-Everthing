@@ -98,14 +98,40 @@ function LoginContent() {
     return !localStorage.getItem("kunal_os_cached_profiles");
   });
 
+  const [isSwitchMode, setIsSwitchMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("switch") === "true";
+  });
+
   const hasAutoPromptedRef = useRef(false);
   const promptTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isVerifyingRef = useRef(false);
+  const selectedProfileRef = useRef<ProfileItem | null>(selectedProfile);
+
+  useEffect(() => {
+    selectedProfileRef.current = selectedProfile;
+  }, [selectedProfile]);
+
+  // Clean up any active biometric prompt only when completely leaving login page
+  useEffect(() => {
+    return () => {
+      if (promptTimerRef.current) {
+        clearTimeout(promptTimerRef.current);
+        promptTimerRef.current = null;
+      }
+      cancelDeviceBiometrics();
+    };
+  }, []);
 
   // Handle Biometric Unlock
   const handleBiometricAuth = useCallback(
-    async (profileOverride?: ProfileItem | React.MouseEvent) => {
-      if (isVerifying) return;
-      const target = (profileOverride && "id" in profileOverride) ? profileOverride : selectedProfile;
+    async (profileOverride?: ProfileItem) => {
+      if (isVerifyingRef.current) return;
+
+      const target = (profileOverride && typeof profileOverride === "object" && "name" in profileOverride)
+        ? profileOverride
+        : selectedProfileRef.current;
+
       const isEnrolled = target ? target.hasBiometrics : hasBiometrics;
       if (!isEnrolled) {
         const name = target ? target.name : "this profile";
@@ -114,6 +140,8 @@ function LoginContent() {
         setTimeout(() => setShake(false), 500);
         return;
       }
+
+      isVerifyingRef.current = true;
       setIsVerifying(true);
       setError("");
 
@@ -138,14 +166,15 @@ function LoginContent() {
         const msg = err.message || "";
         if (msg.includes("cancelled") || msg.includes("canceled")) {
           // Clean user cancel - keep PIN pad ready without loud error
-          setIsVerifying(false);
         } else {
           setError(msg || "Biometric authentication failed");
-          setIsVerifying(false);
         }
+      } finally {
+        isVerifyingRef.current = false;
+        setIsVerifying(false);
       }
     },
-    [hasBiometrics, isVerifying, redirectUrl, router, selectedProfile]
+    [hasBiometrics, redirectUrl, router]
   );
 
   // Check biometric availability, load available profiles, and check status
@@ -162,34 +191,41 @@ function LoginContent() {
             setProfiles(data.profiles);
             localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
 
-            const isSwitchRequested = searchParams.get("switch") === "true";
-            const targetUserId =
-              searchParams.get("userId") ||
-              (typeof window !== "undefined"
-                ? localStorage.getItem("kunal_os_locked_user_id") ||
-                  localStorage.getItem("kunal_os_current_user_id")
-                : null);
+            const isSwitch = isSwitchMode || searchParams.get("switch") === "true";
 
-            let profileToSelect: ProfileItem | null = null;
-            if (!isSwitchRequested) {
+            // If user clicked Switch Profile, remain on profile selector
+            if (isSwitch) {
+              setSelectedProfile(null);
+            } else {
+              const targetUserId =
+                searchParams.get("userId") ||
+                (typeof window !== "undefined"
+                  ? localStorage.getItem("kunal_os_locked_user_id") ||
+                    localStorage.getItem("kunal_os_current_user_id")
+                  : null);
+
+              let profileToSelect: ProfileItem | null = null;
               if (targetUserId) {
                 profileToSelect = data.profiles.find((p: ProfileItem) => p.id === targetUserId) || null;
               }
-              // If none matched, default to the last active or primary profile
+              // If none matched, prioritize the profile with enrolled biometrics, then PRIMARY
               if (!profileToSelect && data.profiles.length > 0) {
-                profileToSelect = data.profiles[0];
+                profileToSelect =
+                  data.profiles.find((p: ProfileItem) => p.hasBiometrics) ||
+                  data.profiles.find((p: ProfileItem) => p.role === "PRIMARY") ||
+                  data.profiles[0];
               }
-            }
 
-            if (profileToSelect && !data.authenticated) {
-              setSelectedProfile(profileToSelect);
-              // Auto-prompt fingerprint once for the default/last active profile
-              if (profileToSelect.hasBiometrics && bioStatus.isAvailable && !hasAutoPromptedRef.current) {
-                hasAutoPromptedRef.current = true;
-                if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
-                promptTimerRef.current = setTimeout(() => {
-                  handleBiometricAuth(profileToSelect!);
-                }, 350);
+              if (profileToSelect && !data.authenticated) {
+                setSelectedProfile(profileToSelect);
+                // Auto-prompt fingerprint once for the default/last active profile
+                if (profileToSelect.hasBiometrics && bioStatus.isAvailable && !hasAutoPromptedRef.current) {
+                  hasAutoPromptedRef.current = true;
+                  if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
+                  promptTimerRef.current = setTimeout(() => {
+                    handleBiometricAuth(profileToSelect!);
+                  }, 400);
+                }
               }
             }
           }
@@ -207,16 +243,12 @@ function LoginContent() {
       }
     }
     checkStatus();
-
-    return () => {
-      if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
-      cancelDeviceBiometrics();
-    };
-  }, [handleBiometricAuth, redirectUrl, router, searchParams]);
+  }, [handleBiometricAuth, isSwitchMode, redirectUrl, router, searchParams]);
 
   // Handle Profile Selection (Prime Video style)
   const handleSelectProfile = (profile: ProfileItem) => {
     haptics.impactMedium();
+    setIsSwitchMode(false);
     setSelectedProfile(profile);
     if (typeof window !== "undefined") {
       localStorage.setItem("kunal_os_locked_user_id", profile.id);
@@ -228,20 +260,24 @@ function LoginContent() {
     setError("");
     setShake(false);
 
-    // Auto-prompt fingerprint when tapping a profile that has biometrics
+    // Auto-prompt fingerprint when selecting a profile that has biometrics
     if (profile.hasBiometrics && biometricsSupported) {
       if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
       promptTimerRef.current = setTimeout(() => {
         handleBiometricAuth(profile);
-      }, 250);
+      }, 300);
     }
   };
 
   const handleBackToProfiles = () => {
     haptics.impactLight();
-    if (promptTimerRef.current) clearTimeout(promptTimerRef.current);
+    if (promptTimerRef.current) {
+      clearTimeout(promptTimerRef.current);
+      promptTimerRef.current = null;
+    }
     cancelDeviceBiometrics();
-    hasAutoPromptedRef.current = true; // Avoid re-prompting while selecting who is logging in
+    hasAutoPromptedRef.current = true; // Avoid re-prompting while choosing profile
+    setIsSwitchMode(true);
     setSelectedProfile(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("kunal_os_locked_user_id");
@@ -524,7 +560,7 @@ function LoginContent() {
               {/* Bottom Row: Biometrics, 0, Backspace */}
               <button
                 type="button"
-                onClick={handleBiometricAuth}
+                onClick={() => handleBiometricAuth()}
                 disabled={isVerifying}
                 title="Unlock with Fingerprint / Biometrics"
                 className={`h-14 rounded-2xl border flex items-center justify-center transition-all duration-150 transform active:scale-95 disabled:opacity-50 ${(selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics)
@@ -564,7 +600,7 @@ function LoginContent() {
             {(selectedProfile ? selectedProfile.hasBiometrics : hasBiometrics) && (
               <button
                 type="button"
-                onClick={handleBiometricAuth}
+                onClick={() => handleBiometricAuth()}
                 disabled={isVerifying}
                 className={`mt-6 w-full py-2.5 px-4 rounded-xl border text-xs font-mono text-white flex items-center justify-center gap-2 transition-colors group ${isMradulSelected
                     ? "bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30"
