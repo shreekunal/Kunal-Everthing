@@ -10,6 +10,7 @@ import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
+import { offlineQueue } from "@/lib/offlineQueue";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -34,6 +35,47 @@ export function AppShell({ children }: AppShellProps) {
       cleanup();
     };
   }, [pathname]);
+
+  // Initialize Service Worker and Offline Mutation Queue
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Register Service Worker for offline app shell caching and ultra-fast boot
+    if ("serviceWorker" in navigator) {
+      const isProduction =
+        process.env.NODE_ENV === "production" ||
+        window.location.hostname !== "localhost";
+
+      if (isProduction) {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => {
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = () => {
+                  if (
+                    installingWorker.state === "installed" &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    installingWorker.postMessage({ type: "SKIP_WAITING" });
+                  }
+                };
+              }
+            };
+          })
+          .catch((err) => {
+            console.warn("[SW] Registration error:", err);
+          });
+      }
+    }
+
+    // Initialize Offline Mutation Queue listener (auto-replays on reconnect)
+    const cleanupQueue = offlineQueue.init();
+    return () => {
+      cleanupQueue();
+    };
+  }, []);
 
   // Fetch current user status & listen for global profile switcher requests
   useEffect(() => {

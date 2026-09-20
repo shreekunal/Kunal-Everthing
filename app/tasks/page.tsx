@@ -29,6 +29,7 @@ import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
+import { offlineQueue } from "@/lib/offlineQueue";
 import {
   Select,
   SelectContent,
@@ -151,23 +152,31 @@ export default function TasksPage() {
     }
 
     // 1. Instant 0ms Optimistic Update (Immediate visual feedback)
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-    );
+    let updatedTasksList: any[] = [];
+    setTasks((prev) => {
+      updatedTasksList = prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+      offlineCache.set("tasks", { tasks: updatedTasksList });
+      return updatedTasksList;
+    });
 
-    // 2. Silent background sync
+    // 2. Silent background sync (queues offline when disconnected)
     try {
-      await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      await offlineQueue.offlineFetch(
+        `/api/tasks/${taskId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        },
+        `Task status -> ${newStatus}`
+      );
     } catch (err) {
       console.error("Task toggle error:", err);
-      // Revert if network error
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: currentStatus } : t))
-      );
+      if (navigator.onLine) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: currentStatus } : t))
+        );
+      }
     }
   };
 
@@ -176,8 +185,16 @@ export default function TasksPage() {
     setIsDeletingTask(true);
     haptics.warning();
     try {
-      await fetch(`/api/tasks/${taskToDelete.id}`, { method: "DELETE" });
-      setTasks((prev) => prev.filter((t) => t.id !== taskToDelete.id));
+      await offlineQueue.offlineFetch(
+        `/api/tasks/${taskToDelete.id}`,
+        { method: "DELETE" },
+        "Delete task"
+      );
+      setTasks((prev) => {
+        const filtered = prev.filter((t) => t.id !== taskToDelete.id);
+        offlineCache.set("tasks", { tasks: filtered });
+        return filtered;
+      });
       setTaskToDelete(null);
     } catch (err) {
       console.error("Task delete error:", err);

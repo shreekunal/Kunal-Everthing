@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { offlineCache } from "@/lib/offlineCache";
+import { offlineQueue } from "@/lib/offlineQueue";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -90,8 +91,9 @@ export default function RoutinesPage() {
     haptics.success();
 
     // 1. Instant 0ms Optimistic UI update
-    setRoutines((prev) =>
-      prev.map((r) => {
+    let updatedRoutinesList: any[] = [];
+    setRoutines((prev) => {
+      updatedRoutinesList = prev.map((r) => {
         if (r.id !== routineId) return r;
         const willBeCompleted = !r.completedToday;
         return {
@@ -104,20 +106,32 @@ export default function RoutinesPage() {
             h.date === date ? { ...h, completed: !h.completed } : h
           ),
         };
-      })
-    );
-
-    // 2. Silent background sync
-    try {
-      await fetch(`/api/routines/${routineId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date }),
       });
+      // Synchronize optimistic state directly into offline cache
+      offlineCache.set("routines", {
+        routines: updatedRoutinesList,
+        past14Days,
+        past30Days,
+      });
+      return updatedRoutinesList;
+    });
+
+    // 2. Silent background sync (queues offline when disconnected)
+    try {
+      await offlineQueue.offlineFetch(
+        `/api/routines/${routineId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date }),
+        },
+        "Routine streak update"
+      );
     } catch (err) {
       console.error("Toggle routine error:", err);
-      // Revert from server on network failure
-      fetchRoutines();
+      if (navigator.onLine) {
+        fetchRoutines();
+      }
     }
   };
 
@@ -126,8 +140,20 @@ export default function RoutinesPage() {
     setIsDeletingRoutine(true);
     haptics.warning();
     try {
-      await fetch(`/api/routines/${routineToDelete.id}`, { method: "DELETE" });
-      setRoutines((prev) => prev.filter((r) => r.id !== routineToDelete.id));
+      await offlineQueue.offlineFetch(
+        `/api/routines/${routineToDelete.id}`,
+        { method: "DELETE" },
+        "Delete routine"
+      );
+      setRoutines((prev) => {
+        const filtered = prev.filter((r) => r.id !== routineToDelete.id);
+        offlineCache.set("routines", {
+          routines: filtered,
+          past14Days,
+          past30Days,
+        });
+        return filtered;
+      });
       setRoutineToDelete(null);
     } catch (err) {
       console.error("Delete routine error:", err);
