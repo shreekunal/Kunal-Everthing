@@ -3,7 +3,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  glow?: "red" | "white" | "none" | "indigo" | "emerald" | "amber" | "rose";
+  glow?: "red" | "white" | "none" | "indigo" | "emerald" | "amber" | "rose" | "cyan";
   hoverable?: boolean;
 }
 
@@ -18,7 +18,7 @@ export function Card({
     red: "hover:border-brand-red/50 hover:shadow-glow-red",
     white: "hover:border-white/30",
     none: "",
-    // Mapped cleanly
+    cyan: "hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]",
     indigo: "hover:border-brand-red/50 hover:shadow-glow-red",
     emerald: "hover:border-brand-red/50 hover:shadow-glow-red",
     amber: "hover:border-brand-red/50 hover:shadow-glow-red",

@@ -37,6 +37,7 @@ import { PixelPet } from "@/components/discipline/PixelPet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
+import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -753,8 +754,10 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Right Col: Relationship Spotlight */}
+        {/* Right Col: Hydration & Relationship Spotlight */}
         <div className="space-y-6">
+          {/* Water & Hydration Tracker with 2h Alarms */}
+          <WaterTrackerCard />
 
           {/* Relationship Spotlight */}
           {partner && (

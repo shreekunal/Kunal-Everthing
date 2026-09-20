@@ -4,6 +4,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 export const NOTIFICATION_IDS = {
   MORNING_BRIEFING: 1001,
   STREAK_DEFENDER: 1002,
+  WATER_REMINDER_BASE: 2000,
   TEST_NOTIFICATION: 9999,
 };
 
@@ -130,3 +131,84 @@ export async function sendTestNotification(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Schedule recurring Water / Hydration Reminders between 9 AM and 9 PM
+ */
+export async function scheduleWaterReminders(intervalHours = 2, startHour = 9, endHour = 21): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) {
+    // Browser Notification fallback if supported
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission !== "granted") {
+        await Notification.requestPermission();
+      }
+    }
+    localStorage.setItem("kunal_os_water_notifications_enabled", "true");
+    return true;
+  }
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+
+  try {
+    // 1. Clear any prior water alarms (IDs 2000 to 2015)
+    const existingIds = [];
+    for (let i = 0; i <= 15; i++) {
+      existingIds.push({ id: NOTIFICATION_IDS.WATER_REMINDER_BASE + i });
+    }
+    await LocalNotifications.cancel({ notifications: existingIds });
+
+    // 2. Schedule recurring alarms at intervalHours
+    const waterNotifications = [];
+    let idOffset = 0;
+
+    for (let h = startHour; h <= endHour; h += intervalHours) {
+      waterNotifications.push({
+        id: NOTIFICATION_IDS.WATER_REMINDER_BASE + idOffset,
+        title: "💧 Hydration Check • Drink Water",
+        body: "Stay sharp and energized! Take a sip or log a fresh glass of water.",
+        schedule: {
+          on: { hour: h, minute: 0 },
+          repeats: true,
+          allowWhileIdle: true,
+        },
+        smallIcon: "ic_launcher",
+        iconColor: "#06B6D4",
+      });
+      idOffset++;
+    }
+
+    if (waterNotifications.length > 0) {
+      await LocalNotifications.schedule({ notifications: waterNotifications });
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kunal_os_water_notifications_enabled", "true");
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to schedule water notifications:", err);
+    return false;
+  }
+}
+
+/**
+ * Cancel recurring Water Reminders
+ */
+export async function cancelWaterReminders(): Promise<void> {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("kunal_os_water_notifications_enabled", "false");
+  }
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    const existingIds = [];
+    for (let i = 0; i <= 15; i++) {
+      existingIds.push({ id: NOTIFICATION_IDS.WATER_REMINDER_BASE + i });
+    }
+    await LocalNotifications.cancel({ notifications: existingIds });
+  } catch (err) {
+    console.error("Cancel water notifications error:", err);
+  }
+}
+
