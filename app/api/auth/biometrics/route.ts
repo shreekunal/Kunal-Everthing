@@ -9,6 +9,9 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+// Rate limiting map: clientIdentifier -> { attempts: number, lockedUntil?: number }
+const biometricRateLimit = new Map<string, { attempts: number; lockedUntil?: number }>();
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -57,6 +60,25 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "client-ip";
+
+    const now = Date.now();
+    const record = biometricRateLimit.get(ip);
+
+    // Check active lockout
+    if (record?.lockedUntil && record.lockedUntil > now) {
+      const waitMinutes = Math.ceil((record.lockedUntil - now) / 60000);
+      return NextResponse.json(
+        {
+          error: `Too many failed biometric attempts. Security lockout active for ${waitMinutes} minute(s).`,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { action, credential, userId } = body;
 
@@ -92,15 +114,31 @@ export async function POST(req: NextRequest) {
           where: { biometricCredential: { not: null } },
         });
 
-        targetUser =
-          usersWithBio.find((u) => {
+        if (usersWithBio.length === 1) {
+          targetUser = usersWithBio[0];
+        } else if (usersWithBio.length > 1) {
+          // Disambiguate by matching credential id or deviceId
+          const matched = usersWithBio.filter((u) => {
             try {
               const parsed = JSON.parse(u.biometricCredential!);
-              return parsed.id === credential?.id;
+              return (
+                parsed.id === credential?.id ||
+                (parsed.deviceId && parsed.deviceId === credential?.deviceId)
+              );
             } catch {
               return u.biometricCredential === credential?.id;
             }
-          }) || usersWithBio[0] || null;
+          });
+
+          if (matched.length === 1) {
+            targetUser = matched[0];
+          } else {
+            return NextResponse.json(
+              { error: "Multiple profiles available. Please select your profile before unlocking with fingerprint." },
+              { status: 400 }
+            );
+          }
+        }
       }
 
       if (!targetUser || !targetUser.biometricCredential) {
@@ -110,23 +148,42 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      let storedCred;
+      let storedCred: any;
       try {
         storedCred = JSON.parse(targetUser.biometricCredential);
       } catch {
         storedCred = { id: targetUser.biometricCredential };
       }
 
-      // If credential ID matches or is an authenticated native biometric hardware confirmation
+      // Validate credential matches
       const isNativeBiometric = credential?.type === "native_biometric";
-      const isMatchingCred = storedCred.id ? credential?.id === storedCred.id : true;
+      const isIdMatch = storedCred.id && credential?.id === storedCred.id;
+      const isDeviceMatch = storedCred.deviceId && credential?.deviceId && storedCred.deviceId === credential?.deviceId;
+      const isValid = isIdMatch || isDeviceMatch || (isNativeBiometric && storedCred.type === "native_biometric");
 
-      if (!credential || !credential.id || (!isMatchingCred && !isNativeBiometric)) {
+      if (!credential || !credential.id || !isValid) {
+        const currentAttempts = (record?.attempts || 0) + 1;
+        let lockedUntil: number | undefined;
+
+        if (currentAttempts >= 5) {
+          lockedUntil = now + 10 * 60 * 1000;
+        }
+
+        biometricRateLimit.set(ip, { attempts: currentAttempts, lockedUntil });
+        const remaining = Math.max(0, 5 - currentAttempts);
+
         return NextResponse.json(
-          { error: "Biometric identification failed. Credential mismatch." },
+          {
+            error: lockedUntil
+              ? "Too many failed biometric attempts. Security lockout active for 10 minutes."
+              : `Biometric verification failed. (${remaining} attempt${remaining === 1 ? "" : "s"} remaining)`,
+          },
           { status: 401 }
         );
       }
+
+      // Success: clear rate limit record
+      biometricRateLimit.delete(ip);
 
       const token = await createSessionToken(targetUser.id, targetUser.email, "biometric");
 

@@ -17,6 +17,9 @@ import java.util.concurrent.Executor;
 @CapacitorPlugin(name = "NativeBiometric")
 public class NativeBiometricPlugin extends Plugin {
 
+    private BiometricPrompt activePrompt = null;
+    private boolean isPromptActive = false;
+
     @PluginMethod
     public void isAvailable(PluginCall call) {
         try {
@@ -43,9 +46,46 @@ public class NativeBiometricPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void authenticate(PluginCall call) {
+    public void cancelAuthentication(PluginCall call) {
+        if (getActivity() == null) {
+            call.resolve();
+            return;
+        }
         getActivity().runOnUiThread(() -> {
             try {
+                if (activePrompt != null) {
+                    activePrompt.cancelAuthentication();
+                    activePrompt = null;
+                }
+                isPromptActive = false;
+                JSObject ret = new JSObject();
+                ret.put("cancelled", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Failed to cancel biometric prompt: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void authenticate(PluginCall call) {
+        if (getActivity() == null || getActivity().isFinishing()) {
+            call.reject("Host activity unavailable.");
+            return;
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                if (isPromptActive && activePrompt != null) {
+                    // Cancel active prompt cleanly before starting new request
+                    try {
+                        activePrompt.cancelAuthentication();
+                    } catch (Exception ignored) {}
+                    activePrompt = null;
+                    isPromptActive = false;
+                }
+
+                isPromptActive = true;
                 Executor executor = ContextCompat.getMainExecutor(getContext());
 
                 String title = call.getString("title", "Everything Security");
@@ -56,16 +96,21 @@ public class NativeBiometricPlugin extends Plugin {
                         .setTitle(title)
                         .setSubtitle(subtitle)
                         .setDescription(description)
+                        .setAllowedAuthenticators(
+                                BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK
+                        )
                         .setNegativeButtonText("Cancel");
 
                 BiometricPrompt.PromptInfo promptInfo = builder.build();
 
                 FragmentActivity fragmentActivity = (FragmentActivity) getActivity();
-                BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor,
+                activePrompt = new BiometricPrompt(fragmentActivity, executor,
                         new BiometricPrompt.AuthenticationCallback() {
                             @Override
                             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                                 super.onAuthenticationSucceeded(result);
+                                isPromptActive = false;
+                                activePrompt = null;
                                 JSObject ret = new JSObject();
                                 ret.put("success", true);
                                 call.resolve(ret);
@@ -74,8 +119,15 @@ public class NativeBiometricPlugin extends Plugin {
                             @Override
                             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                                 super.onAuthenticationError(errorCode, errString);
+                                isPromptActive = false;
+                                activePrompt = null;
+
                                 if (errorCode == BiometricPrompt.ERROR_USER_CANCELED || errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
                                     call.reject("Authentication cancelled by user.");
+                                } else if (errorCode == BiometricPrompt.ERROR_LOCKOUT) {
+                                    call.reject("Too many failed attempts. Biometric sensor locked for 30 seconds. Enter PIN.");
+                                } else if (errorCode == BiometricPrompt.ERROR_LOCKOUT_PERMANENT) {
+                                    call.reject("Too many failed attempts. Biometric sensor locked. Master PIN required.");
                                 } else {
                                     call.reject(errString.toString());
                                 }
@@ -88,8 +140,10 @@ public class NativeBiometricPlugin extends Plugin {
                             }
                         });
 
-                biometricPrompt.authenticate(promptInfo);
+                activePrompt.authenticate(promptInfo);
             } catch (Exception e) {
+                isPromptActive = false;
+                activePrompt = null;
                 call.reject("Biometric prompt error: " + e.getMessage());
             }
         });

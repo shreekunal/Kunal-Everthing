@@ -43,7 +43,7 @@ export function AppShell({ children }: AppShellProps) {
     return () => {
       cleanup();
     };
-  }, [pathname]);
+  }, [pathname === "/login"]);
 
   // Initialize Service Worker and Offline Mutation Queue
   useEffect(() => {
