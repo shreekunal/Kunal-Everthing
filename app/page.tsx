@@ -26,6 +26,7 @@ import {
   Calendar,
   Skull,
   Sparkles,
+  Droplets,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
@@ -47,6 +48,18 @@ export default function DashboardPage() {
   const [isEveningCheckinOpen, setIsEveningCheckinOpen] = useState(false);
   const [confirmDeductType, setConfirmDeductType] = useState<"UNHEALTHY_FOOD" | "FAP" | null>(null);
   const [isDeducting, setIsDeducting] = useState(false);
+  const [waterGlasses, setWaterGlasses] = useState(0);
+  const [waterTarget, setWaterTarget] = useState(8);
+
+  const loadWaterStats = () => {
+    if (typeof window === "undefined") return;
+    const todayKey = format(new Date(), "yyyy-MM-dd");
+    const count = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
+    if (count !== null) setWaterGlasses(parseInt(count, 10) || 0);
+
+    const target = localStorage.getItem("kunal_os_water_target_glasses");
+    if (target !== null) setWaterTarget(parseInt(target, 10) || 8);
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -109,13 +122,18 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData();
+    loadWaterStats();
     const handleOnline = () => fetchDashboardData();
     const handleOffline = () => setIsOffline(true);
     window.addEventListener("kunal-os-refresh", fetchDashboardData);
+    window.addEventListener("kunal-os-refresh", loadWaterStats);
+    window.addEventListener("storage", loadWaterStats);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
       window.removeEventListener("kunal-os-refresh", fetchDashboardData);
+      window.removeEventListener("kunal-os-refresh", loadWaterStats);
+      window.removeEventListener("storage", loadWaterStats);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
@@ -328,25 +346,21 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card Outstandings */}
-        <Card glow="red" className="relative overflow-hidden group">
+        {/* Daily Hydration KPI */}
+        <Card glow="cyan" className="relative overflow-hidden group border-cyan-500/20">
           <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-            <span>Card Dues</span>
-            <CreditCard className="w-4 h-4 text-red-400" />
+            <span>Hydration Today</span>
+            <Droplets className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-red-400 font-mono">
-            {formatINR(financials?.totalCardOutstanding || 0)}
+          <div className="text-xl sm:text-2xl font-bold tracking-tight text-cyan-400 font-mono flex items-baseline gap-1.5">
+            <span>{waterGlasses}</span>
+            <span className="text-xs text-zinc-400 font-normal">/ {waterTarget} Glasses</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
-            <span className="text-zinc-500">
-              {upcomingDues?.[0] ? upcomingDues[0].dueDateLabel : "No dues"}
+            <span className="text-zinc-400 font-semibold">
+              {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
             </span>
-            <Link
-              href="/money"
-              className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
-            >
-              Pay <ArrowRight className="w-3 h-3" />
-            </Link>
+            <span className="text-cyan-400 font-bold">{waterGlasses * 250} ml</span>
           </div>
         </Card>
 
