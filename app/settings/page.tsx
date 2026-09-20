@@ -34,6 +34,14 @@ import {
   Droplets,
   Activity,
   RefreshCw,
+  AlertTriangle,
+  ArrowRight,
+  Database,
+  Sliders,
+  Check,
+  Zap,
+  ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Select,
@@ -160,6 +168,10 @@ export default function SettingsPage() {
   const [restoreFilePayload, setRestoreFilePayload] = useState<any | null>(null);
   const [restoreMessage, setRestoreMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Active Category Filter Tab
+  type SettingsTab = "all" | "profiles" | "security" | "alarms" | "vault" | "danger";
+  const [activeTab, setActiveTab] = useState<SettingsTab>("all");
 
   // Fetch initial security status
   useEffect(() => {
@@ -607,546 +619,768 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto w-full">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-          <Settings className="w-5 h-5 text-brand-red" />
-          System Settings & Security Controls
-        </h2>
-        <p className="text-xs text-zinc-400 font-mono mt-1">
-          App configuration, PIN & biometric lock, account preferences, and full-stack data backups
-        </p>
+    <div className="space-y-6 max-w-4xl mx-auto w-full pb-10">
+      {/* Elite Control Center Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-brand-red/15 border border-brand-red/30 text-brand-red shadow-glow-red-subtle">
+              <Settings className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-white tracking-tight font-mono uppercase flex items-center gap-2">
+                <span>System Control &amp; Security</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-red/20 text-brand-red border border-brand-red/30 font-mono font-bold">
+                  v2.4 HARDWARE
+                </span>
+              </h2>
+              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                Local cryptographic keys, native Android AlarmManager, dual profiles &amp; data vault
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto font-mono text-xs">
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={handleLockNow}
+            className="text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+          >
+            <Lock className="w-3.5 h-3.5 mr-1" />
+            <span>Lock Now</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Prime Video Dual-Profile Profiles */}
-      <Card glow="red">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-brand-red" />
-            <CardTitle>Dual-Profile Workspaces (Prime Video Style)</CardTitle>
+      {/* Cyber Telemetry Status Deck (4 Pods) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* 1. Active Workspace */}
+        <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
+            <span>Workspace</span>
+            <Users className="w-3.5 h-3.5 text-brand-red" />
           </div>
-          <Badge variant="red" size="sm">
-            Current: {currentUserName}
-          </Badge>
-        </CardHeader>
-
-        <div className="space-y-4 text-xs">
-          <p className="text-zinc-400 font-mono text-[11px]">
-            Two independent profiles (Mradul & Kunal) with isolated tasks, routines, cards, and wallets.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-            {availableProfiles.map((p) => {
-              const isCurrent = p.id === currentUserId || p.name === currentUserName;
-              return (
-                <div
-                  key={p.id}
-                  className={`p-3.5 rounded-2xl border transition-all flex items-center gap-3 ${
-                    isCurrent
-                      ? "bg-white/[0.04] border-brand-red/40 shadow-glow-red-subtle"
-                      : "bg-white/[0.02] border-white/10 hover:border-white/20"
-                  }`}
-                >
-                  <ProfileAvatar
-                    name={p.name}
-                    gender={p.gender}
-                    size="md"
-                    isSelected={isCurrent}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white font-mono text-sm">
-                        {p.name}
-                      </span>
-                      {isCurrent && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-red/20 text-brand-red font-mono font-bold">
-                          CURRENT
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-zinc-400 font-mono block truncate">
-                      {p.role === "PRIMARY" ? "Primary / Master Profile" : "Partner Profile"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="font-bold text-white font-mono text-base truncate">
+            {currentUserName}
           </div>
-
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-400 font-mono text-[11px]">
-              Switch to the other profile workspace:
-            </span>
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={() => window.dispatchEvent(new CustomEvent("open-profile-switcher"))}
-              className="text-xs gap-1.5"
-            >
-              <span>Switch Profile (PIN Required)</span>
-            </Button>
+          <div className="mt-2 text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Isolated Profile</span>
           </div>
         </div>
-      </Card>
 
-      {/* Device Lock & Biometrics */}
-      <Card glow="red">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-brand-red" />
-            <CardTitle>Master PIN & Biometric Lock Security ({currentUserName})</CardTitle>
+        {/* 2. Master Security */}
+        <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
+            <span>Security Gate</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <Badge variant="red" size="sm">
-            Lock Screen Active
-          </Badge>
-        </CardHeader>
-
-        <div className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* 4-Digit PIN Status */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
-              <div>
-                <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">
-                  Master 4-Digit PIN
-                </span>
-                <span className="font-bold text-white font-mono text-sm flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  Active & Protected
-                </span>
-              </div>
-              <div className="mt-3">
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={() => setIsPinModalOpen(true)}
-                  className="w-full text-xs"
-                >
-                  <Key className="w-3.5 h-3.5 text-brand-red" />
-                  <span>Change Master PIN</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Biometric Status */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
-              <div>
-                <span className="text-zinc-500 font-mono block mb-1 uppercase text-[10px]">
-                  Fingerprint / Biometrics
-                </span>
-                <span className="font-bold text-white font-mono text-sm flex items-center gap-1.5">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      hasBiometrics ? "bg-emerald-400 shadow-glow-red-subtle" : "bg-zinc-500"
-                    }`}
-                  />
-                  {hasBiometrics ? "Enrolled & Ready" : "Not Configured"}
-                </span>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={handleRegisterBiometrics}
-                  isLoading={bioLoading}
-                  className="flex-1 text-xs"
-                >
-                  <Fingerprint className="w-3.5 h-3.5 text-brand-red" />
-                  <span>{hasBiometrics ? "Re-enroll Fingerprint" : "Enroll Fingerprint"}</span>
-                </Button>
-                {hasBiometrics && (
-                  <button
-                    onClick={() => {
-                      haptics.warning();
-                      setIsConfirmRemoveBioOpen(true);
-                    }}
-                    className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/10 transition-colors"
-                    title="Remove Biometric Credential"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="font-bold text-white font-mono text-base">
+            PIN Protected
           </div>
-
-          {bioMessage && (
-            <div
-              className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-mono ${
-                bioMessage.error
-                  ? "bg-red-500/10 border-red-500/30 text-brand-red"
-                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-              }`}
-            >
-              {bioMessage.error ? (
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              )}
-              <span>{bioMessage.text}</span>
-            </div>
-          )}
-
-          {/* Autonomous Auto-Lock & Backgrounding Timeout */}
-          <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-zinc-500 font-mono block mb-0.5 uppercase text-[10px]">
-                Autonomous Auto-Lock &amp; Inactivity Timeout
-              </span>
-              <p className="text-xs text-zinc-400">
-                Lock portal when the app is backgrounded on mobile or left idle.
-              </p>
-              {autoLockSavedMessage && (
-                <span className="text-[10px] font-mono text-emerald-400 mt-1 block">
-                  ✓ {autoLockSavedMessage}
-                </span>
-              )}
-            </div>
-            <div className="w-full sm:w-56 flex-shrink-0">
-              <Select
-                value={autoLockMinutes.toString()}
-                onValueChange={handleUpdateAutoLock}
-              >
-                <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
-                  <SelectValue placeholder="Select Auto-Lock Timer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">⚡ Immediate (On App Background)</SelectItem>
-                  <SelectItem value="1">⏱️ 1 Minute (Default)</SelectItem>
-                  <SelectItem value="5">⏱️ 5 Minutes</SelectItem>
-                  <SelectItem value="15">⏱️ 15 Minutes</SelectItem>
-                  <SelectItem value="30">⏱️ 30 Minutes</SelectItem>
-                  <SelectItem value="-1">🛡️ Never (Manual Lock Only)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Quick Lock Button */}
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <span className="text-zinc-400">Lock your portal immediately:</span>
-            <Button variant="red" size="sm" onClick={handleLockNow}>
-              <Lock className="w-3.5 h-3.5" />
-              <span>Lock Everything Now</span>
-            </Button>
+          <div className="mt-2 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+            <span className={`w-1.5 h-1.5 rounded-full ${hasBiometrics ? "bg-emerald-400" : "bg-zinc-500"}`} />
+            <span>{hasBiometrics ? "Biometrics Active" : "PIN Only"}</span>
           </div>
         </div>
-      </Card>
 
-      {/* Smart Device Alarms & Notifications */}
-      <Card glow="red">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-brand-red" />
-            <CardTitle>Smart Device Alarms &amp; Notifications</CardTitle>
+        {/* 3. Hardware Alarms */}
+        <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
+            <span>Alarm Engine</span>
+            <Bell className="w-3.5 h-3.5 text-cyan-400" />
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={notificationsEnabled || waterRemindersEnabled ? "red" : "outline"} size="sm">
-              {notificationsEnabled && waterRemindersEnabled
-                ? "All Alarms Active (9 Alarms)"
-                : notificationsEnabled
-                ? "Core Alarms Active (2)"
-                : waterRemindersEnabled
-                ? "Water Alarms Active (7)"
-                : "All Disabled"}
-            </Badge>
+          <div className="font-bold text-cyan-400 font-mono text-base">
+            {notificationsEnabled && waterRemindersEnabled
+              ? "9 Alarms Armed"
+              : notificationsEnabled
+              ? "2 Alarms Armed"
+              : waterRemindersEnabled
+              ? "7 Alarms Armed"
+              : "Standby"}
           </div>
-        </CardHeader>
-
-        <div className="space-y-4 text-xs">
-          <p className="text-zinc-400 font-mono">
-            Autonomous native Android alarms running directly on your phone hardware via Android AlarmManager with zero cloud latency.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Morning Briefing */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red flex-shrink-0">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-white font-mono block">Morning Focus (8:00 AM)</span>
-                  <p className="text-zinc-400 text-[11px] mt-0.5">
-                    Daily focus call: review tasks, routines, and daily objectives.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                <span>Status:</span>
-                <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
-                  {notificationsEnabled ? "Active" : "Off"}
-                </span>
-              </div>
-            </div>
-
-            {/* Streak Defender */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-white/10 flex flex-col justify-between">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
-                  <Shield className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-white font-mono block">Streak Defender (9:00 PM)</span>
-                  <p className="text-zinc-400 text-[11px] mt-0.5">
-                    Monk integrity alert: ensures clean diet and purity streaks stay intact.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-                <span>Status:</span>
-                <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
-                  {notificationsEnabled ? "Active" : "Off"}
-                </span>
-              </div>
-            </div>
-
-            {/* Hydration Reminders */}
-            <div className="p-3.5 bg-white/[0.02] rounded-xl border border-cyan-500/20 flex flex-col justify-between">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0">
-                  <Droplets className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-white font-mono block">Hydration Checks (Every 2h)</span>
-                  <p className="text-zinc-400 text-[11px] mt-0.5">
-                    7 recurring alarms (9 AM - 9 PM) ensuring water intake and +30 XP rewards.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
-                <span className={`text-[10px] font-mono font-bold ${waterRemindersEnabled ? "text-cyan-400" : "text-zinc-500"}`}>
-                  {waterRemindersEnabled ? "7 Alarms Active" : "Disabled"}
-                </span>
-                <Button
-                  variant="glass"
-                  size="sm"
-                  onClick={handleToggleWaterNotifications}
-                  isLoading={waterNotifLoading}
-                  className="text-[10px] h-6 px-2 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
-                >
-                  <span>{waterRemindersEnabled ? "Disable" : "Enable 2h"}</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {notifMessage && (
-            <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
-                <span>{notifMessage}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNotifMessage(null)}
-                className="text-zinc-400 hover:text-white p-0.5 text-xs"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {!hasExactAlarms && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                <span>Exact alarm permission is disabled on your device. Alarms may be delayed by Android Doze mode.</span>
-              </div>
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={handleRequestExactAlarms}
-                className="text-amber-400 border-amber-500/30 text-[11px] self-start sm:self-auto"
-              >
-                Enable in Settings
-              </Button>
-            </div>
-          )}
-
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={handleOpenDiagnostics}
-                className="text-xs text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
-                title="Inspect real alarms registered in Android AlarmManager"
-              >
-                <Activity className="w-3.5 h-3.5 text-cyan-400 mr-1 animate-pulse" />
-                <span>Verify Live Alarms</span>
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={handleTestWaterNotification}
-                className="text-xs text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/10"
-              >
-                <Droplets className="w-3.5 h-3.5 mr-1 text-cyan-400" />
-                <span>Test Water (2s)</span>
-              </Button>
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={handleTestNotification}
-                className="text-xs"
-              >
-                <Bell className="w-3.5 h-3.5 mr-1 text-brand-red" />
-                <span>Test Core (3s)</span>
-              </Button>
-              <Button
-                variant={notificationsEnabled ? "glass" : "red"}
-                size="sm"
-                onClick={handleToggleNotifications}
-                isLoading={notifLoading}
-                className="text-xs"
-              >
-                <span>{notificationsEnabled ? "Disable Core Alarms" : "Enable Core Alarms"}</span>
-              </Button>
-            </div>
+          <div className="mt-2 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+            <span className={`w-1.5 h-1.5 rounded-full ${hasExactAlarms ? "bg-emerald-400" : "bg-amber-400"}`} />
+            <span>{hasExactAlarms ? "Exact Android Alarm" : "Inexact Mode"}</span>
           </div>
         </div>
-      </Card>
 
-      {/* Backup & Presets */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Download className="w-4 h-4 text-brand-red" />
-            <CardTitle>Data Backup & System Reset</CardTitle>
+        {/* 4. Data Vault */}
+        <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
+            <span>Data Vault</span>
+            <Database className="w-3.5 h-3.5 text-yellow-400" />
           </div>
-        </CardHeader>
-
-        <div className="space-y-4 text-xs">
-          {/* Export Backup */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
-            <div>
-              <p className="font-semibold text-white flex items-center gap-2">
-                <span>Download Cryptographic Backup</span>
-                <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
-                  SHA-256 Verified
-                </span>
-              </p>
-              <p className="text-zinc-400 text-[11px] mt-0.5">
-                Export complete encrypted vault, tasks, habits, finances, cards, and relationship logs to a tamper-proof JSON.
-              </p>
-            </div>
-            <Button
-              variant="red"
-              size="sm"
-              onClick={handleExportBackup}
-              isLoading={exportingBackup}
-              className="shadow-glow-red whitespace-nowrap"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export Full Backup</span>
-            </Button>
+          <div className="font-bold text-white font-mono text-base">
+            SHA-256 Vault
           </div>
-
-          {/* Zero-Loss Restore */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white/[0.02] rounded-xl border border-white/10">
-            <div>
-              <p className="font-semibold text-white flex items-center gap-2">
-                <span>Restore From Backup</span>
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                  Zero-Loss Sync
-                </span>
-              </p>
-              <p className="text-zinc-400 text-[11px] mt-0.5">
-                Import an existing Everything OS backup JSON. Atomic database transaction prevents any corrupted writes.
-              </p>
-            </div>
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <Button
-                variant="glass"
-                size="sm"
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="whitespace-nowrap"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Select Backup File</span>
-              </Button>
-            </div>
+          <div className="mt-2 text-[10px] font-mono text-zinc-400 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>{Capacitor.isNativePlatform() ? "Android Storage" : "Web Local Sync"}</span>
           </div>
+        </div>
+      </div>
 
-          {restoreMessage && (
-            <div
-              className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-mono ${
-                restoreMessage.error
-                  ? "bg-red-500/10 border-red-500/30 text-brand-red"
-                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>{restoreMessage.text}</span>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-brand-red/[0.03] rounded-xl border border-brand-red/30 shadow-glow-red-subtle">
-            <div>
-              <p className="font-semibold text-white flex items-center gap-2">
-                <span>Quick Setup &amp; One-Form Feeder</span>
-                <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
-                  Fast Feed
-                </span>
-              </p>
-              <p className="text-zinc-400 text-[11px] mt-0.5">
-                Feed your bank accounts, credit card, partner details, tasks, and routines in a single unified form.
-              </p>
-            </div>
-            <Button
-              variant="red"
-              size="sm"
+      {/* Cyber Category Navigation Filter Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: "all", label: "All Modules", icon: Layers },
+          { id: "profiles", label: `Profiles (${availableProfiles.length || 2})`, icon: Users },
+          { id: "security", label: "Security & Lock", icon: ShieldCheck },
+          { id: "alarms", label: "Hardware Alarms", icon: Bell, dot: notificationsEnabled || waterRemindersEnabled },
+          { id: "vault", label: "Data Vault", icon: Database },
+          { id: "danger", label: "Danger Zone", icon: AlertTriangle, isDanger: true },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
               onClick={() => {
                 haptics.selection();
-                setIsSetupModalOpen(true);
+                setActiveTab(tab.id as SettingsTab);
               }}
-              className="shadow-glow-red whitespace-nowrap"
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-mono font-medium transition-all whitespace-nowrap active:scale-95 ${
+                isActive
+                  ? tab.isDanger
+                    ? "bg-red-500 text-white shadow-glow-red font-bold"
+                    : "bg-brand-red text-white shadow-glow-red font-bold"
+                  : tab.isDanger
+                  ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+                  : "bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-white/10"
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
-              <span>Open Setup Form</span>
-            </Button>
-          </div>
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+              {tab.dot && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-red-500/[0.03] rounded-xl border border-red-500/20">
-            <div>
-              <p className="font-semibold text-red-400">Purge &amp; Wipe All Portal Data</p>
-              <p className="text-zinc-400 text-[11px] mt-0.5">
-                Clear all tasks, routines, credit cards, bank accounts, and reward logs for a clean personal start.
-              </p>
+      {/* 1. Prime Video Dual-Profile Profiles */}
+      {(activeTab === "all" || activeTab === "profiles") && (
+        <Card glow="red" className="transition-all">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/20 text-brand-red">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle>Dual-Profile Workspaces</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Prime Video style profile segregation with private accounts, habits &amp; vaults
+                </p>
+              </div>
             </div>
-            <Button
-              variant="red"
-              size="sm"
-              onClick={() => {
-                haptics.warning();
-                setIsConfirmWipeOpen(true);
-              }}
-              isLoading={clearing}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Wipe All Data</span>
-            </Button>
-          </div>
+            <Badge variant="red" size="sm">
+              Active: {currentUserName}
+            </Badge>
+          </CardHeader>
 
-          {clearSuccess && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-center gap-2 text-xs text-brand-red font-mono">
-              <CheckCircle2 className="w-4 h-4 text-brand-red" />
-              <span>All portal data has been completely wiped clean!</span>
+          <div className="space-y-4 text-xs pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {availableProfiles.map((p) => {
+                const isCurrent = p.id === currentUserId || p.name === currentUserName;
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center gap-3 relative overflow-hidden ${
+                      isCurrent
+                        ? "bg-gradient-to-r from-brand-red/10 via-white/[0.03] to-transparent border-brand-red/40 shadow-glow-red-subtle"
+                        : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {isCurrent && (
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-brand-red/10 rounded-full blur-2xl pointer-events-none" />
+                    )}
+                    <ProfileAvatar
+                      name={p.name}
+                      gender={p.gender}
+                      size="md"
+                      isSelected={isCurrent}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white font-mono text-sm">
+                          {p.name}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-red/25 text-brand-red font-mono font-black tracking-wider border border-brand-red/30">
+                            CURRENT
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-zinc-400 font-mono block truncate mt-0.5">
+                        {p.role === "PRIMARY" ? "Primary Master Profile" : "Partner Workspace Profile"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
-      </Card>
+
+            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
+              <span className="text-zinc-400 font-mono text-[11px] flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                Switch profile workspace requiring Master PIN:
+              </span>
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() => {
+                  haptics.selection();
+                  window.dispatchEvent(new CustomEvent("open-profile-switcher"));
+                }}
+                className="text-xs gap-1.5 shadow-glow-red-subtle"
+              >
+                <Key className="w-3.5 h-3.5 text-brand-red" />
+                <span>Switch Profile (PIN Required)</span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 2. Device Lock & Biometrics */}
+      {(activeTab === "all" || activeTab === "security") && (
+        <Card glow="red" className="transition-all">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/20 text-brand-red">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle>Master PIN &amp; Biometric Security ({currentUserName})</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Local device encryption keys, biometric sensors, and autonomous timeouts
+                </p>
+              </div>
+            </div>
+            <Badge variant="red" size="sm">
+              Lock Screen Armed
+            </Badge>
+          </CardHeader>
+
+          <div className="space-y-4 text-xs pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 4-Digit PIN Status Card */}
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/10 flex flex-col justify-between hover:border-brand-red/30 transition-all">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
+                      Master 4-Digit PIN
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Active &amp; Protected
+                    </span>
+                  </div>
+                  <p className="text-zinc-400 text-[11px] font-mono mb-3">
+                    Cryptographic PIN required on boot, after auto-lock timeout, and when switching profiles.
+                  </p>
+                </div>
+                <div>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={() => {
+                      haptics.selection();
+                      setIsPinModalOpen(true);
+                    }}
+                    className="w-full text-xs gap-1.5"
+                  >
+                    <Key className="w-3.5 h-3.5 text-brand-red" />
+                    <span>Change Master PIN</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Biometric Status Card */}
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/10 flex flex-col justify-between hover:border-brand-red/30 transition-all">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
+                      Fingerprint / Biometrics
+                    </span>
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                        hasBiometrics
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : "bg-zinc-500/10 text-zinc-400 border-white/10"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          hasBiometrics ? "bg-emerald-400" : "bg-zinc-500"
+                        }`}
+                      />
+                      {hasBiometrics ? "Enrolled & Ready" : "Not Configured"}
+                    </span>
+                  </div>
+                  <p className="text-zinc-400 text-[11px] font-mono mb-3">
+                    Native Android hardware biometric sensor (fingerprint / Face Unlock) for rapid entry.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={handleRegisterBiometrics}
+                    isLoading={bioLoading}
+                    className="flex-1 text-xs gap-1.5"
+                  >
+                    <Fingerprint className="w-3.5 h-3.5 text-brand-red" />
+                    <span>{hasBiometrics ? "Re-enroll Fingerprint" : "Enroll Fingerprint"}</span>
+                  </Button>
+                  {hasBiometrics && (
+                    <button
+                      onClick={() => {
+                        haptics.warning();
+                        setIsConfirmRemoveBioOpen(true);
+                      }}
+                      className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/10 transition-colors"
+                      title="Remove Biometric Credential"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {bioMessage && (
+              <div
+                className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-mono ${
+                  bioMessage.error
+                    ? "bg-red-500/10 border-red-500/30 text-brand-red"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                }`}
+              >
+                {bioMessage.error ? (
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                )}
+                <span>{bioMessage.text}</span>
+              </div>
+            )}
+
+            {/* Autonomous Auto-Lock Controller */}
+            <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-zinc-400 font-mono block mb-0.5 uppercase text-[10px] tracking-wider">
+                  Autonomous Auto-Lock &amp; Inactivity Timeout
+                </span>
+                <p className="text-xs text-zinc-400 font-mono">
+                  Automatically lock Everything OS when the app is backgrounded on mobile or left idle.
+                </p>
+                {autoLockSavedMessage && (
+                  <span className="text-[10px] font-mono text-emerald-400 mt-1 block">
+                    ✓ {autoLockSavedMessage}
+                  </span>
+                )}
+              </div>
+              <div className="w-full sm:w-56 flex-shrink-0">
+                <Select
+                  value={autoLockMinutes.toString()}
+                  onValueChange={handleUpdateAutoLock}
+                >
+                  <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                    <SelectValue placeholder="Select Auto-Lock Timer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">⚡ Immediate (On App Background)</SelectItem>
+                    <SelectItem value="1">⏱️ 1 Minute (Default)</SelectItem>
+                    <SelectItem value="5">⏱️ 5 Minutes</SelectItem>
+                    <SelectItem value="15">⏱️ 15 Minutes</SelectItem>
+                    <SelectItem value="30">⏱️ 30 Minutes</SelectItem>
+                    <SelectItem value="-1">🛡️ Never (Manual Lock Only)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Panic Lock Bar */}
+            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
+              <span className="text-zinc-400 font-mono text-[11px]">
+                Immediate lockdown — close session and require Master PIN / Fingerprint:
+              </span>
+              <Button variant="red" size="sm" onClick={handleLockNow} className="shadow-glow-red">
+                <Lock className="w-3.5 h-3.5 mr-1" />
+                <span>Lock Everything Now</span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 3. Smart Device Alarms & Notifications */}
+      {(activeTab === "all" || activeTab === "alarms") && (
+        <Card glow="red" className="transition-all">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle>Autonomous Hardware Alarms &amp; Notifications</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Native Android AlarmManager scheduling directly on device CPU with zero cloud latency
+                </p>
+              </div>
+            </div>
+            <Badge variant={notificationsEnabled || waterRemindersEnabled ? "red" : "outline"} size="sm">
+              {notificationsEnabled && waterRemindersEnabled
+                ? "9 Alarms Armed"
+                : notificationsEnabled
+                ? "2 Core Alarms Active"
+                : waterRemindersEnabled
+                ? "7 Water Alarms Active"
+                : "All Disabled"}
+            </Badge>
+          </CardHeader>
+
+          <div className="space-y-4 text-xs pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Morning Focus */}
+              <div className="p-3.5 bg-white/[0.02] rounded-2xl border border-white/10 flex flex-col justify-between hover:border-white/20 transition-all">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-brand-red flex-shrink-0">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white font-mono block">Morning Focus (8:00 AM)</span>
+                    <p className="text-zinc-400 text-[11px] mt-0.5 font-mono">
+                      Daily priority call: review tasks, routines, and strategic objectives.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                  <span>Status:</span>
+                  <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                    {notificationsEnabled ? "✓ Armed (8:00 AM)" : "Off"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Streak Defender */}
+              <div className="p-3.5 bg-white/[0.02] rounded-2xl border border-white/10 flex flex-col justify-between hover:border-white/20 transition-all">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red flex-shrink-0">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white font-mono block">Streak Defender (9:00 PM)</span>
+                    <p className="text-zinc-400 text-[11px] mt-0.5 font-mono">
+                      Monk integrity alert: guarantees clean diet and purity streaks stay unbroken.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                  <span>Status:</span>
+                  <span className={notificationsEnabled ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                    {notificationsEnabled ? "✓ Armed (9:00 PM)" : "Off"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Hydration Reminders */}
+              <div className="p-3.5 bg-white/[0.02] rounded-2xl border border-cyan-500/25 flex flex-col justify-between hover:border-cyan-500/40 transition-all">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                    <Droplets className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white font-mono block">Hydration Patrol (Every 2h)</span>
+                    <p className="text-zinc-400 text-[11px] mt-0.5 font-mono">
+                      7 recurring alarms (9 AM – 9 PM) ensuring water intake and +30 XP rewards.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                  <span className={`text-[10px] font-mono font-bold ${waterRemindersEnabled ? "text-cyan-400" : "text-zinc-500"}`}>
+                    {waterRemindersEnabled ? "7 Alarms Armed" : "Disabled"}
+                  </span>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={handleToggleWaterNotifications}
+                    isLoading={waterNotifLoading}
+                    className="text-[10px] h-6 px-2 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                  >
+                    <span>{waterRemindersEnabled ? "Disable" : "Enable 2h"}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {notifMessage && (
+              <div className="p-3 rounded-xl bg-brand-red/10 border border-brand-red/30 text-xs font-mono text-white flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-brand-red flex-shrink-0" />
+                  <span>{notifMessage}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNotifMessage(null)}
+                  className="text-zinc-400 hover:text-white p-0.5 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {!hasExactAlarms && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs font-mono text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span>Exact alarm permission is disabled on your device. Alarms may be delayed by Android Doze mode.</span>
+                </div>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={handleRequestExactAlarms}
+                  className="text-amber-400 border-amber-500/30 text-[11px] self-start sm:self-auto"
+                >
+                  Enable in Settings
+                </Button>
+              </div>
+            )}
+
+            {/* Diagnostic Action Toolbar */}
+            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={handleOpenDiagnostics}
+                  className="text-xs text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+                  title="Inspect real alarms registered in Android AlarmManager"
+                >
+                  <Activity className="w-3.5 h-3.5 text-cyan-400 mr-1 animate-pulse" />
+                  <span>Verify Live Alarms</span>
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={handleTestWaterNotification}
+                  className="text-xs text-cyan-300 border-cyan-500/20 hover:bg-cyan-500/10"
+                >
+                  <Droplets className="w-3.5 h-3.5 mr-1 text-cyan-400" />
+                  <span>Test Water (2s)</span>
+                </Button>
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={handleTestNotification}
+                  className="text-xs"
+                >
+                  <Bell className="w-3.5 h-3.5 mr-1 text-brand-red" />
+                  <span>Test Core (3s)</span>
+                </Button>
+                <Button
+                  variant={notificationsEnabled ? "glass" : "red"}
+                  size="sm"
+                  onClick={handleToggleNotifications}
+                  isLoading={notifLoading}
+                  className="text-xs"
+                >
+                  <span>{notificationsEnabled ? "Disable Core Alarms" : "Enable Core Alarms"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 4. Data Vault, Backup & Fast Setup */}
+      {(activeTab === "all" || activeTab === "vault") && (
+        <Card glow="red" className="transition-all">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400">
+                <Database className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle>Data Vault, Backup &amp; Fast Feeder</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Full cryptographic JSON backups, zero-loss schema restores &amp; unified setup onboarding
+                </p>
+              </div>
+            </div>
+            <Badge variant="outline" size="sm">
+              SHA-256 Tamper-Proof
+            </Badge>
+          </CardHeader>
+
+          <div className="space-y-4 text-xs pt-1">
+            {/* Export Backup Card */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white/[0.02] rounded-2xl border border-white/10 hover:border-brand-red/30 transition-all">
+              <div>
+                <p className="font-semibold text-white flex items-center gap-2">
+                  <Download className="w-4 h-4 text-brand-red" />
+                  <span>Download Cryptographic Backup</span>
+                  <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                    SHA-256 Verified
+                  </span>
+                </p>
+                <p className="text-zinc-400 text-[11px] font-mono mt-1">
+                  Export complete encrypted vault, tasks, habits, finances, cards, and relationship logs. On Android APK, automatically opens native device save/share sheet.
+                </p>
+              </div>
+              <Button
+                variant="red"
+                size="sm"
+                onClick={handleExportBackup}
+                isLoading={exportingBackup}
+                className="shadow-glow-red whitespace-nowrap self-start sm:self-auto"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                <span>Export Full Backup</span>
+              </Button>
+            </div>
+
+            {/* Zero-Loss Restore Card */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white/[0.02] rounded-2xl border border-white/10 hover:border-brand-red/30 transition-all">
+              <div>
+                <p className="font-semibold text-white flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-emerald-400" />
+                  <span>Zero-Loss Atomic Restore</span>
+                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    Dry-Run Verified
+                  </span>
+                </p>
+                <p className="text-zinc-400 text-[11px] font-mono mt-1">
+                  Import a previous Everything OS backup JSON. Atomic database transaction prevents corrupted writes with automated schema preview.
+                </p>
+              </div>
+              <div className="self-start sm:self-auto">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="glass"
+                  size="sm"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="whitespace-nowrap"
+                >
+                  <Upload className="w-3.5 h-3.5 mr-1" />
+                  <span>Select Backup File</span>
+                </Button>
+              </div>
+            </div>
+
+            {restoreMessage && (
+              <div
+                className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-mono ${
+                  restoreMessage.error
+                    ? "bg-red-500/10 border-red-500/30 text-brand-red"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{restoreMessage.text}</span>
+              </div>
+            )}
+
+            {/* Quick Setup Feeder Card */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-brand-red/[0.03] rounded-2xl border border-brand-red/30 shadow-glow-red-subtle">
+              <div>
+                <p className="font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-red" />
+                  <span>Quick Setup &amp; One-Form Feeder</span>
+                  <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                    Fast Onboard
+                  </span>
+                </p>
+                <p className="text-zinc-400 text-[11px] font-mono mt-1">
+                  Feed bank accounts, credit cards, partner preferences, initial tasks, and routines in a single streamlined screen.
+                </p>
+              </div>
+              <Button
+                variant="red"
+                size="sm"
+                onClick={() => {
+                  haptics.selection();
+                  setIsSetupModalOpen(true);
+                }}
+                className="shadow-glow-red whitespace-nowrap self-start sm:self-auto font-bold"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
+                <span>Open Setup Feeder</span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 5. High-Security Danger Zone */}
+      {(activeTab === "all" || activeTab === "danger") && (
+        <Card className="border-red-500/30 bg-gradient-to-b from-red-950/20 via-black to-red-950/15 shadow-[0_0_25px_rgba(239,68,68,0.12)]">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle className="text-red-400">High-Security Quarantine: Danger Zone</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Irreversible destructive operations — requires explicit typed security authorization
+                </p>
+              </div>
+            </div>
+            <Badge variant="red" size="sm" className="bg-red-500 text-white font-bold">
+              HAZARD: DESTRUCTIVE
+            </Badge>
+          </CardHeader>
+
+          <div className="space-y-4 text-xs pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-500/[0.04] rounded-2xl border border-red-500/20">
+              <div>
+                <p className="font-bold text-red-400 flex items-center gap-2 text-sm">
+                  <span>Purge &amp; Wipe All Portal Data</span>
+                </p>
+                <p className="text-zinc-400 text-[11px] font-mono mt-1 leading-relaxed">
+                  Permanently wipe all tasks, routines, habit history, credit cards, bank accounts, partner details, and monk discipline XP. This action <strong className="text-white">CANNOT</strong> be undone.
+                </p>
+              </div>
+              <Button
+                variant="red"
+                size="sm"
+                onClick={() => {
+                  haptics.warning();
+                  setIsConfirmWipeOpen(true);
+                }}
+                isLoading={clearing}
+                className="whitespace-nowrap bg-red-600 hover:bg-red-700 shadow-glow-red self-start sm:self-auto"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                <span>Wipe All Data</span>
+              </Button>
+            </div>
+
+            {clearSuccess && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center justify-center gap-2 text-xs text-brand-red font-mono">
+                <CheckCircle2 className="w-4 h-4 text-brand-red" />
+                <span>All portal data has been completely wiped clean!</span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Unified One-Form Setup Modal */}
       <Modal
