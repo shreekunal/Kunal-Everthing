@@ -307,14 +307,29 @@ export default function RelationshipPage() {
           </p>
         </div>
 
-        <Button
-          variant="glass"
-          size="sm"
-          onClick={() => setIsEditProfileOpen(true)}
-        >
-          <Edit2 className="w-3.5 h-3.5 text-brand-red" />
-          <span>Edit Partner Profile</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              haptics.impactMedium();
+              window.dispatchEvent(new CustomEvent("open-partner-radial"));
+            }}
+            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 border-rose-400/30 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1" />
+            <span>⚡ Radial Wish Wheel</span>
+          </Button>
+
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => setIsEditProfileOpen(true)}
+          >
+            <Edit2 className="w-3.5 h-3.5 text-brand-red" />
+            <span>Edit Profile</span>
+          </Button>
+        </div>
       </div>
 
       {/* Partner Banner Glass Card */}

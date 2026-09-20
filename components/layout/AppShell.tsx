@@ -7,6 +7,7 @@ import { BottomNav } from "./BottomNav";
 import { QuickAddModal } from "../quick-add/QuickAddModal";
 import { CommandPalette } from "../search/CommandPalette";
 import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
+import { PartnerRadialWheel } from "../relationship/PartnerRadialWheel";
 import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
@@ -23,6 +24,7 @@ export function AppShell({ children }: AppShellProps) {
   const [quickAddInitialTab, setQuickAddInitialTab] = useState<any>("task");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
+  const [isPartnerRadialOpen, setIsPartnerRadialOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
   const [exitToast, setExitToast] = useState<string | null>(null);
@@ -94,9 +96,12 @@ export function AppShell({ children }: AppShellProps) {
       .catch(() => {});
 
     const handleOpenProfileSwitcher = () => setIsProfileSwitcherOpen(true);
+    const handleOpenPartnerRadial = () => setIsPartnerRadialOpen(true);
     window.addEventListener("open-profile-switcher", handleOpenProfileSwitcher);
+    window.addEventListener("open-partner-radial", handleOpenPartnerRadial);
     return () => {
       window.removeEventListener("open-profile-switcher", handleOpenProfileSwitcher);
+      window.removeEventListener("open-partner-radial", handleOpenPartnerRadial);
     };
   }, []);
 
@@ -204,6 +209,13 @@ export function AppShell({ children }: AppShellProps) {
       <BottomNav
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         onOpenProfileSwitcher={() => setIsProfileSwitcherOpen(true)}
+        onOpenPartnerRadial={() => setIsPartnerRadialOpen(true)}
+      />
+
+      {/* Global Partner Message Radial Wheel */}
+      <PartnerRadialWheel
+        isOpen={isPartnerRadialOpen}
+        onClose={() => setIsPartnerRadialOpen(false)}
       />
 
       {/* Global Command Palette (Cmd + K / Mobile Search) */}

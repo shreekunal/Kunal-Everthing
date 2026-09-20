@@ -26,9 +26,14 @@ import { ProfileAvatar } from "../ui/ProfileAvatar";
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
   onOpenProfileSwitcher?: () => void;
+  onOpenPartnerRadial?: () => void;
 }
 
-export function BottomNav({ onOpenQuickAdd, onOpenProfileSwitcher }: BottomNavProps) {
+export function BottomNav({
+  onOpenQuickAdd,
+  onOpenProfileSwitcher,
+  onOpenPartnerRadial,
+}: BottomNavProps) {
   const pathname = usePathname();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -242,25 +247,50 @@ export function BottomNav({ onOpenQuickAdd, onOpenProfileSwitcher }: BottomNavPr
             </button>
           </div>
 
-          {/* 4. Relationship Hub */}
-          <Link
-            href="/relationship"
-            prefetch={true}
-            aria-label="Relationship"
-            onClick={() => {
-              haptics.selection();
+          {/* 4. Relationship Hub / Partner Radial Bloom */}
+          <button
+            type="button"
+            aria-label="Partner Quick Messages"
+            onClick={(e) => {
+              e.preventDefault();
+              haptics.impactMedium();
               if (isDrawerOpen) setIsDrawerOpen(false);
+              if (onOpenPartnerRadial) {
+                onOpenPartnerRadial();
+              } else {
+                window.dispatchEvent(new CustomEvent("open-partner-radial"));
+              }
+            }}
+            onContextMenu={(e) => {
+              // Long press: navigate directly to /relationship
+              e.preventDefault();
+              haptics.selection();
+              window.location.href = "/relationship";
             }}
             className={clsx(
               "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
-              pathname === "/relationship" ? "text-brand-red" : "text-zinc-400 hover:text-white"
+              pathname === "/relationship" ? "text-rose-400" : "text-zinc-400 hover:text-white"
             )}
           >
-            <div className={clsx("p-1.5 rounded-xl transition-all", pathname === "/relationship" && "bg-brand-red/15")}>
-              <Heart className="w-5 h-5" />
+            <div
+              className={clsx(
+                "p-1.5 rounded-xl transition-all",
+                pathname === "/relationship"
+                  ? "bg-rose-500/15 text-rose-400"
+                  : "group-hover:text-rose-400"
+              )}
+            >
+              <Heart className="w-5 h-5 fill-rose-500/20" />
             </div>
-            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/relationship" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
-          </Link>
+            <span
+              className={clsx(
+                "w-1 h-1 rounded-full mt-0.5 transition-all",
+                pathname === "/relationship"
+                  ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
+                  : "bg-transparent opacity-0"
+              )}
+            />
+          </button>
 
           {/* 5. More Button (Toggles extending the menu up) */}
           <button
