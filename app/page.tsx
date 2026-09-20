@@ -323,86 +323,123 @@ export default function DashboardPage() {
           );
         })()}
 
-      {/* 4 Hero Glass Metric Cards */}
+      {/* 4 Hero Glass Metric Cards - All Navigatable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Net Worth */}
-        <Card glow="red" className="relative overflow-hidden group">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-            <span>Net Worth</span>
-            <Wallet className="w-4 h-4 text-red-400" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
-            {formatINR(financials?.netWorth || 0)}
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
-            <span className="text-zinc-500">Assets: {formatINR(financials?.totalAssets || 0)}</span>
-            <Link
-              href="/money"
-              className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
-            >
-              Details <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </Card>
-
-        {/* Daily Hydration KPI */}
-        <Card glow="cyan" className="relative overflow-hidden group border-cyan-500/20">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-            <span>Hydration Today</span>
-            <Droplets className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-cyan-400 font-mono flex items-baseline gap-1.5">
-            <span>{waterGlasses}</span>
-            <span className="text-xs text-zinc-400 font-normal">/ {waterTarget} Glasses</span>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
-            {waterGlasses >= waterTarget ? (
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
-                Goal Met (+30 XP)
+        {/* 1. Net Worth -> /money */}
+        <Link
+          href="/money"
+          onClick={() => haptics.selection()}
+          className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
+        >
+          <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full">
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
+              <span className="group-hover:text-white transition-colors">Net Worth</span>
+              <Wallet className="w-4 h-4 text-red-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
+              {formatINR(financials?.netWorth || 0)}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
+              <span className="text-zinc-500">Assets: {formatINR(financials?.totalAssets || 0)}</span>
+              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Details <ArrowRight className="w-3 h-3" />
               </span>
-            ) : (
-              <span className="text-zinc-400 font-semibold">
-                {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
+            </div>
+          </Card>
+        </Link>
+
+        {/* 2. Daily Hydration KPI -> Scrolls to Hydration Tracker */}
+        <div
+          onClick={() => {
+            haptics.impactLight();
+            const el = document.getElementById("hydration-tracker");
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              el.classList.add("ring-2", "ring-cyan-400", "shadow-[0_0_20px_rgba(6,182,212,0.4)]");
+              setTimeout(() => {
+                el.classList.remove("ring-2", "ring-cyan-400", "shadow-[0_0_20px_rgba(6,182,212,0.4)]");
+              }, 2000);
+            }
+          }}
+          className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
+        >
+          <Card glow="cyan" className="relative overflow-hidden group border-cyan-500/20 hover:border-cyan-400/50 transition-all h-full">
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
+              <span className="group-hover:text-cyan-300 transition-colors">Hydration Today</span>
+              <Droplets className="w-4 h-4 text-cyan-400 fill-cyan-400/20 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-cyan-400 font-mono flex items-baseline gap-1.5">
+              <span>{waterGlasses}</span>
+              <span className="text-xs text-zinc-400 font-normal">/ {waterTarget} Glasses</span>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
+              {waterGlasses >= waterTarget ? (
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
+                  Goal Met (+30 XP)
+                </span>
+              ) : (
+                <span className="text-zinc-400 font-semibold">
+                  {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
+                </span>
+              )}
+              <span className="text-cyan-400 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                <span>{waterGlasses * 250} ml</span>
+                <ArrowRight className="w-3 h-3 text-cyan-400" />
               </span>
-            )}
-            <span className="text-cyan-400 font-bold">{waterGlasses * 250} ml</span>
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </div>
 
-        {/* Work & Study */}
-        <Card glow="red" className="relative overflow-hidden group">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-            <span>Deep Work (Week)</span>
-            <Clock className="w-4 h-4 text-white" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
-            {formatDuration(
-              (weeklySummary?.workMinutes || 0) + (weeklySummary?.studyMinutes || 0)
-            )}
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-            <span>Work: {formatDuration(weeklySummary?.workMinutes || 0)}</span>
-            <span>Study: {formatDuration(weeklySummary?.studyMinutes || 0)}</span>
-          </div>
-        </Card>
+        {/* 3. Work & Study -> /progress */}
+        <Link
+          href="/progress"
+          onClick={() => haptics.selection()}
+          className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
+        >
+          <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full">
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
+              <span className="group-hover:text-white transition-colors">Deep Work (Week)</span>
+              <Clock className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
+              {formatDuration(
+                (weeklySummary?.workMinutes || 0) + (weeklySummary?.studyMinutes || 0)
+              )}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <span>Work: {formatDuration(weeklySummary?.workMinutes || 0)}</span>
+              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Focus <ArrowRight className="w-3 h-3" />
+              </span>
+            </div>
+          </Card>
+        </Link>
 
-        {/* Consistency */}
-        <Card glow="red" className="relative overflow-hidden group">
-          <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-            <span>Habit Streak</span>
-            <Flame className="w-4 h-4 text-red-400 fill-red-400" />
-          </div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
-            {weeklySummary?.routineCompletionRate || 0}%
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-            <span>
-              Tasks: {weeklySummary?.tasksCompleted || 0}/{weeklySummary?.tasksTotal || 0}
-            </span>
-            <span className="text-red-400 font-bold">Active 🔥</span>
-          </div>
-        </Card>
+        {/* 4. Consistency -> /routines */}
+        <Link
+          href="/routines"
+          onClick={() => haptics.selection()}
+          className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
+        >
+          <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full">
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
+              <span className="group-hover:text-white transition-colors">Habit Streak</span>
+              <Flame className="w-4 h-4 text-red-400 fill-red-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
+              {weeklySummary?.routineCompletionRate || 0}%
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <span>
+                Tasks: {weeklySummary?.tasksCompleted || 0}/{weeklySummary?.tasksTotal || 0}
+              </span>
+              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                Matrix <ArrowRight className="w-3 h-3" />
+              </span>
+            </div>
+          </Card>
+        </Link>
       </div>
 
       {/* Discipline Karma & Streaks Live Bar */}
@@ -498,23 +535,31 @@ export default function DashboardPage() {
 
           {/* Middle Row: Sleek 4-Pill Telemetry Dock (2x2 Grid with Centered Text) */}
           <div className="grid grid-cols-2 gap-2.5 pt-3">
-            {/* Row 1, Col 1: Purity Streak */}
-            <div className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-center gap-1.5 font-mono">
+            {/* Row 1, Col 1: Purity Streak -> /rewards */}
+            <Link
+              href="/rewards"
+              onClick={() => haptics.selection()}
+              className="px-3 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-brand-red/40 flex items-center justify-center text-center gap-1.5 font-mono cursor-pointer active:scale-95 transition-all group"
+            >
               <ShieldCheck className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
-              <span className="text-xs font-bold text-white">
+              <span className="text-xs font-bold text-white group-hover:text-brand-red transition-colors">
                 {discipline.streaks?.purity?.currentStreak || 0}d
               </span>
               <span className="text-[10px] text-zinc-400">Purity</span>
-            </div>
+            </Link>
 
-            {/* Row 1, Col 2: Diet Streak */}
-            <div className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-center gap-1.5 font-mono">
+            {/* Row 1, Col 2: Diet Streak -> /routines */}
+            <Link
+              href="/routines"
+              onClick={() => haptics.selection()}
+              className="px-3 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-emerald-500/40 flex items-center justify-center text-center gap-1.5 font-mono cursor-pointer active:scale-95 transition-all group"
+            >
               <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-              <span className="text-xs font-bold text-white">
+              <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
                 {discipline.streaks?.diet?.currentStreak || 0}d
               </span>
               <span className="text-[10px] text-zinc-400">Diet</span>
-            </div>
+            </Link>
 
             {/* Row 2, Col 1: Relapse Deduction Button (below Purity) */}
             <button
@@ -542,21 +587,28 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Bottom Micro Progress Line */}
-          <div className="mt-3 pt-2.5 border-t border-white/5 space-y-1">
-            <div className="flex justify-between items-center text-[10px] font-mono text-zinc-500">
-              <span>Next Level Progress</span>
+          {/* Bottom Micro Progress Line -> /rewards */}
+          <Link
+            href="/rewards"
+            onClick={() => haptics.selection()}
+            className="mt-3 pt-2.5 border-t border-white/5 space-y-1 block group cursor-pointer"
+          >
+            <div className="flex justify-between items-center text-[10px] font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors">
+              <span className="group-hover:text-brand-red transition-colors flex items-center gap-1">
+                <span>Next Level Progress</span>
+                <ArrowRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </span>
               <span>
                 <strong className="text-zinc-300">{discipline.currentLevelXP || discipline.totalXP}</strong> / {discipline.nextLevelXP} XP ({discipline.progressPercent}%)
               </span>
             </div>
-            <div className="w-full h-1.5 bg-white/5 border border-white/10 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-white/5 border border-white/10 group-hover:border-brand-red/30 rounded-full overflow-hidden transition-colors">
               <div
                 className="h-full bg-gradient-to-r from-red-600 to-brand-red rounded-full transition-all duration-500 shadow-glow-red"
                 style={{ width: `${Math.max(5, discipline.progressPercent)}%` }}
               />
             </div>
-          </div>
+          </Link>
         </Card>
       ) : loading ? (
         /* Smooth Companion & XP Mode Loading Phase Skeleton */
@@ -625,10 +677,17 @@ export default function DashboardPage() {
           {/* Today's Tasks */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
+              <Link
+                href="/tasks"
+                onClick={() => haptics.selection()}
+                className="flex items-center gap-2 group cursor-pointer"
+              >
                 <CheckSquare className="w-4 h-4 text-red-400" />
-                <CardTitle>Today&apos;s Priorities</CardTitle>
-              </div>
+                <CardTitle className="group-hover:text-brand-red transition-colors flex items-center gap-1.5">
+                  <span>Today&apos;s Priorities</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
+                </CardTitle>
+              </Link>
               <Link
                 href="/tasks"
                 className="text-xs text-zinc-400 hover:text-white transition-colors font-mono"
@@ -719,10 +778,17 @@ export default function DashboardPage() {
           {/* Daily Routines */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
+              <Link
+                href="/routines"
+                onClick={() => haptics.selection()}
+                className="flex items-center gap-2 group cursor-pointer"
+              >
                 <Flame className="w-4 h-4 text-red-400 fill-red-400" />
-                <CardTitle>Daily Habits & Streaks</CardTitle>
-              </div>
+                <CardTitle className="group-hover:text-brand-red transition-colors flex items-center gap-1.5">
+                  <span>Daily Habits &amp; Streaks</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
+                </CardTitle>
+              </Link>
               <Link
                 href="/routines"
                 className="text-xs text-zinc-400 hover:text-white transition-colors font-mono"
@@ -775,7 +841,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Col: Hydration Tracker */}
-        <div className="space-y-6">
+        <div id="hydration-tracker" className="space-y-6 rounded-2xl transition-all duration-300">
           {/* Water & Hydration Tracker with 2h Alarms */}
           <WaterTrackerCard />
         </div>

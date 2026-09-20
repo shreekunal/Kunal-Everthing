@@ -46,6 +46,9 @@ import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { autoLock } from "@/lib/autoLock";
 import { haptics } from "@/lib/haptics";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import {
   scheduleCoreDailyNotifications,
   cancelCoreNotifications,
@@ -464,20 +467,80 @@ export default function SettingsPage() {
 
   const handleExportBackup = async () => {
     setExportingBackup(true);
+    setRestoreMessage(null);
     haptics.selection();
     try {
       const res = await fetch("/api/backup?download=true");
       if (!res.ok) throw new Error("Failed to generate backup");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `kunal-os-backup-${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      haptics.success();
+      const text = await res.text();
+      const fileName = `kunal-os-backup-${new Date().toISOString().split("T")[0]}.json`;
+
+      if (Capacitor.isNativePlatform()) {
+        // Native Android APK export using Capacitor Filesystem & Share
+        let fileResult;
+        try {
+          fileResult = await Filesystem.writeFile({
+            path: fileName,
+            data: text,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+          });
+        } catch {
+          fileResult = await Filesystem.writeFile({
+            path: fileName,
+            data: text,
+            directory: Directory.Cache,
+            encoding: Encoding.UTF8,
+          });
+        }
+
+        haptics.success();
+
+        // Open Android Native Share / Save Sheet (Save to Downloads, Drive, Files, etc.)
+        try {
+          const canShare = await Share.canShare();
+          if (canShare.value) {
+            await Share.share({
+              title: "Everything OS Backup",
+              text: `Cryptographic backup file: ${fileName}`,
+              url: fileResult.uri,
+              dialogTitle: "Save Everything OS Backup",
+            });
+          } else {
+            setRestoreMessage({
+              text: `✓ Backup successfully saved to Documents: ${fileName}`,
+              error: false,
+            });
+          }
+        } catch (shareErr: any) {
+          // If user dismisses share dialog, file is still safely saved
+          setRestoreMessage({
+            text: `✓ Backup file saved to device: ${fileName}`,
+            error: false,
+          });
+        }
+      } else {
+        // Standard Web browser download
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        haptics.success();
+        setRestoreMessage({
+          text: `✓ Backup downloaded: ${fileName}`,
+          error: false,
+        });
+      }
     } catch (err: any) {
-      alert(err.message || "Failed to download backup");
+      console.error("Backup export failed:", err);
+      setRestoreMessage({
+        text: err.message || "Failed to download backup",
+        error: true,
+      });
+      haptics.warning();
     } finally {
       setExportingBackup(false);
     }
