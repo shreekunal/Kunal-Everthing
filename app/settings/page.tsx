@@ -1141,9 +1141,6 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <Badge variant="red" size="sm" className="bg-red-500 text-white font-bold">
-              HAZARD: DESTRUCTIVE
-            </Badge>
           </CardHeader>
 
           <div className="space-y-4 text-xs pt-1">

@@ -22,6 +22,7 @@ import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
 import { ProfileAvatar } from "../ui/ProfileAvatar";
+import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 
 interface BottomNavProps {
   onOpenQuickAdd: () => void;
