@@ -173,8 +173,8 @@ export function BottomNav({
   };
 
   const extendedNav = [
+    { name: "Partner", href: "/partner", icon: Heart },
     { name: "Money", href: "/money", icon: Wallet },
-    { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Habits", href: "/routines", icon: Flame },
     { name: "Focus", href: "/progress", icon: BarChart3 },
     { name: "Discipline", href: "/rewards", icon: Trophy },

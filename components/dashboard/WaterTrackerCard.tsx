@@ -212,6 +212,13 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
       window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
 
+    // Sync to database for partner visibility
+    fetch("/api/water", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: val, target: targetGlasses }),
+    }).catch(() => {});
+
     const wasAchieved = prevCount >= targetGlasses;
     const isNowAchieved = val >= targetGlasses;
 
@@ -234,6 +241,11 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
       localStorage.setItem(storageTargetKey, val.toString());
       window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
+    fetch("/api/water", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: drankGlasses, target: val }),
+    }).catch(() => {});
     haptics.impactLight();
   };
 

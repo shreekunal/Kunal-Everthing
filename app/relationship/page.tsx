@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -335,6 +336,14 @@ export default function RelationshipPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/partner"
+            onClick={() => haptics.selection()}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500/20 to-pink-500/20 hover:from-rose-500/30 hover:to-pink-500/30 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+            <span>Partner Progress</span>
+          </Link>
           <Button
             variant="glass"
             size="sm"
@@ -345,6 +354,38 @@ export default function RelationshipPage() {
           </Button>
         </div>
       </div>
+
+      {/* Live Partner Progress Link Strip */}
+      <Link
+        href="/partner"
+        onClick={() => haptics.selection()}
+        className="block group"
+      >
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-950/30 via-zinc-950 to-black border border-rose-500/30 hover:border-rose-400/60 shadow-[0_0_20px_rgba(244,63,94,0.12)] flex items-center justify-between transition-all group-hover:scale-[1.005]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-rose-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white group-hover:text-rose-300 transition-colors truncate">
+                  {partnerNicknameDisplay}&apos;s Live Progress
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold flex-shrink-0">
+                  Live Stream
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 font-mono mt-0.5 truncate">
+                Water count, focus time, pending tasks, habits &amp; discipline companion
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-mono font-bold text-rose-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0 ml-2">
+            <span className="hidden sm:inline">View Progress</span>
+            <span>→</span>
+          </div>
+        </div>
+      </Link>
 
       {/* Partner Banner Glass Card */}
       {loading && !data ? (

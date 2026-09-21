@@ -51,9 +51,7 @@ export function AppShell({ children }: AppShellProps) {
 
     // Register Service Worker for offline app shell caching and ultra-fast boot
     if ("serviceWorker" in navigator) {
-      const isProduction =
-        process.env.NODE_ENV === "production" ||
-        window.location.hostname !== "localhost";
+      const isProduction = process.env.NODE_ENV === "production";
 
       if (isProduction) {
         navigator.serviceWorker
@@ -76,6 +74,13 @@ export function AppShell({ children }: AppShellProps) {
           .catch((err) => {
             console.warn("[SW] Registration error:", err);
           });
+      } else {
+        // In development mode, unregister any existing service worker to prevent stale SSR cache & hydration mismatches
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        });
       }
     }
 
