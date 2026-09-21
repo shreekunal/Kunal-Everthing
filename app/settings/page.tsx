@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { InputDate } from "@/components/ui/InputDate";
 import {
   Settings,
   Shield,
@@ -24,11 +23,6 @@ import {
   Clock,
   Sparkles,
   Layers,
-  Wallet,
-  CreditCard as CreditCardIcon,
-  Heart,
-  CheckSquare,
-  Users,
   Upload,
   FileCheck,
   Droplets,
@@ -126,7 +120,6 @@ export default function SettingsPage() {
 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
-  const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
 
   // Auto-Lock State
   const [autoLockMinutes, setAutoLockMinutes] = useState<number>(1);
@@ -157,7 +150,6 @@ export default function SettingsPage() {
           setHasBiometrics(!!data.hasBiometrics);
           if (data.userId) setCurrentUserId(data.userId);
           if (data.userName) setCurrentUserName(data.userName);
-          if (data.profiles) setAvailableProfiles(data.profiles);
         }
 
         const setRes = await fetch("/api/settings");
