@@ -353,6 +353,20 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
     bestStreak: 0,
   };
 
+  const todayStr = format(now, "yyyy-MM-dd");
+  const hasPurityCheckedIn = todayLogs.some(
+    (l: any) =>
+      l.type === "CHECKIN_PURITY" ||
+      l.type === "REWARD_DAILY_CHECKIN" ||
+      l.referenceId === `purity_${todayStr}`
+  );
+  const hasDietCheckedIn = todayLogs.some(
+    (l: any) =>
+      l.type === "CHECKIN_DIET" ||
+      l.type === "REWARD_DAILY_CHECKIN" ||
+      l.referenceId === `diet_${todayStr}`
+  );
+
   return {
     totalXP: monthlyXP,
     lifetimeXP,
@@ -367,6 +381,10 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
     streaks: {
       purity: purityStreak,
       diet: dietStreak,
+    },
+    todayCheckins: {
+      purity: hasPurityCheckedIn,
+      diet: hasDietCheckedIn,
     },
     recentLogs,
     rewardItems: rewardItems || [],

@@ -92,7 +92,91 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 5. Evening Monk Bedtime Reflection Check-in
+    // 5a. Direct Daily Monk Purity Check-in (+25 XP)
+    if (action === "CHECKIN_PURITY") {
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      const referenceId = `purity_${todayKey}`;
+
+      const existing = await prisma.rewardLog.findFirst({
+        where: {
+          userId: user.id,
+          OR: [
+            { referenceId },
+            { type: "CHECKIN_PURITY", createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+          ],
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          alreadyCompleted: true,
+          message: "You have already verified today's monk purity!",
+        });
+      }
+
+      const pointsToAward = points || 25;
+      const log = await awardPoints({
+        userId: user.id,
+        points: pointsToAward,
+        type: "CHECKIN_PURITY",
+        title: "🛡️ Monk Purity Verified",
+        reason: notes || "Preserved monk discipline and purity today.",
+        category: "DISCIPLINE",
+        referenceId,
+      });
+
+      return NextResponse.json({
+        success: true,
+        points: pointsToAward,
+        message: `+${pointsToAward} XP • Monk Purity Verified!`,
+        log,
+      });
+    }
+
+    // 5b. Direct Daily Clean Diet Check-in (+25 XP)
+    if (action === "CHECKIN_DIET") {
+      const todayKey = format(new Date(), "yyyy-MM-dd");
+      const referenceId = `diet_${todayKey}`;
+
+      const existing = await prisma.rewardLog.findFirst({
+        where: {
+          userId: user.id,
+          OR: [
+            { referenceId },
+            { type: "CHECKIN_DIET", createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+          ],
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          alreadyCompleted: true,
+          message: "You have already verified today's clean diet!",
+        });
+      }
+
+      const pointsToAward = points || 25;
+      const log = await awardPoints({
+        userId: user.id,
+        points: pointsToAward,
+        type: "CHECKIN_DIET",
+        title: "🥗 Clean Nutrition Verified",
+        reason: notes || "Maintained clean, nutritious diet today.",
+        category: "HEALTH",
+        referenceId,
+      });
+
+      return NextResponse.json({
+        success: true,
+        points: pointsToAward,
+        message: `+${pointsToAward} XP • Clean Diet Verified!`,
+        log,
+      });
+    }
+
+    // 5c. Evening Monk Bedtime Reflection Check-in
     if (action === "EVENING_CHECKIN") {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);

@@ -27,14 +27,12 @@ import {
   Sparkles,
   Droplets,
   Crown,
-  Moon,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
 import clsx from "clsx";
 import { haptics } from "@/lib/haptics";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
-import { EveningCheckinModal } from "@/components/discipline/EveningCheckinModal";
 import { PixelPet } from "@/components/discipline/PixelPet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
@@ -46,7 +44,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
   const [cacheTime, setCacheTime] = useState<string | null>(null);
-  const [isEveningCheckinOpen, setIsEveningCheckinOpen] = useState(false);
+  const [isCheckingIn, setIsCheckingIn] = useState<string | null>(null);
+  const [checkinFeedback, setCheckinFeedback] = useState<string | null>(null);
   const [confirmDeductType, setConfirmDeductType] = useState<"UNHEALTHY_FOOD" | "FAP" | null>(null);
   const [isDeducting, setIsDeducting] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
@@ -98,21 +97,17 @@ export default function DashboardPage() {
     }
   };
 
-  // Back Button integration: close open modal or dialog first
+  // Back Button integration: close open dialog first
   useEffect(() => {
-    if (!isEveningCheckinOpen && !confirmDeductType) return;
+    if (!confirmDeductType) return;
     return backButton.register(() => {
-      if (isEveningCheckinOpen) {
-        setIsEveningCheckinOpen(false);
-        return true;
-      }
       if (confirmDeductType) {
         setConfirmDeductType(null);
         return true;
       }
       return false;
     });
-  }, [isEveningCheckinOpen, confirmDeductType]);
+  }, [confirmDeductType]);
 
   useEffect(() => {
     // 1. Instant Cache Hydration: Render Pet, XP, and stats immediately (0ms)
@@ -234,30 +229,112 @@ export default function DashboardPage() {
     }
   };
 
-  const getGreeting = () => {
+  const handleDailyCheckin = async (type: "PURITY" | "DIET") => {
+    if (isCheckingIn) return;
+    const isPurity = type === "PURITY";
+    const alreadyDone = isPurity
+      ? discipline?.todayCheckins?.purity
+      : discipline?.todayCheckins?.diet;
+
+    if (alreadyDone) {
+      haptics.impactLight();
+      setCheckinFeedback(
+        isPurity
+          ? "Monk Purity already verified today! 🛡️"
+          : "Clean Diet already logged today! 🥗"
+      );
+      setTimeout(() => setCheckinFeedback(null), 3000);
+      return;
+    }
+
+    setIsCheckingIn(type);
+    haptics.success();
+
+    // Optimistic UI update
+    setData((prev: any) => {
+      if (!prev || !prev.discipline) return prev;
+      const curPurity = prev.discipline.streaks?.purity?.currentStreak || 0;
+      const curDiet = prev.discipline.streaks?.diet?.currentStreak || 0;
+      return {
+        ...prev,
+        discipline: {
+          ...prev.discipline,
+          totalXP: (prev.discipline.totalXP || 0) + 25,
+          monthlyXP: (prev.discipline.monthlyXP || 0) + 25,
+          todayEarned: (prev.discipline.todayEarned || 0) + 25,
+          todayCheckins: {
+            ...prev.discipline.todayCheckins,
+            [isPurity ? "purity" : "diet"]: true,
+          },
+          streaks: {
+            ...prev.discipline.streaks,
+            purity: {
+              ...prev.discipline.streaks?.purity,
+              currentStreak: isPurity ? curPurity + 1 : curPurity,
+            },
+            diet: {
+              ...prev.discipline.streaks?.diet,
+              currentStreak: !isPurity ? curDiet + 1 : curDiet,
+            },
+          },
+        },
+      };
+    });
+
+    try {
+      const res = await fetch("/api/rewards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: isPurity ? "CHECKIN_PURITY" : "CHECKIN_DIET",
+          points: 25,
+        }),
+      });
+      const resJson = await res.json();
+      if (resJson?.message) {
+        setCheckinFeedback(resJson.message);
+        setTimeout(() => setCheckinFeedback(null), 3500);
+      }
+      fetchDashboardData();
+    } catch (err) {
+      console.error("Daily checkin error:", err);
+    } finally {
+      setIsCheckingIn(null);
+    }
+  };
+
+  const currentUserName =
+    data?.user?.name ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("kunal_os_current_user_name")
+      : null) ||
+    "Warrior";
+
+  const getGreeting = (name: string) => {
+    const firstName = name.trim().split(" ")[0] || "Warrior";
     const hour = new Date().getHours();
     if (hour >= 5 && hour < 12)
       return {
-        title: "Morning Focus, Kunal",
+        title: `Morning Focus, ${firstName}`,
         sub: "Start strong with your primary objectives and deep work protocols.",
       };
     if (hour >= 12 && hour < 17)
       return {
-        title: "Afternoon Momentum, Kunal",
+        title: `Afternoon Momentum, ${firstName}`,
         sub: "Maintain operational cadence, hydrate, and eliminate distractions.",
       };
     if (hour >= 17 && hour < 22)
       return {
-        title: "Evening Discipline, Kunal",
+        title: `Evening Discipline, ${firstName}`,
         sub: "Review your accomplishments, close remaining loops, and prepare for rest.",
       };
     return {
-      title: "Night Vigil, Kunal",
+      title: `Night Vigil, ${firstName}`,
       sub: "Guard your peace, practice restorative gratitude, and recover for tomorrow.",
     };
   };
 
-  const greeting = getGreeting();
+  const greeting = getGreeting(currentUserName);
 
   const { todayTasks, routines, financials, weeklySummary, upcomingDues, discipline } =
     data || {};
@@ -353,9 +430,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] font-mono">
               <span className="text-zinc-500">Assets: {formatINR(financials?.totalAssets || 0)}</span>
-              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Details <ArrowRight className="w-3 h-3" />
-              </span>
+              <span className="text-zinc-500">Liab: {formatINR(financials?.totalLiabilities || 0)}</span>
             </div>
           </Card>
         </Link>
@@ -395,9 +470,8 @@ export default function DashboardPage() {
                   {Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100))}% Goal
                 </span>
               )}
-              <span className="text-cyan-400 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                <span>{waterGlasses * 250} ml</span>
-                <ArrowRight className="w-3 h-3 text-cyan-400" />
+              <span className="text-cyan-400 font-bold font-mono">
+                {waterGlasses * 250} ml
               </span>
             </div>
           </Card>
@@ -418,10 +492,8 @@ export default function DashboardPage() {
               {formatDuration(weeklySummary?.studyMinutes || 0)}
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <span>Deep Work: {formatDuration(weeklySummary?.workMinutes || 0)}</span>
               <span>Study: {formatDuration(weeklySummary?.studyMinutes || 0)}</span>
-              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Analytics <ArrowRight className="w-3 h-3" />
-              </span>
             </div>
           </Card>
         </Link>
@@ -444,8 +516,8 @@ export default function DashboardPage() {
               <span>
                 Tasks: {weeklySummary?.tasksCompleted || 0}/{weeklySummary?.tasksTotal || 0}
               </span>
-              <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Matrix <ArrowRight className="w-3 h-3" />
+              <span className="text-zinc-400">
+                Rate: {weeklySummary?.routineCompletionRate || 0}%
               </span>
             </div>
           </Card>
@@ -465,57 +537,52 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Header: Multi-Row Responsive Layout */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
-            {/* Row 1: Title, Icon & Level Badge */}
-            <div className="flex items-center justify-between sm:justify-start gap-2.5">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red">
-                  <Crown className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black text-white uppercase font-mono tracking-wider">
-                    Companion &amp; Karma
-                  </h3>
-                </div>
+          {/* Header: Direct Link to /rewards */}
+          <Link
+            href="/rewards"
+            onClick={() => haptics.selection()}
+            className="group flex items-center justify-between pb-3 border-b border-white/[0.08] hover:border-brand-red/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red group-hover:scale-105 transition-transform">
+                <Crown className="w-4 h-4" />
               </div>
-
-              <div className="flex items-center gap-1.5">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white"}`}>
-                  {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
-                </span>
-                {discipline.season && (
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    • {discipline.season.name}
-                  </span>
-                )}
+              <div>
+                <h3 className="text-xs font-black text-white uppercase font-mono tracking-wider group-hover:text-brand-red transition-colors flex items-center gap-1.5">
+                  Companion &amp; Karma
+                  <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
+                </h3>
               </div>
             </div>
 
-            {/* Row 2: Action CTAs (Bedtime & Rewards) */}
-            <div className="flex items-center gap-2 font-mono text-xs w-full sm:w-auto">
+            <div className="flex items-center gap-1.5">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white"}`}>
+                {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
+              </span>
+              {discipline.season && (
+                <span className="text-[10px] text-zinc-400 font-mono hidden sm:inline">
+                  • {discipline.season.name}
+                </span>
+              )}
+            </div>
+          </Link>
+
+          {/* Checkin Feedback Banner */}
+          {checkinFeedback && (
+            <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-between text-xs font-mono text-zinc-200 animate-in fade-in duration-200">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand-red animate-pulse" />
+                {checkinFeedback}
+              </span>
               <button
                 type="button"
-                onClick={() => {
-                  haptics.impactMedium();
-                  setIsEveningCheckinOpen(true);
-                }}
-                className="flex-1 sm:flex-none justify-center px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-brand-red/20 border border-white/10 hover:border-brand-red/40 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"
+                onClick={() => setCheckinFeedback(null)}
+                className="text-zinc-500 hover:text-zinc-300 text-xs ml-2"
               >
-                <Moon className="w-3.5 h-3.5 text-brand-red" />
-                <span>Bedtime Check-in</span>
+                ✕
               </button>
-              <Link
-                href="/rewards"
-                onClick={() => haptics.selection()}
-                className="flex-1 sm:flex-none justify-center px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 group"
-              >
-                <Trophy className="w-3.5 h-3.5 text-yellow-400" />
-                <span>Rewards Hub</span>
-                <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
-              </Link>
             </div>
-          </div>
+          )}
 
           {/* Center Compact Deck: Interactive Pet + XP Telemetry */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 py-3">
@@ -528,6 +595,7 @@ export default function DashboardPage() {
                 purityStreak={discipline.streaks?.purity?.currentStreak || 0}
                 dietStreak={discipline.streaks?.diet?.currentStreak || 0}
                 todayDeducted={discipline.todayDeducted}
+                userName={currentUserName}
               />
             </div>
 
@@ -577,35 +645,67 @@ export default function DashboardPage() {
 
           {/* Bottom Row: 4 Sleek Compact Action Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2.5 border-t border-white/[0.08]">
-            {/* Purity Streak */}
-            <Link
-              href="/rewards"
-              onClick={() => haptics.selection()}
-              className="px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-brand-red/40 flex items-center justify-between transition-all group active:scale-95"
+            {/* Purity Direct Check-in */}
+            <button
+              type="button"
+              disabled={Boolean(isCheckingIn)}
+              onClick={() => handleDailyCheckin("PURITY")}
+              className={clsx(
+                "px-3 py-2 rounded-xl border flex items-center justify-between transition-all active:scale-95 text-left",
+                discipline.todayCheckins?.purity
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default"
+                  : "bg-brand-red/5 hover:bg-brand-red/15 border-brand-red/30 hover:border-brand-red/50 text-white cursor-pointer shadow-glow-red-subtle"
+              )}
+              title={discipline.todayCheckins?.purity ? "Purity Verified Today" : "Click to Verify Today's Monk Purity (+25 XP)"}
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-red flex-shrink-0" />
-                <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white truncate">Purity</span>
+                <ShieldCheck className={clsx("w-3.5 h-3.5 flex-shrink-0", discipline.todayCheckins?.purity ? "text-emerald-400" : "text-brand-red")} />
+                <span className="text-[11px] font-mono truncate">
+                  {discipline.todayCheckins?.purity ? "Purity ✓" : "Purity"}
+                </span>
               </div>
-              <span className="text-xs font-bold font-mono text-white">
-                {discipline.streaks?.purity?.currentStreak || 0}d
-              </span>
-            </Link>
+              <div className="flex items-center gap-1">
+                {!discipline.todayCheckins?.purity && (
+                  <span className="text-[9px] font-mono font-bold text-brand-red bg-brand-red/15 px-1 rounded">
+                    +25
+                  </span>
+                )}
+                <span className="text-xs font-bold font-mono text-white">
+                  {discipline.streaks?.purity?.currentStreak || 0}d
+                </span>
+              </div>
+            </button>
 
-            {/* Clean Diet Streak */}
-            <Link
-              href="/routines"
-              onClick={() => haptics.selection()}
-              className="px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-emerald-500/40 flex items-center justify-between transition-all group active:scale-95"
+            {/* Clean Diet Direct Check-in */}
+            <button
+              type="button"
+              disabled={Boolean(isCheckingIn)}
+              onClick={() => handleDailyCheckin("DIET")}
+              className={clsx(
+                "px-3 py-2 rounded-xl border flex items-center justify-between transition-all active:scale-95 text-left",
+                discipline.todayCheckins?.diet
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default"
+                  : "bg-emerald-500/5 hover:bg-emerald-500/15 border-emerald-500/30 hover:border-emerald-500/50 text-white cursor-pointer"
+              )}
+              title={discipline.todayCheckins?.diet ? "Clean Diet Verified Today" : "Click to Verify Today's Clean Diet (+25 XP)"}
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] font-mono text-zinc-400 group-hover:text-white truncate">Clean Diet</span>
+                <span className="text-[11px] font-mono truncate">
+                  {discipline.todayCheckins?.diet ? "Diet ✓" : "Clean Diet"}
+                </span>
               </div>
-              <span className="text-xs font-bold font-mono text-white">
-                {discipline.streaks?.diet?.currentStreak || 0}d
-              </span>
-            </Link>
+              <div className="flex items-center gap-1">
+                {!discipline.todayCheckins?.diet && (
+                  <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/15 px-1 rounded">
+                    +25
+                  </span>
+                )}
+                <span className="text-xs font-bold font-mono text-white">
+                  {discipline.streaks?.diet?.currentStreak || 0}d
+                </span>
+              </div>
+            </button>
 
             {/* Relapse Quick Deduction */}
             <button
@@ -642,16 +742,12 @@ export default function DashboardPage() {
         /* Smooth Companion & XP Mode Loading Phase Skeleton */
         <Card glow="red" className="relative overflow-hidden bg-black/95 border border-brand-red/20 shadow-glow-red-subtle p-3.5 sm:p-4 animate-pulse">
           {/* Header Row Skeleton */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <div className="w-14 h-5 rounded-lg bg-brand-red/20 border border-brand-red/30" />
-              <div className="w-28 h-5 rounded-lg bg-white/10" />
-              <div className="w-24 h-5 rounded-md bg-white/[0.06] border border-white/5" />
+          <div className="flex items-center justify-between pb-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-red/20 border border-brand-red/30" />
+              <div className="w-36 h-4 rounded-md bg-white/10" />
             </div>
-            <div className="flex items-center gap-1.5 self-start sm:self-auto">
-              <div className="w-20 h-6 rounded-lg bg-brand-red/10 border border-brand-red/20" />
-              <div className="w-16 h-6 rounded-lg bg-white/5" />
-            </div>
+            <div className="w-16 h-5 rounded-full bg-brand-red/15 border border-brand-red/25" />
           </div>
 
           {/* Interactive Companion Pet Bay Skeleton */}
@@ -890,15 +986,6 @@ export default function DashboardPage() {
         confirmText={confirmDeductType === "UNHEALTHY_FOOD" ? "Deduct 50 XP" : "Deduct 100 XP"}
         confirmVariant="red"
         iconType="danger"
-      />
-
-      {/* Daily Evening Bedtime Monk Reflection Modal */}
-      <EveningCheckinModal
-        isOpen={isEveningCheckinOpen}
-        onClose={() => setIsEveningCheckinOpen(false)}
-        onCompleted={fetchDashboardData}
-        todayEarned={discipline?.todayEarned || 0}
-        todayDeducted={discipline?.todayDeducted || 0}
       />
     </div>
     </PullToRefresh>

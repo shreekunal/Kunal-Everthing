@@ -11,6 +11,7 @@ interface PixelPetProps {
   purityStreak?: number;
   dietStreak?: number;
   todayDeducted?: number;
+  userName?: string;
 }
 
 export function PixelPet({
@@ -20,9 +21,16 @@ export function PixelPet({
   purityStreak = 0,
   dietStreak = 0,
   todayDeducted = 0,
+  userName,
 }: PixelPetProps) {
   const [dialogText, setDialogText] = useState<string | null>(null);
   const [isBouncing, setIsBouncing] = useState(false);
+
+  const displayName =
+    userName ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("kunal_os_current_user_name") || "Warrior"
+      : "Warrior");
 
   // Determine pet mood
   const isEnergized = purityStreak >= 7 && dietStreak >= 3;
@@ -37,18 +45,18 @@ export function PixelPet({
       ]
     : isSlumped
     ? [
-        "Ouch! That penalty hurt... stay strong Kunal, we bounce back!",
+        `Ouch! That penalty hurt... stay strong ${displayName}, we bounce back!`,
         "Pain is temporary. Discipline is forever. No more slips today.",
-        "Dust it off, Kunal. Eyes on the horizon!",
+        `Dust it off, ${displayName}. Eyes on the horizon!`,
       ]
     : isEnergized
     ? [
-        "Unstoppable momentum, Kunal! Both streaks burning bright! 🔥",
+        `Unstoppable momentum, ${displayName}! Both streaks burning bright! 🔥`,
         "Apex focus unlocked. You are sculpting iron will today!",
         "Look at us! 7+ days pure and clean. Grandmaster level energy!",
       ]
     : [
-        "Steady breath, Kunal. One focused minute at a time.",
+        `Steady breath, ${displayName}. One focused minute at a time.`,
         "Discipline is choosing between what you want now and what you want most.",
         "Your companion is vigilant. Today is another victory.",
         "Focus on the protocol. The rewards take care of themselves.",
