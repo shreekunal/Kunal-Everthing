@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_MESSAGE_TEMPLATES } from "@/lib/presets";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -10,44 +12,43 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Get partner profile
-    let partner = await prisma.partner.findFirst({
-      where: { userId: user.id },
-      include: {
-        scheduledMessages: {
-          orderBy: { scheduledDate: "asc" },
+    // 1. Fetch partner profile and message templates in parallel
+    const [partner, initialTemplates] = await Promise.all([
+      prisma.partner.findFirst({
+        where: { userId: user.id },
+        include: {
+          scheduledMessages: {
+            orderBy: { scheduledDate: "asc" },
+          },
         },
-      },
-    });
+      }),
+      prisma.messageTemplate.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
-    // 2. Get message templates
-    let templates = await prisma.messageTemplate.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "asc" },
-    });
-
+    let templates = initialTemplates;
     const defaultContents = DEFAULT_MESSAGE_TEMPLATES.map((d) => d.content);
     const hasOutdatedTemplates = templates.some(
       (t) => t.isDefault && !defaultContents.includes(t.content)
     );
 
-    // Auto-seed or update to only the 4 requested templates
+    // Auto-seed or update to only the 4 requested templates using single bulk insert
     if (templates.length === 0 || hasOutdatedTemplates) {
       await prisma.messageTemplate.deleteMany({
         where: { userId: user.id, isDefault: true },
       });
 
-      for (const tmpl of DEFAULT_MESSAGE_TEMPLATES) {
-        await prisma.messageTemplate.create({
-          data: {
-            userId: user.id,
-            category: tmpl.category,
-            title: tmpl.title,
-            content: tmpl.content,
-            isDefault: true,
-          },
-        });
-      }
+      await prisma.messageTemplate.createMany({
+        data: DEFAULT_MESSAGE_TEMPLATES.map((tmpl) => ({
+          userId: user.id,
+          category: tmpl.category,
+          title: tmpl.title,
+          content: tmpl.content,
+          isDefault: true,
+        })),
+      });
 
       templates = await prisma.messageTemplate.findMany({
         where: { userId: user.id },

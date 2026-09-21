@@ -10,10 +10,20 @@ const CACHE_PREFIX = "kunal_os_swr_";
 const DEFAULT_VERSION = "1.0";
 
 export const offlineCache = {
-  get<T>(key: string): T | null {
+  getScopedKey(key: string, userId?: string): string {
+    const uid =
+      userId ||
+      (typeof window !== "undefined"
+        ? localStorage.getItem("kunal_os_current_user_id") || "global"
+        : "global");
+    return `${CACHE_PREFIX}${uid}_${key}`;
+  },
+
+  get<T>(key: string, userId?: string): T | null {
     if (typeof window === "undefined") return null;
     try {
-      const item = localStorage.getItem(CACHE_PREFIX + key);
+      const fullKey = this.getScopedKey(key, userId);
+      const item = localStorage.getItem(fullKey);
       if (!item) return null;
       const envelope: CacheEnvelope<T> = JSON.parse(item);
       return envelope.data;
@@ -22,7 +32,7 @@ export const offlineCache = {
     }
   },
 
-  set<T>(key: string, data: T, version: string = DEFAULT_VERSION): void {
+  set<T>(key: string, data: T, version: string = DEFAULT_VERSION, userId?: string): void {
     if (typeof window === "undefined") return;
     try {
       const envelope: CacheEnvelope<T> = {
@@ -30,16 +40,33 @@ export const offlineCache = {
         timestamp: Date.now(),
         version,
       };
-      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(envelope));
+      const fullKey = this.getScopedKey(key, userId);
+      localStorage.setItem(fullKey, JSON.stringify(envelope));
     } catch (err) {
       console.warn("Offline cache storage quota exceeded or failed:", err);
     }
   },
 
-  remove(key: string): void {
+  remove(key: string, userId?: string): void {
     if (typeof window === "undefined") return;
     try {
-      localStorage.removeItem(CACHE_PREFIX + key);
+      const fullKey = this.getScopedKey(key, userId);
+      localStorage.removeItem(fullKey);
+    } catch {}
+  },
+
+  clearUser(userId?: string): void {
+    if (typeof window === "undefined") return;
+    try {
+      const uid =
+        userId || localStorage.getItem("kunal_os_current_user_id") || "global";
+      const targetPrefix = `${CACHE_PREFIX}${uid}_`;
+      const keys = Object.keys(localStorage);
+      for (const k of keys) {
+        if (k.startsWith(targetPrefix)) {
+          localStorage.removeItem(k);
+        }
+      }
     } catch {}
   },
 
@@ -48,7 +75,7 @@ export const offlineCache = {
     try {
       const keys = Object.keys(localStorage);
       for (const k of keys) {
-        if (k.startsWith(CACHE_PREFIX)) {
+        if (k.startsWith(CACHE_PREFIX) || k.startsWith("everything_dashboard_cache")) {
           localStorage.removeItem(k);
         }
       }
@@ -64,16 +91,17 @@ export const offlineCache = {
   async swr<T>(
     key: string,
     fetcher: () => Promise<T>,
-    onCachedData?: (data: T) => void
+    onCachedData?: (data: T) => void,
+    userId?: string
   ): Promise<T> {
-    const cached = this.get<T>(key);
+    const cached = this.get<T>(key, userId);
     if (cached !== null && onCachedData) {
       onCachedData(cached);
     }
 
     try {
       const fresh = await fetcher();
-      this.set<T>(key, fresh);
+      this.set<T>(key, fresh, DEFAULT_VERSION, userId);
       return fresh;
     } catch (networkError) {
       if (cached !== null) {

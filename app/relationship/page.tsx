@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import clsx from "clsx";
+import { offlineCache } from "@/lib/offlineCache";
 import {
   Select,
   SelectContent,
@@ -199,23 +200,37 @@ export default function RelationshipPage() {
     }
   };
 
+  const applyRelationshipData = (json: any) => {
+    if (!json) return;
+    setData(json);
+    if (json.partner) {
+      setPartnerName(json.partner.name || "");
+      setPartnerNickname(json.partner.nickname || "");
+      setPartnerBirthday(json.partner.birthday || "");
+      setPartnerAnniversary(json.partner.anniversary || "");
+      setPartnerPhone(json.partner.phone || "");
+      setPartnerCallLink(json.partner.callLink || "");
+      setPartnerPreferences(json.partner.preferences || "");
+      setPartnerNotes(json.partner.notes || "");
+    }
+    setLoading(false);
+  };
+
   const fetchRelationshipData = async () => {
     try {
-      const res = await fetch("/api/relationship");
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-        if (json.partner) {
-          setPartnerName(json.partner.name || "");
-          setPartnerNickname(json.partner.nickname || "");
-          setPartnerBirthday(json.partner.birthday || "");
-          setPartnerAnniversary(json.partner.anniversary || "");
-          setPartnerPhone(json.partner.phone || "");
-          setPartnerCallLink(json.partner.callLink || "");
-          setPartnerPreferences(json.partner.preferences || "");
-          setPartnerNotes(json.partner.notes || "");
+      await offlineCache.swr(
+        "partner_hub_data",
+        async () => {
+          const res = await fetch("/api/relationship", { cache: "no-store" });
+          if (!res.ok) throw new Error("Failed to load relationship data");
+          return res.json();
+        },
+        (cached) => {
+          applyRelationshipData(cached);
         }
-      }
+      ).then((fresh) => {
+        if (fresh) applyRelationshipData(fresh);
+      });
     } catch (err) {
       console.error("Failed to load relationship data:", err);
     } finally {
@@ -224,6 +239,10 @@ export default function RelationshipPage() {
   };
 
   useEffect(() => {
+    const cached = offlineCache.get<any>("partner_hub_data");
+    if (cached) {
+      applyRelationshipData(cached);
+    }
     fetchRelationshipData();
   }, []);
 
@@ -247,6 +266,14 @@ export default function RelationshipPage() {
       });
       if (res.ok) {
         haptics.success();
+        const json = await res.json();
+        if (json?.partner) {
+          setData((prev: any) => {
+            const next = { ...prev, partner: json.partner };
+            offlineCache.set("partner_hub_data", next);
+            return next;
+          });
+        }
         setIsEditProfileOpen(false);
         fetchRelationshipData();
       }
@@ -320,7 +347,32 @@ export default function RelationshipPage() {
       </div>
 
       {/* Partner Banner Glass Card */}
-      <Card glow="red" className="p-6">
+      {loading && !data ? (
+        <Card glow="red" className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-pulse">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red">
+                <Heart className="w-7 h-7 fill-brand-red/30" />
+              </div>
+              <div className="space-y-2">
+                <div className="w-40 h-6 bg-white/10 rounded-lg" />
+                <div className="w-28 h-3.5 bg-white/5 rounded-md" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 bg-white/[0.02] p-4 rounded-xl border border-white/10 w-full md:w-auto min-w-[240px]">
+              <div className="space-y-1.5">
+                <div className="w-14 h-2.5 bg-white/5 rounded" />
+                <div className="w-24 h-4 bg-white/10 rounded" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="w-14 h-2.5 bg-white/5 rounded" />
+                <div className="w-24 h-4 bg-white/10 rounded" />
+              </div>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card glow="red" className="p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red">
@@ -471,6 +523,7 @@ export default function RelationshipPage() {
           </div>
         )}
       </Card>
+    )}
 
       {/* Two Tabs: AI Messages vs Templates */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-950/80 border border-white/10 w-full sm:w-auto self-start">

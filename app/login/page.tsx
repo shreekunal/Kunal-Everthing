@@ -48,15 +48,16 @@ function LoginContent() {
   const [selectedProfile, setSelectedProfile] = useState<ProfileItem | null>(() => {
     if (typeof window === "undefined") return null;
 
-    // Check if user explicitly asked to switch profiles
+    // Check if user explicitly asked to switch profiles or is not locked
     const params = new URLSearchParams(window.location.search);
     if (params.get("switch") === "true") return null;
+    const isExplicitlyLocked = params.get("locked") === "true";
+    if (!isExplicitlyLocked) return null;
 
-    // Check target user ID from URL or localStorage
+    // Check target user ID from URL or locked user storage
     const targetUserId =
       params.get("userId") ||
-      localStorage.getItem("kunal_os_locked_user_id") ||
-      localStorage.getItem("kunal_os_current_user_id");
+      localStorage.getItem("kunal_os_locked_user_id");
 
     if (!targetUserId) return null;
 
@@ -192,28 +193,21 @@ function LoginContent() {
             localStorage.setItem("kunal_os_cached_profiles", JSON.stringify(data.profiles));
 
             const isSwitch = isSwitchMode || searchParams.get("switch") === "true";
+            const isLocked = searchParams.get("locked") === "true";
 
-            // If user clicked Switch Profile, remain on profile selector
-            if (isSwitch) {
+            // If user clicked Switch Profile or is not explicitly locked, remain on profile selector
+            if (isSwitch || !isLocked) {
               setSelectedProfile(null);
             } else {
               const targetUserId =
                 searchParams.get("userId") ||
                 (typeof window !== "undefined"
-                  ? localStorage.getItem("kunal_os_locked_user_id") ||
-                    localStorage.getItem("kunal_os_current_user_id")
+                  ? localStorage.getItem("kunal_os_locked_user_id")
                   : null);
 
               let profileToSelect: ProfileItem | null = null;
               if (targetUserId) {
                 profileToSelect = data.profiles.find((p: ProfileItem) => p.id === targetUserId) || null;
-              }
-              // If none matched, prioritize the profile with enrolled biometrics, then PRIMARY
-              if (!profileToSelect && data.profiles.length > 0) {
-                profileToSelect =
-                  data.profiles.find((p: ProfileItem) => p.hasBiometrics) ||
-                  data.profiles.find((p: ProfileItem) => p.role === "PRIMARY") ||
-                  data.profiles[0];
               }
 
               if (profileToSelect && !data.authenticated) {
@@ -254,8 +248,8 @@ function LoginContent() {
       localStorage.setItem("kunal_os_locked_user_id", profile.id);
       localStorage.setItem("kunal_os_current_user_id", profile.id);
       localStorage.setItem("kunal_os_current_user_name", profile.name);
-      window.history.replaceState(null, "", `/login?locked=true&userId=${encodeURIComponent(profile.id)}`);
     }
+    router.replace(`/login?locked=true&userId=${encodeURIComponent(profile.id)}`);
     setPin("");
     setError("");
     setShake(false);
@@ -281,10 +275,8 @@ function LoginContent() {
     setSelectedProfile(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("kunal_os_locked_user_id");
-      localStorage.removeItem("kunal_os_current_user_id");
-      localStorage.removeItem("kunal_os_current_user_name");
-      window.history.replaceState(null, "", "/login?switch=true");
     }
+    router.replace("/login?switch=true");
     setPin("");
     setError("");
   };

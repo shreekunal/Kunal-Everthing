@@ -6,6 +6,7 @@ import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Button } from "@/components/ui/Button";
 import { Lock, ArrowLeft, AlertCircle, CheckCircle2, ShieldCheck, Delete } from "lucide-react";
 import { haptics } from "@/lib/haptics";
+import { offlineCache } from "@/lib/offlineCache";
 
 interface ProfileItem {
   id: string;
@@ -85,6 +86,12 @@ export function ProfileSwitcherModal({
       if (res.ok && data.success) {
         haptics.success();
         setSuccess(true);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("kunal_os_locked_user_id");
+          localStorage.setItem("kunal_os_current_user_id", targetProfile.id);
+          localStorage.setItem("kunal_os_current_user_name", targetProfile.name);
+          offlineCache.clearAll();
+        }
         setTimeout(() => {
           window.location.reload();
         }, 400);

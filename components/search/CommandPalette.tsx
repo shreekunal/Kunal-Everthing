@@ -254,7 +254,7 @@ export function CommandPalette({
       action: async () => {
         onClose();
         await fetch("/api/auth/logout", { method: "POST" });
-        window.location.href = "/login";
+        window.location.href = "/login?switch=true";
       },
     },
   ];

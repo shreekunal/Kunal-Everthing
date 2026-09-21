@@ -131,7 +131,7 @@ export function PixelPet({
         title="Tap companion for monk wisdom"
         className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center p-1.5 transition-all duration-300 group ${
           isPetDead
-            ? "bg-red-950/40 border border-red-500/50 shadow-glow-red animate-pet-dead"
+            ? "bg-zinc-900/60 border border-zinc-700/60"
             : isEnergized
             ? "bg-white/[0.06] border border-white/20 shadow-glow-red animate-pet-float"
             : "bg-white/[0.03] border border-white/10 hover:border-brand-red/40 animate-pet-breathe"
@@ -144,13 +144,13 @@ export function PixelPet({
             <rect x="7" y="3" width="10" height="2" fill="#71717A" />
             <rect x="5" y="5" width="14" height="14" fill="#3F3F46" />
             <rect x="3" y="19" width="18" height="4" fill="#27272A" />
-            {/* Scarlet Glowing Cross / Cracks */}
-            <rect x="11" y="7" width="2" height="7" fill="#EF4444" />
-            <rect x="9" y="9" width="6" height="2" fill="#EF4444" />
+            {/* Cross / Cracks */}
+            <rect x="11" y="7" width="2" height="7" fill="#71717A" />
+            <rect x="9" y="9" width="6" height="2" fill="#71717A" />
             {/* R.I.P dots */}
-            <rect x="7" y="15" width="2" height="2" fill="#EF4444" />
-            <rect x="11" y="15" width="2" height="2" fill="#EF4444" />
-            <rect x="15" y="15" width="2" height="2" fill="#EF4444" />
+            <rect x="7" y="15" width="2" height="2" fill="#A1A1AA" />
+            <rect x="11" y="15" width="2" height="2" fill="#A1A1AA" />
+            <rect x="15" y="15" width="2" height="2" fill="#A1A1AA" />
           </svg>
         )}
 
@@ -330,9 +330,19 @@ export function PixelPet({
 
       {/* Dynamic Pop-up Monk Wisdom Dialogue Bubble */}
       {dialogText && (
-        <div className="absolute left-0 -top-12 z-30 max-w-xs px-3 py-1.5 rounded-xl bg-black border border-brand-red/50 text-white text-[11px] font-mono shadow-glow-red animate-in fade-in duration-200">
+        <div
+          className={`absolute left-0 -top-12 z-30 max-w-xs px-3 py-1.5 rounded-xl bg-black border text-white text-[11px] font-mono animate-in fade-in duration-200 ${
+            isPetDead
+              ? "border-zinc-700 shadow-md"
+              : "border-brand-red/50 shadow-glow-red"
+          }`}
+        >
           <p className="leading-snug">{dialogText}</p>
-          <div className="absolute left-6 -bottom-1.5 w-3 h-3 bg-black border-r border-b border-brand-red/50 rotate-45" />
+          <div
+            className={`absolute left-6 -bottom-1.5 w-3 h-3 bg-black border-r border-b rotate-45 ${
+              isPetDead ? "border-zinc-700" : "border-brand-red/50"
+            }`}
+          />
         </div>
       )}
     </div>

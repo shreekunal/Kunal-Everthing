@@ -54,12 +54,22 @@ export default function DashboardPage() {
 
   const loadWaterStats = () => {
     if (typeof window === "undefined") return;
+    const currentUserId =
+      data?.user?.id ||
+      localStorage.getItem("kunal_os_current_user_id") ||
+      "default";
     const todayKey = format(new Date(), "yyyy-MM-dd");
-    const count = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
-    if (count !== null) setWaterGlasses(parseInt(count, 10) || 0);
+    let count = localStorage.getItem(`kunal_os_water_count_${currentUserId}_${todayKey}`);
+    if (count === null && (currentUserId === "default" || currentUserId.startsWith("kunal"))) {
+      count = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
+    }
+    setWaterGlasses(count !== null ? parseInt(count, 10) || 0 : 0);
 
-    const target = localStorage.getItem("kunal_os_water_target_glasses");
-    if (target !== null) setWaterTarget(parseInt(target, 10) || 8);
+    let target = localStorage.getItem(`kunal_os_water_target_glasses_${currentUserId}`);
+    if (target === null && (currentUserId === "default" || currentUserId.startsWith("kunal"))) {
+      target = localStorage.getItem("kunal_os_water_target_glasses");
+    }
+    setWaterTarget(target !== null ? parseInt(target, 10) || 8 : 8);
   };
 
   const fetchDashboardData = async () => {
@@ -447,52 +457,61 @@ export default function DashboardPage() {
         <Card glow="red" className="relative overflow-hidden bg-gradient-to-b from-zinc-950 via-black to-zinc-950 border border-brand-red/30 shadow-[0_0_30px_rgba(239,68,68,0.12)] p-4">
           {/* Pet Deceased Alert Banner */}
           {discipline.isPetDead && (
-            <div className="mb-3 px-3 py-2 rounded-xl bg-red-950/80 border border-red-500/70 flex items-center justify-between gap-2 text-xs font-mono text-red-200 animate-pulse">
+            <div className="mb-3 px-3 py-2 rounded-xl bg-zinc-900/90 border border-zinc-700/60 flex items-center justify-between gap-2 text-xs font-mono text-zinc-300">
               <div className="flex items-center gap-2">
-                <Skull className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <Skull className="w-4 h-4 text-zinc-400 flex-shrink-0" />
                 <span><strong className="text-white">COMPANION DECEASED</strong> (XP below 0). Complete habits to resurrect!</span>
               </div>
             </div>
           )}
 
-          {/* Top Row: Title, Level & Direct Navigation */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded-md bg-brand-red/15 border border-brand-red/30 text-brand-red">
-                <Crown className="w-3.5 h-3.5" />
+          {/* Header: Multi-Row Responsive Layout */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
+            {/* Row 1: Title, Icon & Level Badge */}
+            <div className="flex items-center justify-between sm:justify-start gap-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red">
+                  <Crown className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white uppercase font-mono tracking-wider">
+                    Companion &amp; Karma
+                  </h3>
+                </div>
               </div>
-              <h3 className="text-xs font-black text-white uppercase font-mono tracking-wider">
-                Companion &amp; Karma
-              </h3>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white"}`}>
-                {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
-              </span>
-              {discipline.season && (
-                <span className="hidden sm:inline-block text-[10px] text-zinc-400 font-mono">
-                  • {discipline.season.name}
+
+              <div className="flex items-center gap-1.5">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${discipline.isPetDead ? "bg-zinc-800 text-zinc-400" : "bg-brand-red text-white"}`}>
+                  {discipline.isPetDead ? "R.I.P." : `LVL ${discipline.level}`}
                 </span>
-              )}
+                {discipline.season && (
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    • {discipline.season.name}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 font-mono text-xs">
+            {/* Row 2: Action CTAs (Bedtime & Rewards) */}
+            <div className="flex items-center gap-2 font-mono text-xs w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
                   haptics.impactMedium();
                   setIsEveningCheckinOpen(true);
                 }}
-                className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-brand-red/20 border border-white/10 hover:border-brand-red/40 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1 active:scale-95"
+                className="flex-1 sm:flex-none justify-center px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-brand-red/20 border border-white/10 hover:border-brand-red/40 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"
               >
-                <Moon className="w-3 h-3 text-brand-red" />
-                <span>Bedtime</span>
+                <Moon className="w-3.5 h-3.5 text-brand-red" />
+                <span>Bedtime Check-in</span>
               </button>
               <Link
                 href="/rewards"
                 onClick={() => haptics.selection()}
-                className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1 group"
+                className="flex-1 sm:flex-none justify-center px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[11px] text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 group"
               >
-                <Trophy className="w-3 h-3 text-yellow-400" />
-                <span>Rewards</span>
+                <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+                <span>Rewards Hub</span>
                 <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
@@ -852,7 +871,7 @@ export default function DashboardPage() {
         {/* Right Col: Hydration Tracker */}
         <div id="hydration-tracker" className="space-y-6 rounded-2xl transition-all duration-300">
           {/* Water & Hydration Tracker with 2h Alarms */}
-          <WaterTrackerCard />
+          <WaterTrackerCard userId={data?.user?.id} />
         </div>
       </div>
 

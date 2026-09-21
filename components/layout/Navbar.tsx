@@ -18,7 +18,6 @@ import {
   CheckCheck,
   Lock,
   Trophy,
-  Search,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { Button } from "../ui/Button";
@@ -232,20 +231,6 @@ export function Navbar({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Spotlight Search Trigger */}
-          <button
-            type="button"
-            onClick={onOpenSearch}
-            className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/10 hover:border-white/20 transition-all flex items-center gap-1.5"
-            title="Spotlight Global Search (⌘K / Ctrl+K)"
-            aria-label="Search"
-          >
-            <Search className="w-4 h-4" />
-            <span className="hidden lg:inline text-[10px] font-mono text-zinc-500 bg-white/5 px-1 py-0.5 rounded border border-white/10">
-              ⌘K
-            </span>
-          </button>
-
           {/* Quick Add CTA (Click for Modal, Hold or Right-click for Radial Wheel) */}
           <button
             type="button"

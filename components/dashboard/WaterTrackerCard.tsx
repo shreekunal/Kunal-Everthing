@@ -28,12 +28,29 @@ import {
 const ML_PER_GLASS = 250;
 const DEFAULT_TARGET_GLASSES = 8; // 8 x 250 = 2,000 ml
 
-export function WaterTrackerCard() {
+export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
+  const [activeUserId, setActiveUserId] = useState<string>(() => {
+    if (userId) return userId;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("kunal_os_current_user_id") || "default";
+    }
+    return "default";
+  });
+
+  useEffect(() => {
+    if (userId) {
+      setActiveUserId(userId);
+    } else if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("kunal_os_current_user_id");
+      if (stored) setActiveUserId(stored);
+    }
+  }, [userId]);
+
   const todayKey = format(new Date(), "yyyy-MM-dd");
-  const storageCountKey = `kunal_os_water_count_${todayKey}`;
-  const storageTargetKey = "kunal_os_water_target_glasses";
-  const storageNotifKey = "kunal_os_water_notifications_enabled";
-  const storageRewardKey = `kunal_os_water_reward_claimed_${todayKey}`;
+  const storageCountKey = `kunal_os_water_count_${activeUserId}_${todayKey}`;
+  const storageTargetKey = `kunal_os_water_target_glasses_${activeUserId}`;
+  const storageNotifKey = `kunal_os_water_notifications_enabled_${activeUserId}`;
+  const storageRewardKey = `kunal_os_water_reward_claimed_${activeUserId}_${todayKey}`;
 
   const [drankGlasses, setDrankGlasses] = useState<number>(0);
   const [targetGlasses, setTargetGlasses] = useState<number>(DEFAULT_TARGET_GLASSES);
@@ -108,31 +125,41 @@ export function WaterTrackerCard() {
     }
   };
 
-  // Initialize from storage on mount
+  // Initialize from storage on mount or user switch
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let initialGlasses = 0;
     let currentTarget = DEFAULT_TARGET_GLASSES;
 
-    // Load today's count
-    const savedCount = localStorage.getItem(storageCountKey);
+    // Load today's count (with fallback to legacy key if primary)
+    let savedCount = localStorage.getItem(storageCountKey);
+    if (savedCount === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
+      savedCount = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
+    }
     if (savedCount !== null) {
       const parsed = parseInt(savedCount, 10);
       if (!isNaN(parsed)) {
         initialGlasses = parsed;
         setDrankGlasses(parsed);
       }
+    } else {
+      setDrankGlasses(0);
     }
 
     // Load user target
-    const savedTarget = localStorage.getItem(storageTargetKey);
+    let savedTarget = localStorage.getItem(storageTargetKey);
+    if (savedTarget === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
+      savedTarget = localStorage.getItem("kunal_os_water_target_glasses");
+    }
     if (savedTarget !== null) {
       const parsed = parseInt(savedTarget, 10);
       if (!isNaN(parsed) && parsed > 0) {
         currentTarget = parsed;
         setTargetGlasses(parsed);
       }
+    } else {
+      setTargetGlasses(DEFAULT_TARGET_GLASSES);
     }
 
     // Load notification state
@@ -146,10 +173,13 @@ export function WaterTrackerCard() {
     const savedReward = localStorage.getItem(storageRewardKey);
     if (savedReward === "true") {
       setHasClaimedReward(true);
-    } else if (initialGlasses >= currentTarget) {
-      claimReward(false);
+    } else {
+      setHasClaimedReward(false);
+      if (initialGlasses >= currentTarget) {
+        claimReward(false);
+      }
     }
-  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey]);
+  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey, activeUserId, todayKey]);
 
   // Sync claimed state with server rewards on mount
   useEffect(() => {
