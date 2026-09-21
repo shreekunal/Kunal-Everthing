@@ -146,8 +146,8 @@ export default function ProgressPage() {
       });
 
       const dateStr = format(new Date(), "yyyy-MM-dd");
-      const fileName = `kunalos-study-${dateStr}.png`;
-      const partnerMessage = `Hey ${partnerLabel}! ❤️ Here's my study update for today on KunalOS:\n⏱️ ${formatDuration(todayStudyMinutes)} completed (${todayStudySessions.length} session${todayStudySessions.length === 1 ? "" : "s"})\n⚡ +${todayEarnedXP} XP Discipline Yield\nConsistency is my promise! 🚀`;
+      const fileName = `Everthing-study-${dateStr}.png`;
+      const partnerMessage = `Hey ${partnerLabel}! ❤️ Here's my study update for today on Everthing:\n⏱️ ${formatDuration(todayStudyMinutes)} completed (${todayStudySessions.length} session${todayStudySessions.length === 1 ? "" : "s"})\n⚡ +${todayEarnedXP} XP Discipline Yield\nConsistency is my promise! 🚀`;
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = dataUrl.split(",")[1];
@@ -236,7 +236,7 @@ export default function ProgressPage() {
       });
 
       const dateStr = format(new Date(), "yyyy-MM-dd");
-      const fileName = `kunalos-study-${dateStr}.png`;
+      const fileName = `Everthing-study-${dateStr}.png`;
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = dataUrl.split(",")[1];
@@ -260,7 +260,7 @@ export default function ProgressPage() {
           const canShare = await Share.canShare();
           if (canShare.value) {
             await Share.share({
-              title: "Today's Study Report • KunalOS",
+              title: "Today's Study Report • Everthing",
               url: fileResult.uri,
               dialogTitle: "Save Study Summary Image",
             });
@@ -480,8 +480,8 @@ export default function ProgressPage() {
                           setManualDuration(String(mins));
                         }}
                         className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex flex-col items-center justify-center ${isSelected
-                            ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                            : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                          ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                          : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
                           }`}
                       >
                         <span>{mins}m</span>
@@ -619,8 +619,8 @@ export default function ProgressPage() {
             {shareStatus && (
               <div
                 className={`mb-4 p-3 rounded-xl text-xs font-mono flex items-center gap-2 ${shareStatus.error
-                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                   }`}
               >
                 {shareStatus.error ? (
@@ -648,7 +648,7 @@ export default function ProgressPage() {
                     <div className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse shadow-glow-red" />
                     <div>
                       <span className="font-mono font-bold tracking-widest text-xs text-white block">
-                        Everthing
+                        EVERTHING
                       </span>
                       <span className="font-mono text-[9px] text-red-400 tracking-wider block -mt-0.5">
                         DEEP STUDY PROTOCOL
@@ -731,7 +731,7 @@ export default function ProgressPage() {
                 {/* Card Footer / Philosophy Watermark */}
                 <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between text-[9px] font-mono text-zinc-500">
                   <span>Consistency is the algorithm of mastery.</span>
-                  <span className="text-rose-400/90 font-bold font-mono">Shared with {partnerLabel}</span>
+                  <span className="text-rose-400/90 font-bold font-mono">Everthing • {partnerLabel}</span>
                 </div>
               </div>
             </div>
