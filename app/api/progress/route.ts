@@ -92,7 +92,7 @@ export async function GET() {
         totalMinutes: weekWorkMins + weekStudyMins + weekPersonalMins,
       },
       last7Days,
-      recentSessions: monthSessions.slice(0, 10),
+      recentSessions: monthSessions.filter((s) => s.type === "STUDY").slice(0, 15),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -121,20 +121,20 @@ export async function POST(request: Request) {
         userId: user.id,
         project,
         durationMinutes: mins,
-        type: type || "WORK",
+        type: type || "STUDY",
         date: date || format(new Date(), "yyyy-MM-dd"),
         notes: notes || null,
       },
     });
 
-    // Award 1 XP per minute of focused work/study (minimum 5 XP)
+    // Award 1 XP per minute of focused study (minimum 5 XP)
     const earnedXP = Math.max(5, mins);
     await awardPoints({
       userId: user.id,
       points: earnedXP,
       type: "WORK_SESSION_LOGGED",
-      title: `Focus Session: ${project} (${mins}m)`,
-      reason: `Completed ${mins} minutes of ${type || "WORK"} focus session`,
+      title: `Study Session: ${project} (${mins}m)`,
+      reason: `Completed ${mins} minutes of ${type || "STUDY"} focus session`,
       category: "PRODUCTIVITY",
       referenceId: session.id,
     });

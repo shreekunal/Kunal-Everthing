@@ -393,7 +393,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Work & Study -> /progress */}
+        {/* 3. Study Analytics -> /progress */}
         <Link
           href="/progress"
           onClick={() => haptics.selection()}
@@ -401,18 +401,16 @@ export default function DashboardPage() {
         >
           <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full">
             <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-              <span className="group-hover:text-white transition-colors">Deep Work (Week)</span>
+              <span className="group-hover:text-white transition-colors">Study (Week)</span>
               <Clock className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
-              {formatDuration(
-                (weeklySummary?.workMinutes || 0) + (weeklySummary?.studyMinutes || 0)
-              )}
+              {formatDuration(weeklySummary?.studyMinutes || 0)}
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-              <span>Work: {formatDuration(weeklySummary?.workMinutes || 0)}</span>
+              <span>Study: {formatDuration(weeklySummary?.studyMinutes || 0)}</span>
               <span className="text-red-400 hover:text-red-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Focus <ArrowRight className="w-3 h-3" />
+                Analytics <ArrowRight className="w-3 h-3" />
               </span>
             </div>
           </Card>

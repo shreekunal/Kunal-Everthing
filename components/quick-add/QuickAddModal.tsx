@@ -59,7 +59,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
 
   const [sessionProject, setSessionProject] = useState("");
   const [sessionDuration, setSessionDuration] = useState("30");
-  const [sessionType, setSessionType] = useState("WORK");
+  const [sessionType, setSessionType] = useState("STUDY");
 
   const [partnerPhone, setPartnerPhone] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -739,7 +739,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
             <input
               type="text"
               required
-              placeholder="e.g. Next.js App, Micro CRM, Cloud Study"
+              placeholder="e.g. Data Structures, System Design, Physics"
               value={sessionProject}
               onChange={(e) => setSessionProject(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red"
@@ -757,7 +757,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="WORK">Work</SelectItem>
                   <SelectItem value="STUDY">Study</SelectItem>
                   <SelectItem value="PERSONAL">Personal</SelectItem>
                 </SelectContent>

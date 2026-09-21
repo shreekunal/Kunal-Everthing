@@ -94,6 +94,21 @@ class HapticManager {
   }
 
   /**
+   * Error notification - failed operations, errors
+   */
+  async error() {
+    try {
+      if (this.isNative) {
+        await Haptics.notification({ type: NotificationType.Error });
+      } else if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([50, 50, 50]);
+      }
+    } catch {
+      // Ignore vibration errors
+    }
+  }
+
+  /**
    * Selection tick - scrolling through options, tab changes
    */
   async selection() {
