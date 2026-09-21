@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Heart,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
@@ -46,6 +47,7 @@ import { format } from "date-fns";
 
 export default function ProgressPage() {
   const [data, setData] = useState<any>(null);
+  const [partner, setPartner] = useState<{ name: string; nickname: string; phone: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -62,10 +64,19 @@ export default function ProgressPage() {
 
   const fetchProgress = async () => {
     try {
-      const res = await fetch("/api/progress");
-      if (res.ok) {
-        const json = await res.json();
+      const [progressRes, relRes] = await Promise.all([
+        fetch("/api/progress"),
+        fetch("/api/relationship"),
+      ]);
+      if (progressRes.ok) {
+        const json = await progressRes.json();
         setData(json);
+      }
+      if (relRes.ok) {
+        const relJson = await relRes.json();
+        if (relJson.partner) {
+          setPartner(relJson.partner);
+        }
       }
     } catch (err) {
       console.error("Progress fetch error:", err);
@@ -115,8 +126,13 @@ export default function ProgressPage() {
   );
   const todayEarnedXP = todayStudyMinutes;
 
-  // Share Today's Study Image Handler (Native Android Share / Web Share API)
-  const handleShareImage = async () => {
+  const partnerLabel =
+    (partner?.name && partner.name.toLowerCase() !== "kunal"
+      ? partner.name
+      : partner?.nickname) || "Partner";
+
+  // Send Today's Study to Partner Handler (Native Android Share / WhatsApp / Web Share API)
+  const handleSendToPartner = async () => {
     if (!shareCardRef.current) return;
     setIsExporting(true);
     setShareStatus(null);
@@ -131,6 +147,7 @@ export default function ProgressPage() {
 
       const dateStr = format(new Date(), "yyyy-MM-dd");
       const fileName = `kunalos-study-${dateStr}.png`;
+      const partnerMessage = `Hey ${partnerLabel}! ❤️ Here's my study update for today on KunalOS:\n⏱️ ${formatDuration(todayStudyMinutes)} completed (${todayStudySessions.length} session${todayStudySessions.length === 1 ? "" : "s"})\n⚡ +${todayEarnedXP} XP Discipline Yield\nConsistency is my promise! 🚀`;
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = dataUrl.split(",")[1];
@@ -143,19 +160,19 @@ export default function ProgressPage() {
         const canShare = await Share.canShare();
         if (canShare.value) {
           await Share.share({
-            title: "Today's Study Report • KunalOS",
-            text: `Studied ${formatDuration(todayStudyMinutes)} today on KunalOS! (+${todayEarnedXP} XP)`,
+            title: `Today's Study Report for ${partnerLabel}`,
+            text: partnerMessage,
             url: fileResult.uri,
-            dialogTitle: "Share Study Progress",
+            dialogTitle: `Send Study Report to ${partnerLabel}`,
           });
           haptics.success();
-          setShareStatus({ text: "Shared study report successfully!" });
+          setShareStatus({ text: `Study report sent to ${partnerLabel}!` });
         } else {
           setShareStatus({ text: `Saved image to cache: ${fileName}` });
           haptics.success();
         }
       } else {
-        // Web platform
+        // Web platform: Try Web Share API first
         let shared = false;
         try {
           const res = await fetch(dataUrl);
@@ -164,31 +181,41 @@ export default function ProgressPage() {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: "Today's Study Report • KunalOS",
-              text: `Studied ${formatDuration(todayStudyMinutes)} today on KunalOS! (+${todayEarnedXP} XP)`,
+              title: `Today's Study Report for ${partnerLabel}`,
+              text: partnerMessage,
             });
             shared = true;
             haptics.success();
-            setShareStatus({ text: "Study card shared successfully!" });
+            setShareStatus({ text: `Study report sent to ${partnerLabel}!` });
           }
         } catch (shareErr) {
           console.log("Web share cancelled or unsupported", shareErr);
         }
 
         if (!shared) {
-          // Direct file download fallback
+          // Direct WhatsApp web fallback + image download
           const link = document.createElement("a");
           link.download = fileName;
           link.href = dataUrl;
           link.click();
+
+          const cleanPhone = partner?.phone?.replace(/[^0-9]/g, "") || "";
+          const encodedText = encodeURIComponent(partnerMessage);
+          const whatsappUrl = cleanPhone
+            ? `https://wa.me/${cleanPhone}?text=${encodedText}`
+            : `https://wa.me/?text=${encodedText}`;
+
+          window.open(whatsappUrl, "_blank");
           haptics.success();
-          setShareStatus({ text: "Study card image downloaded!" });
+          setShareStatus({
+            text: `Card downloaded & WhatsApp opened for ${partnerLabel}!`,
+          });
         }
       }
     } catch (err: any) {
-      console.error("Failed to export study card:", err);
-      haptics.error();
-      setShareStatus({ text: "Failed to generate image. Please try again.", error: true });
+      console.error("Failed to send study report to partner:", err);
+      haptics.warning();
+      setShareStatus({ text: "Failed to generate report card.", error: true });
     } finally {
       setIsExporting(false);
     }
@@ -238,7 +265,7 @@ export default function ProgressPage() {
               dialogTitle: "Save Study Summary Image",
             });
           }
-        } catch {}
+        } catch { }
 
         haptics.success();
         setShareStatus({ text: `Image saved to device: ${fileName}` });
@@ -283,8 +310,8 @@ export default function ProgressPage() {
           }}
           className="flex items-center gap-2 shadow-glow-red self-start sm:self-auto py-2.5 px-4 font-semibold"
         >
-          <Share2 className="w-4 h-4" />
-          <span>Share Today&apos;s Study</span>
+          <Heart className="w-4 h-4 text-rose-300 fill-rose-500/30" />
+          <span>Send to {partnerLabel}</span>
         </Button>
       </div>
 
@@ -452,11 +479,10 @@ export default function ProgressPage() {
                           haptics.selection();
                           setManualDuration(String(mins));
                         }}
-                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex flex-col items-center justify-center ${
-                          isSelected
+                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex flex-col items-center justify-center ${isSelected
                             ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
                             : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <span>{mins}m</span>
                         <span className={`text-[9px] ${isSelected ? "text-white/90" : "text-emerald-400"}`}>
@@ -567,9 +593,9 @@ export default function ProgressPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-brand-red" />
+                <Heart className="w-4 h-4 text-rose-400 fill-rose-500/20" />
                 <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-                  Share Today&apos;s Study Report
+                  Send Today&apos;s Study to {partnerLabel}
                 </h3>
               </div>
               <button
@@ -586,17 +612,16 @@ export default function ProgressPage() {
 
             {/* Modal Subtitle */}
             <p className="text-xs text-zinc-400 font-mono mt-3 mb-4">
-              High-resolution study snapshot ready for WhatsApp, Instagram stories, X, or local device save.
+              Preview high-resolution study report card and send directly to {partnerLabel} with personalized progress stats.
             </p>
 
             {/* Status Alert if any */}
             {shareStatus && (
               <div
-                className={`mb-4 p-3 rounded-xl text-xs font-mono flex items-center gap-2 ${
-                  shareStatus.error
+                className={`mb-4 p-3 rounded-xl text-xs font-mono flex items-center gap-2 ${shareStatus.error
                     ? "bg-red-500/10 text-red-400 border border-red-500/20"
                     : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                }`}
+                  }`}
               >
                 {shareStatus.error ? (
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -623,7 +648,7 @@ export default function ProgressPage() {
                     <div className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse shadow-glow-red" />
                     <div>
                       <span className="font-mono font-bold tracking-widest text-xs text-white block">
-                        KUNAL OS
+                        Everthing
                       </span>
                       <span className="font-mono text-[9px] text-red-400 tracking-wider block -mt-0.5">
                         DEEP STUDY PROTOCOL
@@ -706,7 +731,7 @@ export default function ProgressPage() {
                 {/* Card Footer / Philosophy Watermark */}
                 <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between text-[9px] font-mono text-zinc-500">
                   <span>Consistency is the algorithm of mastery.</span>
-                  <span className="text-red-400/80 font-bold">KUNAL OS</span>
+                  <span className="text-rose-400/90 font-bold font-mono">Shared with {partnerLabel}</span>
                 </div>
               </div>
             </div>
@@ -717,11 +742,11 @@ export default function ProgressPage() {
                 variant="red"
                 size="sm"
                 disabled={isExporting}
-                onClick={handleShareImage}
+                onClick={handleSendToPartner}
                 className="py-2.5 flex items-center justify-center gap-2 font-semibold shadow-glow-red"
               >
-                <Share2 className="w-4 h-4" />
-                <span>{isExporting ? "Generating..." : "Share Image"}</span>
+                <Heart className="w-4 h-4 text-rose-300 fill-rose-500/30" />
+                <span>{isExporting ? "Sending..." : `Send to ${partnerLabel}`}</span>
               </Button>
 
               <Button
