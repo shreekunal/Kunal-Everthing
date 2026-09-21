@@ -590,24 +590,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Cyber Telemetry Status Deck (4 Pods) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* 1. Active Workspace */}
-        <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
-            <span>Workspace</span>
-            <Users className="w-3.5 h-3.5 text-brand-red" />
-          </div>
-          <div className="font-bold text-white font-mono text-base truncate">
-            {currentUserName}
-          </div>
-          <div className="mt-2 text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Isolated Profile</span>
-          </div>
-        </div>
-
-        {/* 2. Master Security */}
+      {/* Cyber Telemetry Status Deck (3 Pods) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* 1. Master Security */}
         <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
             <span>Security Gate</span>
@@ -622,7 +607,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* 3. Hardware Alarms */}
+        {/* 2. Hardware Alarms */}
         <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
             <span>Alarm Engine</span>
@@ -643,7 +628,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* 4. Data Vault */}
+        {/* 3. Data Vault */}
         <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-brand-red/30 transition-all flex flex-col justify-between">
           <div className="flex items-center justify-between text-[10px] font-mono uppercase text-zinc-400 mb-1">
             <span>Data Vault</span>
@@ -688,7 +673,6 @@ export default function SettingsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">📑 All Settings &amp; Modules</SelectItem>
-              <SelectItem value="profiles">👥 Dual-Profile Workspaces ({availableProfiles.length || 2})</SelectItem>
               <SelectItem value="security">🛡️ Master PIN &amp; Biometrics</SelectItem>
               <SelectItem value="alarms">🔔 Hardware Alarms &amp; Notifications</SelectItem>
               <SelectItem value="vault">💾 Data Vault &amp; Backups</SelectItem>
@@ -698,91 +682,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 1. Prime Video Dual-Profile Profiles */}
-      {(activeTab === "all" || activeTab === "profiles") && (
-        <Card glow="red" className="transition-all">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/20 text-brand-red">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <CardTitle>Dual-Profile Workspaces</CardTitle>
-                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                  Prime Video style profile segregation with private accounts, habits &amp; vaults
-                </p>
-              </div>
-            </div>
-            <Badge variant="red" size="sm">
-              Active: {currentUserName}
-            </Badge>
-          </CardHeader>
-
-          <div className="space-y-4 text-xs pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {availableProfiles.map((p) => {
-                const isCurrent = p.id === currentUserId || p.name === currentUserName;
-                return (
-                  <div
-                    key={p.id}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center gap-3 relative overflow-hidden ${
-                      isCurrent
-                        ? "bg-gradient-to-r from-brand-red/10 via-white/[0.03] to-transparent border-brand-red/40 shadow-glow-red-subtle"
-                        : "bg-white/[0.02] border-white/10 hover:border-white/20"
-                    }`}
-                  >
-                    {isCurrent && (
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-brand-red/10 rounded-full blur-2xl pointer-events-none" />
-                    )}
-                    <ProfileAvatar
-                      name={p.name}
-                      gender={p.gender}
-                      size="md"
-                      isSelected={isCurrent}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white font-mono text-sm">
-                          {p.name}
-                        </span>
-                        {isCurrent && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-red/25 text-brand-red font-mono font-black tracking-wider border border-brand-red/30">
-                            CURRENT
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-zinc-400 font-mono block truncate mt-0.5">
-                        {p.role === "PRIMARY" ? "Primary Master Profile" : "Partner Workspace Profile"}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-white/10">
-              <span className="text-zinc-400 font-mono text-[11px] flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-zinc-500" />
-                Switch profile workspace requiring Master PIN:
-              </span>
-              <Button
-                variant="glass"
-                size="sm"
-                onClick={() => {
-                  haptics.selection();
-                  window.dispatchEvent(new CustomEvent("open-profile-switcher"));
-                }}
-                className="text-xs gap-1.5 shadow-glow-red-subtle"
-              >
-                <Key className="w-3.5 h-3.5 text-brand-red" />
-                <span>Switch Profile (PIN Required)</span>
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* 2. Device Lock & Biometrics */}
+      {/* 1. Device Lock & Biometrics */}
       {(activeTab === "all" || activeTab === "security") && (
         <Card glow="red" className="transition-all">
           <CardHeader>
@@ -791,7 +691,7 @@ export default function SettingsPage() {
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <CardTitle>Master PIN &amp; Biometric Security ({currentUserName})</CardTitle>
+                <CardTitle>Master PIN &amp; Biometric Security</CardTitle>
                 <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
                   Local device encryption keys, biometric sensors, and autonomous timeouts
                 </p>
@@ -1230,34 +1130,6 @@ export default function SettingsPage() {
                 <span>{restoreMessage.text}</span>
               </div>
             )}
-
-            {/* Quick Setup Feeder Card */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-brand-red/[0.03] rounded-2xl border border-brand-red/30 shadow-glow-red-subtle">
-              <div>
-                <p className="font-semibold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-brand-red" />
-                  <span>Quick Setup &amp; One-Form Feeder</span>
-                  <span className="text-[10px] font-mono text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
-                    Fast Onboard
-                  </span>
-                </p>
-                <p className="text-zinc-400 text-[11px] font-mono mt-1">
-                  Feed bank accounts, credit cards, partner preferences, initial tasks, and routines in a single streamlined screen.
-                </p>
-              </div>
-              <Button
-                variant="red"
-                size="sm"
-                onClick={() => {
-                  haptics.selection();
-                  setIsSetupModalOpen(true);
-                }}
-                className="shadow-glow-red whitespace-nowrap self-start sm:self-auto font-bold"
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
-                <span>Open Setup Feeder</span>
-              </Button>
-            </div>
           </div>
         </Card>
       )}
@@ -1316,335 +1188,6 @@ export default function SettingsPage() {
           </div>
         </Card>
       )}
-
-      {/* Unified One-Form Setup Modal */}
-      <Modal
-        isOpen={isSetupModalOpen}
-        onClose={() => {
-          setIsSetupModalOpen(false);
-          setSetupError("");
-          setSetupSuccess(false);
-        }}
-        title="Everything Portal — Quick Setup Feeder"
-        maxWidth="xl"
-      >
-        <form onSubmit={handleSaveSetup} className="space-y-5 font-sans text-xs max-h-[75vh] overflow-y-auto px-1 pr-2 scrollbar-thin">
-          {setupError && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-brand-red font-mono flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{setupError}</span>
-            </div>
-          )}
-
-          {setupSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>Data successfully saved across all modules!</span>
-            </div>
-          )}
-
-          {/* Section 1: Financial Accounts */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
-            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
-              <Wallet className="w-4 h-4" />
-              <span>1. BANK &amp; INVESTMENT ACCOUNTS</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Primary Bank Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. HDFC Salary Account"
-                  value={setupForm.bankName}
-                  onChange={(e) => setSetupForm({ ...setupForm, bankName: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Bank Balance (₹)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 50000"
-                  value={setupForm.bankBalance}
-                  onChange={(e) => setSetupForm({ ...setupForm, bankBalance: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Investment / Mutual Funds
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Zerodha Portfolio"
-                  value={setupForm.investmentName}
-                  onChange={(e) => setSetupForm({ ...setupForm, investmentName: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Investment Value (₹)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 150000"
-                  value={setupForm.investmentBalance}
-                  onChange={(e) => setSetupForm({ ...setupForm, investmentBalance: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Credit Card */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
-            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
-              <CreditCardIcon className="w-4 h-4" />
-              <span>2. PRIMARY CREDIT CARD</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Card Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. HDFC Millennia / ICICI Amazon Pay"
-                  value={setupForm.cardName}
-                  onChange={(e) => setSetupForm({ ...setupForm, cardName: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Expiry Date (MM/YY)
-                </label>
-                <input
-                  type="text"
-                  maxLength={5}
-                  placeholder="MM/YY (e.g. 08/29)"
-                  value={setupForm.cardExpiry}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
-                    const formatted = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
-                    setSetupForm({ ...setupForm, cardExpiry: formatted });
-                  }}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Card Number (16 Digits)
-                </label>
-                <input
-                  type="text"
-                  maxLength={19}
-                  placeholder="4111 2222 3333 4444"
-                  value={setupForm.cardNumber}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
-                    const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ");
-                    setSetupForm({ ...setupForm, cardNumber: formatted });
-                  }}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono tracking-widest focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  CVV (3 or 4 digits)
-                </label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  placeholder="•••"
-                  value={setupForm.cardCvv}
-                  onChange={(e) => setSetupForm({ ...setupForm, cardCvv: e.target.value.replace(/\D/g, "") })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono tracking-widest focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Credit Limit (₹)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 100000"
-                  value={setupForm.cardLimit}
-                  onChange={(e) => setSetupForm({ ...setupForm, cardLimit: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Current Outstanding (₹)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 5420"
-                  value={setupForm.cardOutstanding}
-                  onChange={(e) => setSetupForm({ ...setupForm, cardOutstanding: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Partner & Love */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
-            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
-              <Heart className="w-4 h-4 fill-brand-red" />
-              <span>3. RELATIONSHIP &amp; PARTNER PROFILE</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Partner Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Partner Name"
-                  value={setupForm.partnerName}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerName: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Sweet Nickname
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Meri Jaan / Babu ❤️"
-                  value={setupForm.partnerNickname}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerNickname: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  WhatsApp Phone Number (with Country Code)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. +919876543210"
-                  value={setupForm.partnerPhone}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerPhone: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Anniversary Date
-                </label>
-                <InputDate
-                  value={setupForm.partnerAnniversary}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerAnniversary: e.target.value })}
-                  placeholder="Pick anniversary date..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Birthday
-                </label>
-                <InputDate
-                  value={setupForm.partnerBirthday}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerBirthday: e.target.value })}
-                  placeholder="Pick birthday..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Preferences &amp; Favorites
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Dark chocolate, tulips, surprise dates"
-                  value={setupForm.partnerPreferences}
-                  onChange={(e) => setSetupForm({ ...setupForm, partnerPreferences: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Tasks & Habits */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/10">
-            <div className="flex items-center gap-2 text-brand-red font-mono font-bold text-xs">
-              <CheckSquare className="w-4 h-4" />
-              <span>4. INITIAL TASKS &amp; DAILY HABITS</span>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Priority Tasks (One per line or comma-separated)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Review quarterly targets&#10;Deploy production hotfix&#10;Pay electricity bill"
-                  value={setupForm.taskTitles}
-                  onChange={(e) => setSetupForm({ ...setupForm, taskTitles: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-                  Daily Habits / Routines (One per line or comma-separated)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Morning Meditation&#10;Gym Workout (45m)&#10;Zero Sugar Diet&#10;Deep Work Block (90m)"
-                  value={setupForm.routineNames}
-                  onChange={(e) => setSetupForm({ ...setupForm, routineNames: e.target.value })}
-                  className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
-            <Button
-              type="button"
-              variant="glass"
-              onClick={() => setIsSetupModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="red"
-              isLoading={setupSubmitting}
-              className="shadow-glow-red font-bold"
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5 fill-white" />
-              <span>Save &amp; Feed Everything</span>
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Change Master PIN Modal */}
       <Modal
