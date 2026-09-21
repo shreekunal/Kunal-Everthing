@@ -388,18 +388,18 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
                 />
               </button>
 
-              {/* Floating Pill Label */}
-              <div
-                className={clsx(
-                  "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-2xl transition-all duration-200 pointer-events-none",
-                  isSelected
-                    ? "bg-white text-zinc-950 border-white shadow-[0_0_20px_rgba(255,255,255,0.8)] scale-110 z-50"
-                    : "bg-black/80 text-zinc-400 border-white/10 opacity-70",
-                  centerPos.isTop ? "top-15" : "-bottom-7"
-                )}
-              >
-                {petal.label}
-              </div>
+              {/* Floating Pill Label - Only visible when petal is selected/active */}
+              {isSelected && (
+                <div
+                  className={clsx(
+                    "absolute left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-2xl transition-all duration-200 pointer-events-none animate-in fade-in zoom-in-90",
+                    "bg-white text-zinc-950 border-white shadow-[0_0_20px_rgba(255,255,255,0.8)] scale-110 z-50",
+                    centerPos.isTop ? "top-15" : "-bottom-7"
+                  )}
+                >
+                  {petal.label}
+                </div>
+              )}
             </div>
           );
         })}

@@ -50,7 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { enrollDeviceBiometrics, checkDeviceBiometrics } from "@/lib/biometrics";
 import { autoLock } from "@/lib/autoLock";
 import { haptics } from "@/lib/haptics";
@@ -75,34 +74,6 @@ import {
 export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
-
-  // Quick Setup Modal & Form states
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
-  const [setupSubmitting, setSetupSubmitting] = useState(false);
-  const [setupSuccess, setSetupSuccess] = useState(false);
-  const [setupError, setSetupError] = useState("");
-
-  const [setupForm, setSetupForm] = useState({
-    bankName: "",
-    bankBalance: "",
-    investmentName: "",
-    investmentBalance: "",
-    cardName: "",
-    cardExpiry: "",
-    cardNumber: "",
-    cardCvv: "",
-    cardLimit: "",
-    cardOutstanding: "",
-    cardDueDate: "",
-    partnerName: "",
-    partnerNickname: "",
-    partnerPhone: "",
-    partnerBirthday: "",
-    partnerAnniversary: "",
-    partnerPreferences: "",
-    taskTitles: "",
-    routineNames: "",
-  });
 
   // Notification states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -170,7 +141,7 @@ export default function SettingsPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Active Category Filter Tab
-  type SettingsTab = "all" | "profiles" | "security" | "alarms" | "vault" | "danger";
+  type SettingsTab = "all" | "security" | "alarms" | "vault" | "danger";
   const [activeTab, setActiveTab] = useState<SettingsTab>("all");
 
   // Fetch initial security status
@@ -427,38 +398,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSetupSubmitting(true);
-    setSetupError("");
-    try {
-      const res = await fetch("/api/seed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(setupForm),
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error || "Failed to feed setup data");
-      }
-
-      setSetupSuccess(true);
-      haptics.success();
-      setTimeout(() => {
-        setSetupSuccess(false);
-        setIsSetupModalOpen(false);
-        window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
-      }, 1500);
-    } catch (err: any) {
-      console.error("Setup error:", err);
-      setSetupError(err.message || "Failed to save setup data");
-      haptics.warning();
-    } finally {
-      setSetupSubmitting(false);
-    }
-  };
-
   const handleUpdateAutoLock = async (val: string) => {
     const mins = parseInt(val, 10);
     setAutoLockMinutes(mins);
@@ -630,9 +569,6 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-xl font-black text-white tracking-tight font-mono uppercase flex items-center gap-2">
                 <span>System Control &amp; Security</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-red/20 text-brand-red border border-brand-red/30 font-mono font-bold">
-                  v2.4 HARDWARE
-                </span>
               </h2>
               <p className="text-xs text-zinc-400 font-mono mt-0.5">
                 Local cryptographic keys, native Android AlarmManager, dual profiles &amp; data vault
