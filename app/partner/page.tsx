@@ -164,7 +164,7 @@ export default function PartnerProgressPage() {
   const handleSendWhatsApp = () => {
     haptics.impactMedium();
     const cleanPhone = (partner?.phone || "").replace(/[^0-9]/g, "");
-    const message = `Hey ${partnerNickname}! Just checked your progress today on KunalOS ❤️ Proud of you!`;
+    const message = `Hey ${partnerNickname}! Just checked your progress today ❤️ Proud of you!`;
     const url = cleanPhone
       ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
