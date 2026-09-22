@@ -88,8 +88,6 @@ export default function RewardsPage() {
   const [isDeducting, setIsDeducting] = useState(false);
   const [perkToRedeem, setPerkToRedeem] = useState<{ id: string; cost: number; title: string } | null>(null);
   const [isRedeeming, setIsRedeeming] = useState(false);
-  const [isResetKarmaOpen, setIsResetKarmaOpen] = useState(false);
-  const [isResettingKarma, setIsResettingKarma] = useState(false);
 
   const handleQuickDeduct = (type: "UNHEALTHY_FOOD" | "FAP") => {
     setConfirmDeductType(type);
@@ -230,33 +228,6 @@ export default function RewardsPage() {
       alert("Redemption error");
     } finally {
       setIsRedeeming(false);
-    }
-  };
-
-  const handleExecuteResetKarma = async () => {
-    setIsResettingKarma(true);
-    haptics.warning();
-    try {
-      const res = await fetch("/api/rewards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "RESET_KARMA" }),
-      });
-      if (res.ok) {
-        setActionMessage({
-          text: "Discipline karma points have been successfully reset to 0.",
-        });
-        setIsResetKarmaOpen(false);
-        setTimeout(() => setActionMessage(null), 4000);
-        fetchRewards();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to reset karma points");
-      }
-    } catch {
-      alert("Failed to reset karma points");
-    } finally {
-      setIsResettingKarma(false);
     }
   };
 
@@ -616,34 +587,19 @@ export default function RewardsPage() {
             <CardTitle>Discipline Karma Ledger</CardTitle>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
-              {(["ALL", "REWARDS", "PENALTIES"] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-medium transition-colors ${activeFilter === filter
-                      ? "bg-brand-red text-white font-bold"
-                      : "text-zinc-400 hover:text-white"
-                    }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                haptics.selection();
-                setIsResetKarmaOpen(true);
-              }}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-mono text-zinc-400 hover:text-red-400 bg-black/60 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 transition-colors flex items-center gap-1"
-              title="Reset Karma Points"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset Karma</span>
-            </button>
+          <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
+            {(["ALL", "REWARDS", "PENALTIES"] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-medium transition-colors ${activeFilter === filter
+                    ? "bg-brand-red text-white font-bold"
+                    : "text-zinc-400 hover:text-white"
+                  }`}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
         </CardHeader>
 
@@ -961,19 +917,6 @@ export default function RewardsPage() {
         confirmText={`Unlock for ${perkToRedeem?.cost} XP`}
         confirmVariant="red"
         iconType="warning"
-      />
-
-      {/* Reset Karma Confirmation */}
-      <ConfirmDialog
-        isOpen={isResetKarmaOpen}
-        onClose={() => setIsResetKarmaOpen(false)}
-        onConfirm={handleExecuteResetKarma}
-        isLoading={isResettingKarma}
-        title="Reset Karma Points"
-        message="Are you sure you want to reset your discipline karma points to 0? All discipline XP ledger history will be wiped."
-        confirmText="Reset to 0 XP"
-        confirmVariant="red"
-        iconType="danger"
       />
     </div>
   );
