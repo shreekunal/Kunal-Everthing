@@ -17,7 +17,6 @@ import {
   Calendar,
   Gift,
   Phone,
-  PhoneCall,
   Sparkles,
   Edit2,
   MessageCircle,
@@ -53,7 +52,6 @@ export default function RelationshipPage() {
   const [partnerBirthday, setPartnerBirthday] = useState("");
   const [partnerAnniversary, setPartnerAnniversary] = useState("");
   const [partnerPhone, setPartnerPhone] = useState("");
-  const [partnerCallLink, setPartnerCallLink] = useState("");
   const [partnerPreferences, setPartnerPreferences] = useState("");
   const [partnerNotes, setPartnerNotes] = useState("");
 
@@ -210,7 +208,6 @@ export default function RelationshipPage() {
       setPartnerBirthday(json.partner.birthday || "");
       setPartnerAnniversary(json.partner.anniversary || "");
       setPartnerPhone(json.partner.phone || "");
-      setPartnerCallLink(json.partner.callLink || "");
       setPartnerPreferences(json.partner.preferences || "");
       setPartnerNotes(json.partner.notes || "");
     }
@@ -260,7 +257,6 @@ export default function RelationshipPage() {
           birthday: partnerBirthday || null,
           anniversary: partnerAnniversary || null,
           phone: partnerPhone,
-          callLink: partnerCallLink || null,
           preferences: partnerPreferences,
           notes: partnerNotes,
         }),
@@ -281,21 +277,6 @@ export default function RelationshipPage() {
     } catch (err) {
       console.error("Save partner error:", err);
     }
-  };
-
-  const handleWhatsAppCall = () => {
-    haptics.impactMedium();
-    if (data?.partner?.callLink) {
-      window.open(data.partner.callLink, "_blank");
-      return;
-    }
-    const phone = data?.partner?.phone || "";
-    const cleanPhone = phone.replace(/[^0-9]/g, "");
-    if (!cleanPhone) {
-      setIsEditProfileOpen(true);
-      return;
-    }
-    window.open(`https://wa.me/${cleanPhone}`, "_blank");
   };
 
   const handleSendWhatsApp = (text: string) => {
@@ -402,17 +383,8 @@ export default function RelationshipPage() {
                   <Phone className="w-3 h-3 text-brand-red" />
                   {partner?.phone || "No phone number configured"}
                 </p>
-                {(partner?.phone || (partner as any)?.callLink) && (
+                {partner?.phone && (
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleWhatsAppCall}
-                      className="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
-                      title={(partner as any)?.callLink ? "Join direct WhatsApp Call Link" : `WhatsApp Call ${partnerNicknameDisplay}`}
-                    >
-                      <PhoneCall className="w-2.5 h-2.5" />
-                      <span>WhatsApp Call</span>
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleSendWhatsApp("Hello baby ❤️")}
@@ -1006,21 +978,6 @@ export default function RelationshipPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-zinc-300 mb-1.5 font-mono">
-              WhatsApp Call Link (Optional)
-            </label>
-            <input
-              type="url"
-              placeholder="https://call.whatsapp.com/voice/..."
-              value={partnerCallLink}
-              onChange={(e) => setPartnerCallLink(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-mono focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all"
-            />
-            <p className="text-[10px] text-zinc-500 mt-1 font-mono">
-              Optional: Generate via WhatsApp → Calls → Create call link for 1-tap direct voice calling.
-            </p>
-          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -12,7 +12,6 @@ import {
   Crown,
   Sparkles,
   ArrowLeft,
-  PhoneCall,
   MessageCircle,
   ExternalLink,
   ShieldCheck,
@@ -149,18 +148,6 @@ export default function PartnerProgressPage() {
 
   const discipline = data?.discipline;
 
-  const handleWhatsAppCall = () => {
-    haptics.impactMedium();
-    if (partner?.callLink) {
-      window.open(partner.callLink, "_blank");
-      return;
-    }
-    const cleanPhone = (partner?.phone || "").replace(/[^0-9]/g, "");
-    if (cleanPhone) {
-      window.open(`https://wa.me/${cleanPhone}`, "_blank");
-    }
-  };
-
   const handleSendWhatsApp = () => {
     haptics.impactMedium();
     const cleanPhone = (partner?.phone || "").replace(/[^0-9]/g, "");
@@ -242,16 +229,6 @@ export default function PartnerProgressPage() {
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>Cheer on WhatsApp</span>
               </button>
-              {partner?.phone && (
-                <button
-                  type="button"
-                  onClick={handleWhatsAppCall}
-                  className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-300 hover:text-white transition-colors active:scale-95"
-                  title="Call Partner"
-                >
-                  <PhoneCall className="w-4 h-4 text-emerald-400" />
-                </button>
-              )}
             </div>
           </div>
         </Card>

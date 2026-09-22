@@ -347,6 +347,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log, message: `Enjoy your ${item.title}!` });
     }
 
+    // 9. Reset Karma Points
+    if (action === "RESET_KARMA") {
+      await prisma.rewardLog.deleteMany({
+        where: { userId: user.id },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Discipline karma points have been successfully reset to 0.",
+      });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error: any) {
     console.error("Rewards POST error:", error);
