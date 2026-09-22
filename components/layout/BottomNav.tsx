@@ -13,6 +13,7 @@ import {
   Flame,
   BarChart3,
   Heart,
+  Users,
   Calendar,
   Settings,
   Lock,
@@ -173,7 +174,7 @@ export function BottomNav({
   };
 
   const extendedNav = [
-    { name: "Partner", href: "/partner", icon: Heart },
+    { name: "Partner", href: "/partner", icon: Users },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Habits", href: "/routines", icon: Flame },
     { name: "Focus", href: "/progress", icon: BarChart3 },

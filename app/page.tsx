@@ -27,6 +27,7 @@ import {
   Sparkles,
   Droplets,
   Crown,
+  GraduationCap,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
@@ -50,6 +51,29 @@ export default function DashboardPage() {
   const [isDeducting, setIsDeducting] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [waterTarget, setWaterTarget] = useState(8);
+  const [dailyStudyGoal, setDailyStudyGoal] = useState(3);
+  const [weeklyStudyGoal, setWeeklyStudyGoal] = useState(21);
+
+  const loadStudyGoal = () => {
+    if (typeof window === "undefined") return;
+    const storedWeekly = localStorage.getItem("everthing_weekly_study_goal_hours");
+    const storedDaily = localStorage.getItem("everthing_daily_study_goal_hours");
+    if (storedWeekly) {
+      const val = parseInt(storedWeekly, 10);
+      if (!isNaN(val) && val > 0) setWeeklyStudyGoal(val);
+    }
+    if (storedDaily) {
+      const val = parseInt(storedDaily, 10);
+      if (!isNaN(val) && val > 0) {
+        setDailyStudyGoal(val);
+      }
+    } else if (storedWeekly) {
+      const val = parseInt(storedWeekly, 10);
+      if (!isNaN(val) && val > 0) {
+        setDailyStudyGoal(Math.max(1, Math.round(val / 7)));
+      }
+    }
+  };
 
   const loadWaterStats = () => {
     if (typeof window === "undefined") return;
@@ -129,17 +153,22 @@ export default function DashboardPage() {
 
     fetchDashboardData();
     loadWaterStats();
+    loadStudyGoal();
     const handleOnline = () => fetchDashboardData();
     const handleOffline = () => setIsOffline(true);
     window.addEventListener("kunal-os-refresh", fetchDashboardData);
     window.addEventListener("kunal-os-refresh", loadWaterStats);
+    window.addEventListener("kunal-os-refresh", loadStudyGoal);
     window.addEventListener("storage", loadWaterStats);
+    window.addEventListener("storage", loadStudyGoal);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
       window.removeEventListener("kunal-os-refresh", fetchDashboardData);
       window.removeEventListener("kunal-os-refresh", loadWaterStats);
+      window.removeEventListener("kunal-os-refresh", loadStudyGoal);
       window.removeEventListener("storage", loadWaterStats);
+      window.removeEventListener("storage", loadStudyGoal);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
@@ -483,17 +512,57 @@ export default function DashboardPage() {
           onClick={() => haptics.selection()}
           className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
         >
-          <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full">
-            <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
-              <span className="group-hover:text-white transition-colors">Study (Week)</span>
-              <Clock className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-            </div>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight text-white font-mono">
-              {formatDuration(weeklySummary?.studyMinutes || 0)}
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-              <span>Deep Work: {formatDuration(weeklySummary?.workMinutes || 0)}</span>
-              <span>Study: {formatDuration(weeklySummary?.studyMinutes || 0)}</span>
+          <Card glow="red" className="relative overflow-hidden group hover:border-brand-red/40 transition-all h-full flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-zinc-400 mb-1 font-mono uppercase">
+                <span className="group-hover:text-white transition-colors truncate">Study Today</span>
+                <GraduationCap className="w-4 h-4 text-brand-red group-hover:scale-110 transition-transform shrink-0" />
+              </div>
+              {(() => {
+                const studiedTodayMins = weeklySummary?.studyMinutesToday || 0;
+                const dailyTargetMins = Math.max(1, dailyStudyGoal * 60);
+                const remainingMins = Math.max(0, dailyTargetMins - studiedTodayMins);
+                const isGoalMet = studiedTodayMins >= dailyTargetMins;
+                const percent = Math.min(100, Math.round((studiedTodayMins / dailyTargetMins) * 100));
+
+                return (
+                  <>
+                    <div className="text-xl sm:text-2xl font-bold tracking-tight font-mono flex items-baseline gap-1.5">
+                      {isGoalMet ? (
+                        <span className="text-emerald-400 flex items-center gap-1">
+                          <Sparkles className="w-4 h-4 animate-pulse text-emerald-400 shrink-0" />
+                          <span>Goal Met!</span>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-white">{formatDuration(remainingMins)}</span>
+                          <span className="text-xs text-brand-red font-semibold lowercase">left</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Compact Micro-Progress Bar for mobile */}
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-2">
+                      <div
+                        className={clsx(
+                          "h-full rounded-full transition-all duration-500",
+                          isGoalMet ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-brand-red shadow-glow-red"
+                        )}
+                        style={{ width: `${Math.max(4, percent)}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                      <span className="truncate">
+                        Done: {formatDuration(studiedTodayMins)}/{dailyStudyGoal}h
+                      </span>
+                      <span className="text-zinc-500 shrink-0 ml-1">
+                        Wk: {formatDuration(weeklySummary?.studyMinutes || 0)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </Card>
         </Link>

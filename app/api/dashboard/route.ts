@@ -126,6 +126,10 @@ export async function GET() {
       .filter((s) => s.type === "STUDY")
       .reduce((acc, s) => acc + s.durationMinutes, 0);
 
+    const studyMinutesToday = weekSessions
+      .filter((s) => s.type === "STUDY" && s.date === todayStr)
+      .reduce((acc, s) => acc + s.durationMinutes, 0);
+
     return NextResponse.json({
       user: {
         name: user.name,
@@ -144,6 +148,7 @@ export async function GET() {
       weeklySummary: {
         workMinutes: workMinutesWeek,
         studyMinutes: studyMinutesWeek,
+        studyMinutesToday,
         tasksCompleted: completedTasksCount,
         tasksTotal: totalTasksCount,
         routineCompletionRate:

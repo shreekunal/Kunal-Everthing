@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Clock,
   Heart,
+  Pencil,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
@@ -44,6 +45,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import { format } from "date-fns";
+import clsx from "clsx";
 
 export default function ProgressPage() {
   const [data, setData] = useState<any>(null);
@@ -55,6 +57,14 @@ export default function ProgressPage() {
   const [manualProject, setManualProject] = useState("");
   const [manualDuration, setManualDuration] = useState("45");
   const [manualCategory, setManualCategory] = useState("Deep Study");
+
+  // Study Goal State (Daily & Weekly)
+  const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
+  const [weeklyTargetHours, setWeeklyTargetHours] = useState<number>(21);
+  const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
+  const [goalModeTab, setGoalModeTab] = useState<"DAILY" | "WEEKLY">("DAILY");
+  const [tempDailyInput, setTempDailyInput] = useState<string>("3");
+  const [tempWeeklyInput, setTempWeeklyInput] = useState<string>("21");
 
   // Share Modal & Image Export states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -85,9 +95,62 @@ export default function ProgressPage() {
     }
   };
 
+  const loadTargetHours = () => {
+    if (typeof window === "undefined") return;
+    const storedWeekly = localStorage.getItem("everthing_weekly_study_goal_hours");
+    const storedDaily = localStorage.getItem("everthing_daily_study_goal_hours");
+
+    let weekly = 21;
+    if (storedWeekly) {
+      const val = parseInt(storedWeekly, 10);
+      if (!isNaN(val) && val > 0) weekly = val;
+    }
+    setWeeklyTargetHours(weekly);
+    setTempWeeklyInput(weekly.toString());
+
+    let daily = Math.max(1, Math.round(weekly / 7));
+    if (storedDaily) {
+      const val = parseInt(storedDaily, 10);
+      if (!isNaN(val) && val > 0) daily = val;
+    }
+    setDailyTargetHours(daily);
+    setTempDailyInput(daily.toString());
+  };
+
+  const handleSaveDailyGoal = (newHours: number) => {
+    const val = Math.max(1, Math.min(24, Math.round(newHours)));
+    setDailyTargetHours(val);
+    setTempDailyInput(val.toString());
+    if (typeof window !== "undefined") {
+      localStorage.setItem("everthing_daily_study_goal_hours", val.toString());
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+    }
+    setIsEditingGoal(false);
+    haptics.success();
+  };
+
+  const handleSaveWeeklyGoal = (newHours: number) => {
+    const val = Math.max(1, Math.min(168, Math.round(newHours)));
+    setWeeklyTargetHours(val);
+    setTempWeeklyInput(val.toString());
+    if (typeof window !== "undefined") {
+      localStorage.setItem("everthing_weekly_study_goal_hours", val.toString());
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+    }
+    setIsEditingGoal(false);
+    haptics.success();
+  };
+
   useEffect(() => {
     setMounted(true);
     fetchProgress();
+    loadTargetHours();
+    window.addEventListener("kunal-os-refresh", loadTargetHours);
+    window.addEventListener("storage", loadTargetHours);
+    return () => {
+      window.removeEventListener("kunal-os-refresh", loadTargetHours);
+      window.removeEventListener("storage", loadTargetHours);
+    };
   }, []);
 
   const handleManualLog = async (e: React.FormEvent) => {
@@ -119,11 +182,18 @@ export default function ProgressPage() {
   const todayStudyMinutes = today?.studyMinutes || 0;
   const todayStudySessions = (today?.sessions || []).filter((s: any) => s.type === "STUDY");
   const weekStudyMinutes = thisWeek?.studyMinutes || 0;
-  const weeklyTargetMinutes = 20 * 60; // 20 hours target
+  const dailyTargetMinutes = dailyTargetHours * 60;
+  const weeklyTargetMinutes = weeklyTargetHours * 60;
+  const dailyProgressPercent = Math.min(
+    100,
+    Math.round((todayStudyMinutes / dailyTargetMinutes) * 100)
+  );
   const weekProgressPercent = Math.min(
     100,
     Math.round((weekStudyMinutes / weeklyTargetMinutes) * 100)
   );
+  const remainingDailyMinutes = Math.max(0, dailyTargetMinutes - todayStudyMinutes);
+  const remainingWeeklyMinutes = Math.max(0, weeklyTargetMinutes - weekStudyMinutes);
   const todayEarnedXP = todayStudyMinutes;
 
   const partnerLabel =
@@ -325,7 +395,9 @@ export default function ProgressPage() {
             {formatDuration(todayStudyMinutes)}
           </p>
           <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            {todayStudySessions.length} session{todayStudySessions.length === 1 ? "" : "s"} logged today
+            {todayStudyMinutes >= dailyTargetMinutes
+              ? `🎯 Daily Goal Met (${dailyTargetHours}h)!`
+              : `${formatDuration(remainingDailyMinutes)} left to ${dailyTargetHours}h goal`}
           </span>
         </Card>
 
@@ -337,7 +409,7 @@ export default function ProgressPage() {
             {formatDuration(weekStudyMinutes)}
           </p>
           <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            {weekProgressPercent}% of 20h target
+            {weekProgressPercent}% of {weeklyTargetHours}h target
           </span>
         </Card>
 
@@ -366,30 +438,247 @@ export default function ProgressPage() {
         </Card>
       </div>
 
-      {/* Weekly Study Target Progress Bar (20 Hours Target) */}
+      {/* Study Target Progress (Daily & Weekly Customizable Goals) */}
       <Card glow="red" className="p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-brand-red" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Target className="w-4 h-4 text-brand-red shrink-0" />
             <span className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-              Weekly Study Target (20 Hours Goal)
+              Study Targets & Progress
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                haptics.impactLight();
+                setIsEditingGoal(!isEditingGoal);
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-brand-red/50 text-[10px] font-mono text-zinc-300 hover:text-white flex items-center gap-1 transition-all active:scale-95"
+              title="Configure Daily & Weekly Study Goals"
+            >
+              <Pencil className="w-2.5 h-2.5 text-brand-red" />
+              <span>{isEditingGoal ? "Close Editor" : "Set Goals"}</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-3 text-[11px] font-mono">
+            <span className={clsx("font-bold", todayStudyMinutes >= dailyTargetMinutes ? "text-emerald-400" : "text-brand-red")}>
+              Today: {dailyProgressPercent}%
+            </span>
+            <span className="text-zinc-600">|</span>
+            <span className={clsx("font-bold", weekStudyMinutes >= weeklyTargetMinutes ? "text-emerald-400" : "text-zinc-300")}>
+              Week: {weekProgressPercent}%
             </span>
           </div>
-          <span className="text-xs font-bold font-mono text-brand-red">
-            {weekProgressPercent}% Achieved ({formatDuration(weekStudyMinutes)} / 20h)
-          </span>
         </div>
-        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-brand-red rounded-full transition-all duration-500 shadow-glow-red"
-            style={{ width: `${Math.max(3, weekProgressPercent)}%` }}
-          />
+
+        {/* Inline Goal Customizer */}
+        {isEditingGoal && (
+          <div className="my-3 p-3.5 rounded-2xl bg-black/80 border border-brand-red/30 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Mode Switcher: Daily vs Weekly */}
+            <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+              <div className="flex items-center gap-1.5 p-0.5 rounded-xl bg-white/[0.04] border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setGoalModeTab("DAILY");
+                  }}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all min-h-[36px]",
+                    goalModeTab === "DAILY"
+                      ? "bg-brand-red text-white shadow-glow-red"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  Daily Goal ({dailyTargetHours}h/d)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setGoalModeTab("WEEKLY");
+                  }}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all min-h-[36px]",
+                    goalModeTab === "WEEKLY"
+                      ? "bg-brand-red text-white shadow-glow-red"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  Weekly Goal ({weeklyTargetHours}h/w)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsEditingGoal(false)}
+                className="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {goalModeTab === "DAILY" ? (
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-2">
+                  Select Daily Study Target Hours (shown on Home Tile):
+                </span>
+                {/* Presets Chips - touch friendly */}
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-3">
+                  {[1, 2, 3, 4, 5, 6, 8].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handleSaveDailyGoal(preset)}
+                      className={clsx(
+                        "h-11 rounded-xl text-xs font-mono font-bold border flex items-center justify-center transition-all active:scale-95",
+                        dailyTargetHours === preset
+                          ? "bg-brand-red text-white border-brand-red shadow-glow-red"
+                          : "bg-white/[0.04] text-zinc-300 border-white/10 hover:border-white/20 hover:text-white"
+                      )}
+                    >
+                      {preset}h/day
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Daily Hours Input */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const num = Number(tempDailyInput);
+                    if (!isNaN(num) && num > 0) {
+                      handleSaveDailyGoal(num);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={tempDailyInput}
+                      onChange={(e) => setTempDailyInput(e.target.value)}
+                      placeholder="Custom daily hours"
+                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono h-11"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                      Hours/day
+                    </span>
+                  </div>
+                  <Button variant="red" size="sm" type="submit" className="h-11 px-4 text-xs font-semibold">
+                    Save Daily Goal
+                  </Button>
+                </form>
+              </div>
+            ) : (
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-2">
+                  Select Weekly Study Target Hours:
+                </span>
+                {/* Presets Chips - touch friendly */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-3">
+                  {[10, 15, 20, 25, 30, 40].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handleSaveWeeklyGoal(preset)}
+                      className={clsx(
+                        "h-11 rounded-xl text-xs font-mono font-bold border flex items-center justify-center transition-all active:scale-95",
+                        weeklyTargetHours === preset
+                          ? "bg-brand-red text-white border-brand-red shadow-glow-red"
+                          : "bg-white/[0.04] text-zinc-300 border-white/10 hover:border-white/20 hover:text-white"
+                      )}
+                    >
+                      {preset}h/wk
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Weekly Hours Input */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const num = Number(tempWeeklyInput);
+                    if (!isNaN(num) && num > 0) {
+                      handleSaveWeeklyGoal(num);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={tempWeeklyInput}
+                      onChange={(e) => setTempWeeklyInput(e.target.value)}
+                      placeholder="Custom weekly hours"
+                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono h-11"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                      Hours/week
+                    </span>
+                  </div>
+                  <Button variant="red" size="sm" type="submit" className="h-11 px-4 text-xs font-semibold">
+                    Save Weekly Goal
+                  </Button>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dual Progress Bars: Daily & Weekly */}
+        <div className="space-y-3 pt-1">
+          {/* Daily Track */}
+          <div>
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span className="text-zinc-400">
+                Daily Goal: <strong className="text-white">{formatDuration(todayStudyMinutes)}</strong> / {dailyTargetHours}h
+              </span>
+              <span className={clsx("font-bold", todayStudyMinutes >= dailyTargetMinutes ? "text-emerald-400" : "text-brand-red")}>
+                {todayStudyMinutes >= dailyTargetMinutes ? "🎯 Done!" : `${formatDuration(remainingDailyMinutes)} left`}
+              </span>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={clsx(
+                  "h-full rounded-full transition-all duration-500",
+                  todayStudyMinutes >= dailyTargetMinutes ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-brand-red shadow-glow-red"
+                )}
+                style={{ width: `${Math.max(3, dailyProgressPercent)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Weekly Track */}
+          <div>
+            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span className="text-zinc-400">
+                Weekly Goal: <strong className="text-white">{formatDuration(weekStudyMinutes)}</strong> / {weeklyTargetHours}h
+              </span>
+              <span className={clsx("font-bold", weekStudyMinutes >= weeklyTargetMinutes ? "text-emerald-400" : "text-zinc-400")}>
+                {weekStudyMinutes >= weeklyTargetMinutes ? "🎯 Smashed!" : `${formatDuration(remainingWeeklyMinutes)} left`}
+              </span>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={clsx(
+                  "h-full rounded-full transition-all duration-500",
+                  weekStudyMinutes >= weeklyTargetMinutes ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-gradient-to-r from-red-600 to-rose-500"
+                )}
+                style={{ width: `${Math.max(3, weekProgressPercent)}%` }}
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-2">
+
+        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-2.5 pt-2 border-t border-white/5">
           <span>
-            {weekProgressPercent >= 100
-              ? "🎯 Weekly Study Target Smashed!"
-              : `${formatDuration(Math.max(0, weeklyTargetMinutes - weekStudyMinutes))} remaining to goal`}
+            {todayStudyMinutes >= dailyTargetMinutes
+              ? "✨ Daily target achieved — keep crushing it!"
+              : `${formatDuration(remainingDailyMinutes)} needed today to reach ${dailyTargetHours}h`}
           </span>
           <span>
             Pace: {Math.round(((weekStudyMinutes / (new Date().getDay() || 7)) / 60) * 10) / 10}h / day
