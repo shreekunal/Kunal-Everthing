@@ -10,6 +10,7 @@ import {
   Trophy,
   Award,
   Flame,
+  Shield,
   ShieldAlert,
   ShieldCheck,
   Zap,
@@ -430,92 +431,104 @@ export default function RewardsPage() {
         </Card>
       </div>
 
-      {/* 2 Major Discipline Streak Trackers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Purity / NoFap Tracker */}
-        <Card glow="red" className="relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red">
-                <ShieldCheck className="w-6 h-6" />
+      {/* Merged Core Discipline Protocols */}
+      <Card glow="red" className="relative overflow-hidden">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-brand-red" />
+            <CardTitle>Core Discipline Protocols</CardTitle>
+          </div>
+          <Badge variant="red" size="sm">
+            Streaks &amp; Focus
+          </Badge>
+        </CardHeader>
+
+        <p className="text-xs text-zinc-400 -mt-2 mb-4">
+          Consecutive clean days maintained without protocol breach.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Monk Purity (No-Fap) */}
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-3 hover:border-brand-red/30 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-tight">Monk Purity Protocol (No-Fap)</h4>
+                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                    Consecutive clean days without relapse
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">Monk Purity Protocol (No-Fap)</h4>
-                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                  Consecutive clean days without relapse
-                </p>
-              </div>
+              <Badge variant="red" size="sm" className="flex-shrink-0">
+                High Focus
+              </Badge>
             </div>
-            <Badge variant="red" size="sm">
-              High Focus
-            </Badge>
-          </div>
 
-          <div className="my-5 flex items-baseline gap-2">
-            <span className="text-4xl font-black font-mono text-white tracking-tight">
-              {streaks.purity.currentStreak}
-            </span>
-            <span className="text-sm font-mono text-zinc-400 uppercase">Days Clean</span>
-            <span className="text-xs font-mono text-zinc-500 ml-auto">
-              Record: <strong className="text-white">{streaks.purity.bestStreak}d</strong>
-            </span>
-          </div>
+            <div className="my-2 flex items-baseline gap-2">
+              <span className="text-3xl font-black font-mono text-white tracking-tight">
+                {streaks.purity.currentStreak}
+              </span>
+              <span className="text-xs font-mono text-zinc-400 uppercase">Days Clean</span>
+              <span className="text-xs font-mono text-zinc-500 ml-auto">
+                Record: <strong className="text-white">{streaks.purity.bestStreak}d</strong>
+              </span>
+            </div>
 
-          <div className="flex gap-2">
             <Button
               variant="glass"
               size="sm"
               onClick={() => handleQuickDeduct("FAP")}
-              className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5"
+              className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5 py-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Log Relapse & Reset (-100 XP)</span>
+              <span>Log Relapse &amp; Reset (-100 XP)</span>
             </Button>
           </div>
-        </Card>
 
-        {/* Clean Diet Tracker */}
-        <Card className="relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-emerald-400">
-                <UtensilsCrossed className="w-6 h-6" />
+          {/* Clean Diet & Nutrition */}
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-3 hover:border-emerald-500/30 transition-all">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                  <UtensilsCrossed className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-tight">Clean Diet &amp; Nutrition Protocol</h4>
+                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                    Consecutive clean days without junk/fast food
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">Clean Diet & Nutrition Protocol</h4>
-                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                  Consecutive clean days without junk/fast food
-                </p>
-              </div>
+              <Badge variant="glass" size="sm" className="flex-shrink-0">
+                Nutrition
+              </Badge>
             </div>
-            <Badge variant="glass" size="sm">
-              Nutrition
-            </Badge>
-          </div>
 
-          <div className="my-5 flex items-baseline gap-2">
-            <span className="text-4xl font-black font-mono text-white tracking-tight">
-              {streaks.diet.currentStreak}
-            </span>
-            <span className="text-sm font-mono text-zinc-400 uppercase">Days Clean</span>
-            <span className="text-xs font-mono text-zinc-500 ml-auto">
-              Record: <strong className="text-white">{streaks.diet.bestStreak}d</strong>
-            </span>
-          </div>
+            <div className="my-2 flex items-baseline gap-2">
+              <span className="text-3xl font-black font-mono text-white tracking-tight">
+                {streaks.diet.currentStreak}
+              </span>
+              <span className="text-xs font-mono text-zinc-400 uppercase">Days Clean</span>
+              <span className="text-xs font-mono text-zinc-500 ml-auto">
+                Record: <strong className="text-white">{streaks.diet.bestStreak}d</strong>
+              </span>
+            </div>
 
-          <div className="flex gap-2">
             <Button
               variant="glass"
               size="sm"
               onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-              className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5"
+              className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5 py-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Ate Junk Food & Reset (-50 XP)</span>
+              <span>Ate Junk Food &amp; Reset (-50 XP)</span>
             </Button>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Reward Perk Store */}
       <Card>
@@ -537,6 +550,7 @@ export default function RewardsPage() {
           {rewardItems.map((item: any) => {
             const canAfford = totalXP >= item.cost;
             const isJunk = item.title.toLowerCase().includes("junk");
+            const isFreeze = item.title.toLowerCase().includes("freeze");
             return (
               <div
                 key={item.id}
@@ -545,7 +559,13 @@ export default function RewardsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red">
-                      {isJunk ? <Pizza className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                      {isJunk ? (
+                        <Pizza className="w-5 h-5" />
+                      ) : isFreeze ? (
+                        <Shield className="w-5 h-5" />
+                      ) : (
+                        <Zap className="w-5 h-5" />
+                      )}
                     </div>
                     <span className="font-bold text-base font-mono text-brand-red">
                       {item.cost} XP
@@ -555,6 +575,8 @@ export default function RewardsPage() {
                   <p className="text-xs text-zinc-400 font-mono mt-1">
                     {isJunk
                       ? "One guilt-free cheat meal or junk food pass."
+                      : isFreeze
+                      ? "Emergency safeguard to protect your habit streak for 1 day."
                       : "Controlled release protocol without streak penalty."}
                   </p>
                   {item.timesRedeemed > 0 && (

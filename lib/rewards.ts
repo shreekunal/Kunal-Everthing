@@ -244,9 +244,9 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
  * Seed default reward store items if none exist
  */
 export async function ensureDefaultRewardItems(userId: string) {
-  const allowedTitles = ["Eat Junk", "Relapse"];
+  const allowedTitles = ["Eat Junk", "Relapse", "Streak Freeze"];
 
-  // Prune any reward items that are not Eat Junk or Relapse
+  // Prune any reward items that are not in the approved core perks list
   await prisma.rewardItem.deleteMany({
     where: {
       userId,
@@ -276,6 +276,15 @@ export async function ensureDefaultRewardItems(userId: string) {
       icon: "Zap",
     });
   }
+  if (!existingTitles.includes("Streak Freeze")) {
+    toCreate.push({
+      userId,
+      title: "Streak Freeze",
+      cost: 150,
+      category: "DISCIPLINE",
+      icon: "Shield",
+    });
+  }
 
   if (toCreate.length > 0) {
     await prisma.rewardItem.createMany({ data: toCreate });
@@ -294,8 +303,17 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
 
   const queries: Promise<any>[] = [
     getOrCreateDisciplineStreaks(userId),
+    // Net spendable karma balance (earned minus redeemed)
     prisma.rewardLog.aggregate({
       where: { userId },
+      _sum: { points: true },
+    }),
+    // Lifetime Karma XP (earned minus actual discipline infractions only - NEVER decreased by perk purchases)
+    prisma.rewardLog.aggregate({
+      where: {
+        userId,
+        type: { not: "REWARD_REDEMPTION" },
+      },
       _sum: { points: true },
     }),
     prisma.rewardLog.aggregate({
@@ -327,10 +345,11 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
     );
   }
 
-  const [streaks, lifetimeAgg, monthAgg, todayLogs, recentLogs, rewardItems] =
+  const [streaks, lifetimeAgg, lifetimeKarmaAgg, monthAgg, todayLogs, recentLogs, rewardItems] =
     await Promise.all(queries);
 
-  const lifetimeXP = lifetimeAgg._sum.points || 0;
+  const netBalance = lifetimeAgg._sum.points || 0;
+  const lifetimeKarmaXP = lifetimeKarmaAgg._sum.points || 0;
   const monthlyXP = monthAgg._sum.points || 0;
 
   const todayEarned = todayLogs
@@ -341,7 +360,8 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
     todayLogs.filter((l: any) => l.points < 0).reduce((sum: number, l: any) => sum + l.points, 0)
   );
 
-  const levelInfo = calculateLevel(monthlyXP);
+  // Character level and Pet evolution derive from genuine Karma XP (spending coins does NOT demote level or kill pet)
+  const levelInfo = calculateLevel(lifetimeKarmaXP);
 
   const purityStreak = streaks.find((s: any) => s.type === "PURITY_NOFAP") || {
     currentStreak: 0,
@@ -368,8 +388,9 @@ export async function getDisciplineSummary(userId: string, includeItems = false)
   );
 
   return {
-    totalXP: monthlyXP,
-    lifetimeXP,
+    totalXP: Math.max(0, netBalance),
+    spendableCoins: Math.max(0, netBalance),
+    lifetimeXP: lifetimeKarmaXP,
     monthlyXP,
     season: {
       name: format(now, "MMMM yyyy"),

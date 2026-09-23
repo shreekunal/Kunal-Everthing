@@ -4,6 +4,7 @@ import { LocalNotifications, Channel } from "@capacitor/local-notifications";
 export const NOTIFICATION_IDS = {
   MORNING_BRIEFING: 1001,
   STREAK_DEFENDER: 1002,
+  MIDDAY_HABIT_CHECK: 1003,
   WATER_REMINDER_BASE: 2000,
   TEST_WATER_NOTIFICATION: 9998,
   TEST_NOTIFICATION: 9999,
@@ -39,7 +40,7 @@ export async function setupNotificationChannels(): Promise<void> {
       {
         id: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
         name: "Daily Routines & Streaks",
-        description: "Morning priorities and evening streak defender alarms",
+        description: "Morning priorities, midday checks, and evening streak defender alarms",
         importance: 4, // High importance (heads-up notification & sound)
         visibility: 1, // Public on lockscreen
         vibration: true,
@@ -138,7 +139,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Schedule recurring Morning (8:00 AM) and Evening (9:00 PM) alarms
+ * Schedule recurring Morning (8:00 AM), Midday (2:00 PM), and Evening (9:00 PM) alarms
  */
 export async function scheduleCoreDailyNotifications(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
@@ -151,6 +152,7 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
     await LocalNotifications.cancel({
       notifications: [
         { id: NOTIFICATION_IDS.MORNING_BRIEFING },
+        { id: NOTIFICATION_IDS.MIDDAY_HABIT_CHECK },
         { id: NOTIFICATION_IDS.STREAK_DEFENDER },
       ],
     });
@@ -172,6 +174,23 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
           extra: {
             route: "/routines",
             type: "MORNING_BRIEFING",
+          },
+        },
+        {
+          id: NOTIFICATION_IDS.MIDDAY_HABIT_CHECK,
+          title: "Everything • Midday Habits Check",
+          body: "Keep the momentum going! Check in on your afternoon habits and focus targets.",
+          schedule: {
+            on: { hour: 14, minute: 0 },
+            repeats: true,
+            allowWhileIdle: true,
+          },
+          channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
+          smallIcon: "ic_stat_notification",
+          iconColor: "#F59E0B",
+          extra: {
+            route: "/routines",
+            type: "MIDDAY_HABIT_CHECK",
           },
         },
         {
@@ -205,6 +224,66 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
 }
 
 /**
+ * Synchronize daily habit notifications dynamically.
+ * Adjusts tonight's Streak Defender notification based on whether habits are completed or pending.
+ */
+export async function syncHabitNotifications(params: {
+  incompleteCount: number;
+  totalCount: number;
+  atRiskStreakNames?: string[];
+}): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+
+  try {
+    const isAllDone = params.totalCount > 0 && params.incompleteCount === 0;
+    const atRiskTitle =
+      params.atRiskStreakNames && params.atRiskStreakNames.length > 0
+        ? `⚡ Streak at Risk: ${params.atRiskStreakNames[0]}`
+        : `⚡ ${params.incompleteCount} Habit${params.incompleteCount > 1 ? "s" : ""} Pending`;
+
+    const body = isAllDone
+      ? "All daily habits completed! Your streak is defended. Rest well."
+      : "Complete your remaining daily habits before midnight to protect your streaks!";
+
+    // Reschedule tonight's Streak Defender with real context
+    await LocalNotifications.cancel({
+      notifications: [{ id: NOTIFICATION_IDS.STREAK_DEFENDER }],
+    });
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: NOTIFICATION_IDS.STREAK_DEFENDER,
+          title: isAllDone ? "Everything • Streaks Defended! 🔥" : atRiskTitle,
+          body,
+          schedule: {
+            on: { hour: 21, minute: 0 },
+            repeats: true,
+            allowWhileIdle: true,
+          },
+          channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
+          smallIcon: "ic_stat_notification",
+          iconColor: isAllDone ? "#10B981" : "#EF4444",
+          extra: {
+            route: "/routines",
+            type: "STREAK_DEFENDER",
+            incompleteCount: params.incompleteCount,
+          },
+        },
+      ],
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Failed to sync habit notifications:", err);
+    return false;
+  }
+}
+
+/**
  * Cancel all core notifications
  */
 export async function cancelCoreNotifications(): Promise<void> {
@@ -213,6 +292,7 @@ export async function cancelCoreNotifications(): Promise<void> {
     await LocalNotifications.cancel({
       notifications: [
         { id: NOTIFICATION_IDS.MORNING_BRIEFING },
+        { id: NOTIFICATION_IDS.MIDDAY_HABIT_CHECK },
         { id: NOTIFICATION_IDS.STREAK_DEFENDER },
       ],
     });
@@ -238,7 +318,10 @@ export async function areCoreNotificationsActive(): Promise<boolean> {
   try {
     const pending = await LocalNotifications.getPending();
     const hasBriefing = pending.notifications.some(
-      (n) => n.id === NOTIFICATION_IDS.MORNING_BRIEFING || n.id === NOTIFICATION_IDS.STREAK_DEFENDER
+      (n) =>
+        n.id === NOTIFICATION_IDS.MORNING_BRIEFING ||
+        n.id === NOTIFICATION_IDS.MIDDAY_HABIT_CHECK ||
+        n.id === NOTIFICATION_IDS.STREAK_DEFENDER
     );
     return hasBriefing;
   } catch (err) {
@@ -608,6 +691,92 @@ export async function cancelTaskNotification(taskId: string): Promise<void> {
     await LocalNotifications.cancel({ notifications: [{ id: notifId }] });
   } catch (err) {
     console.error("Failed to cancel task notification:", err);
+  }
+}
+
+/**
+ * Deterministically hash a date ID and daysBefore offset to a 32-bit int in range [3000000, 3999999]
+ */
+export function getDateNotificationId(dateId: string, daysBefore: number): number {
+  let hash = 0;
+  for (let i = 0; i < dateId.length; i++) {
+    hash = (hash << 5) - hash + dateId.charCodeAt(i);
+    hash |= 0;
+  }
+  return 3000000 + (Math.abs(hash) % 90000) * 10 + (daysBefore % 10);
+}
+
+/**
+ * Schedule native alarms for Important Dates (birthdays, anniversaries, bill renewals)
+ * using the configured reminderDaysBefore window (e.g. 14, 7, 1, 0 days before at 9:00 AM)
+ */
+export async function scheduleImportantDateNotifications(dates: {
+  id: string;
+  name: string;
+  date: string;
+  category: string;
+  repeatPattern?: string;
+  reminderDaysBefore?: string;
+}[]): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  if (!Array.isArray(dates) || dates.length === 0) return false;
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+
+  try {
+    const notificationsToSchedule: any[] = [];
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    for (const d of dates) {
+      if (!d.date) continue;
+      const parts = d.date.split("-").map(Number);
+      if (parts.length < 3) continue;
+      const [_, month, day] = parts;
+
+      let targetDate = new Date(now.getFullYear(), month - 1, day);
+      if (d.repeatPattern === "YEARLY" && targetDate < todayStart) {
+        targetDate = new Date(now.getFullYear() + 1, month - 1, day);
+      }
+
+      const offsets = (d.reminderDaysBefore || "14,7,1,0")
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n));
+
+      for (const daysBefore of offsets) {
+        const triggerTime = new Date(targetDate.getTime() - daysBefore * 24 * 60 * 60 * 1000);
+        triggerTime.setHours(9, 0, 0, 0);
+
+        if (triggerTime.getTime() > Date.now()) {
+          const notifId = getDateNotificationId(d.id, daysBefore);
+          const label = daysBefore === 0 ? "Today!" : daysBefore === 1 ? "Tomorrow" : `in ${daysBefore} days`;
+          notificationsToSchedule.push({
+            id: notifId,
+            title: daysBefore === 0 ? `🎉 Today: ${d.name}` : `Upcoming: ${d.name} (${label})`,
+            body: `${d.name} (${d.category}) is ${label}. Tap to open Dates.`,
+            schedule: { at: triggerTime, allowWhileIdle: true },
+            channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
+            smallIcon: "ic_stat_notification",
+            iconColor: "#EF4444",
+            extra: {
+              route: "/dates",
+              dateId: d.id,
+              type: "IMPORTANT_DATE",
+            },
+          });
+        }
+      }
+    }
+
+    if (notificationsToSchedule.length > 0) {
+      await LocalNotifications.schedule({ notifications: notificationsToSchedule.slice(0, 50) });
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to schedule important date notifications:", err);
+    return false;
   }
 }
 

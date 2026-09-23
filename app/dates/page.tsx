@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
+import { scheduleImportantDateNotifications } from "@/lib/notifications";
 import {
   Select,
   SelectContent,
@@ -33,14 +34,14 @@ import {
 export default function DatesPage() {
   const [dates, setDates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [proximityView, setProximityView] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form states
   const [name, setName] = useState("");
   const [dateVal, setDateVal] = useState("");
-  const [category, setCategory] = useState("CUSTOM");
+  const [category, setCategory] = useState("BIRTHDAY");
   const [repeatPattern, setRepeatPattern] = useState("YEARLY");
   const [reminderDays, setReminderDays] = useState("14,7,1,0");
   const [notes, setNotes] = useState("");
@@ -54,7 +55,9 @@ export default function DatesPage() {
       const res = await fetch("/api/dates");
       if (res.ok) {
         const json = await res.json();
-        setDates(json.dates || []);
+        const loadedDates = json.dates || [];
+        setDates(loadedDates);
+        scheduleImportantDateNotifications(loadedDates);
       }
     } catch (err) {
       console.error("Fetch dates error:", err);

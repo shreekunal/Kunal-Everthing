@@ -13,7 +13,6 @@ import {
   Heart,
   Calendar,
   Settings,
-  Plus,
   Bell,
   X,
   CheckCheck,
@@ -21,7 +20,6 @@ import {
   Trophy,
 } from "lucide-react";
 import { clsx } from "clsx";
-import { Button } from "../ui/Button";
 import { BrandLogo } from "../ui/BrandLogo";
 import { haptics } from "@/lib/haptics";
 import {
@@ -30,10 +28,8 @@ import {
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
 
-import { ProfileAvatar } from "../ui/ProfileAvatar";
-
 interface NavbarProps {
-  onOpenQuickAdd: () => void;
+  onOpenQuickAdd?: () => void;
   onOpenSearch?: () => void;
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
@@ -52,17 +48,10 @@ export function Navbar({
   const desktopHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
   const desktopLongPressRef = useRef(false);
 
-  const desktopQuickAddHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const desktopQuickAddLongPressRef = useRef(false);
-
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mounted, setMounted] = useState(false);
-
-  // Active User Profile State
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
 
   const handleLockPortal = async () => {
     try {
@@ -100,23 +89,9 @@ export function Navbar({
     }
   };
 
-  const fetchUserStatus = async () => {
-    try {
-      const res = await fetch("/api/auth/status");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.userId) setCurrentUserId(data.userId);
-        if (data.userName) setCurrentUserName(data.userName);
-      }
-    } catch {
-      // Silently ignore
-    }
-  };
-
   useEffect(() => {
     setMounted(true);
     fetchNotifications();
-    fetchUserStatus();
   }, []);
 
   const markAllRead = async () => {
@@ -235,66 +210,6 @@ export function Navbar({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Quick Add CTA (Click for Modal, Hold or Right-click for Radial Wheel) */}
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              if (e.button !== 0) return;
-              desktopQuickAddLongPressRef.current = false;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const origin = {
-                x: Math.round(rect.left + rect.width / 2),
-                y: Math.round(rect.bottom + 10),
-              };
-              desktopQuickAddHoldTimerRef.current = setTimeout(() => {
-                desktopQuickAddLongPressRef.current = true;
-                haptics.impactMedium();
-                if (onOpenQuickAddRadial) {
-                  onOpenQuickAddRadial(origin);
-                } else {
-                  window.dispatchEvent(
-                    new CustomEvent("open-quickadd-radial", { detail: { origin } })
-                  );
-                }
-              }, 200);
-            }}
-            onPointerUp={() => {
-              if (desktopQuickAddHoldTimerRef.current) {
-                clearTimeout(desktopQuickAddHoldTimerRef.current);
-                desktopQuickAddHoldTimerRef.current = null;
-              }
-              if (desktopQuickAddLongPressRef.current) return;
-              haptics.impactMedium();
-              onOpenQuickAdd();
-            }}
-            onPointerCancel={() => {
-              if (desktopQuickAddHoldTimerRef.current) {
-                clearTimeout(desktopQuickAddHoldTimerRef.current);
-                desktopQuickAddHoldTimerRef.current = null;
-              }
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              const rect = e.currentTarget.getBoundingClientRect();
-              const origin = {
-                x: Math.round(rect.left + rect.width / 2),
-                y: Math.round(rect.bottom + 10),
-              };
-              if (onOpenQuickAddRadial) {
-                onOpenQuickAddRadial(origin);
-              } else {
-                window.dispatchEvent(
-                  new CustomEvent("open-quickadd-radial", { detail: { origin } })
-                );
-              }
-            }}
-            className="text-xs h-8 px-3 gap-1.5 rounded-lg font-medium transition-all flex items-center justify-center bg-brand-red hover:bg-brand-redDark text-white shadow-glow-red border border-red-400/30 active:scale-95 touch-none select-none"
-            title="Click: Quick Add • Hold or Right-click: Radial Creation Menu"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden sm:inline font-semibold">Add</span>
-          </button>
-
           {/* Notification Center */}
           {mounted ? (
             <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
@@ -379,31 +294,6 @@ export function Navbar({
               <Bell className="w-4 h-4" />
             </button>
           )}
-
-          {/* Active Profile Switcher Trigger */}
-          <button
-            type="button"
-            suppressHydrationWarning
-            onClick={() => {
-              if (onOpenProfileSwitcher) {
-                onOpenProfileSwitcher();
-              } else {
-                window.dispatchEvent(new CustomEvent("open-profile-switcher"));
-              }
-            }}
-            className="flex items-center gap-1.5 p-1 sm:pr-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 transition-all cursor-pointer active:scale-95 group"
-            title={`Active Workspace: ${currentUserName}. Click to switch.`}
-          >
-            <ProfileAvatar
-              name={currentUserName || "Kunal"}
-              gender={currentUserName.toLowerCase().includes("mradul") ? "FEMALE" : "MALE"}
-              size="sm"
-              isSelected
-            />
-            <span suppressHydrationWarning className="hidden sm:inline text-xs font-mono font-bold text-white group-hover:text-brand-red transition-colors">
-              {currentUserName || "Kunal"}
-            </span>
-          </button>
 
           {/* Lock OS Portal CTA */}
           <button

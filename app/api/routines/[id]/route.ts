@@ -88,18 +88,58 @@ export async function PATCH(
       },
     });
 
-    // Award XP rewards
+    // Award XP rewards (Balanced: 25 XP per habit + 40 XP Daily Perfect Bonus)
     if (isCompletedNow) {
       // Habit completion XP
       await awardPoints({
         userId: user.id,
-        points: 30,
+        points: 25,
         type: "ROUTINE_COMPLETED",
         title: `Completed Routine: ${routine.name}`,
         reason: `Maintained habit (${routine.category})`,
         category: "HABITS",
         referenceId: `${routine.id}_${targetDate}`,
       });
+
+      // Check if all active routines are completed today -> Daily Perfect Bonus (+40 XP)
+      const allActiveRoutines = await prisma.routine.findMany({
+        where: { userId: user.id, isArchived: false },
+        include: {
+          completions: {
+            where: { date: targetDate, completed: true },
+          },
+        },
+      });
+
+      const allCompleted = allActiveRoutines.length > 0 && allActiveRoutines.every((r) => r.completions.length > 0);
+      if (allCompleted) {
+        const bonusRef = `all_routines_${targetDate}`;
+        const existingBonus = await prisma.rewardLog.findFirst({
+          where: { userId: user.id, referenceId: bonusRef },
+        });
+
+        if (!existingBonus) {
+          await awardPoints({
+            userId: user.id,
+            points: 40,
+            type: "DAILY_PERFECT_HABITS",
+            title: "🌟 All Habits Completed! (Perfect Day Bonus)",
+            reason: "Completed 100% of your daily routines today.",
+            category: "HABITS",
+            referenceId: bonusRef,
+          });
+
+          await prisma.notification.create({
+            data: {
+              userId: user.id,
+              title: "🌟 Perfect Discipline Day!",
+              message: "100% of daily habits logged today! +40 XP Perfect Day Bonus awarded.",
+              category: "ROUTINE",
+              priority: "HIGH",
+            },
+          });
+        }
+      }
 
       // Check for streak milestone bonus
       if ([7, 14, 30, 60, 100, 365].includes(currentStreak)) {
@@ -113,13 +153,24 @@ export async function PATCH(
           category: "HABITS",
           referenceId: `${routine.id}_streak_${currentStreak}`,
         });
+
+        // Surface milestone achievement in Notification Center
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            title: `🔥 Streak Milestone: ${routine.name}`,
+            message: `Incredible dedication! You reached a ${currentStreak}-day streak on "${routine.name}". +${bonusXP} XP awarded!`,
+            category: "ROUTINE",
+            priority: "HIGH",
+          },
+        });
       }
     } else {
       // Revert XP if routine completion was unmarked
       await prisma.rewardLog.deleteMany({
         where: {
           userId: user.id,
-          referenceId: `${routine.id}_${targetDate}`,
+          referenceId: { in: [`${routine.id}_${targetDate}`, `all_routines_${targetDate}`] },
         },
       });
     }

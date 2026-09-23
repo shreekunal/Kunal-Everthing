@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
     const payload = {
       userId: user.id,
-      points: count,
+      points: 0,
       type: "WATER_LOG",
       title: `Hydration: ${count}/${target} glasses`,
       reason: JSON.stringify({ count, target }),
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       await prisma.rewardLog.update({
         where: { id: existing.id },
         data: {
-          points: count,
+          points: 0,
           title: `Hydration: ${count}/${target} glasses`,
           reason: JSON.stringify({ count, target }),
         },

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { offlineCache } from "@/lib/offlineCache";
 import { offlineQueue } from "@/lib/offlineQueue";
+import { syncHabitNotifications } from "@/lib/notifications";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -70,6 +71,21 @@ export default function RoutinesPage() {
   useEffect(() => {
     fetchRoutines();
   }, []);
+
+  // Dynamically sync native Android habit alarms whenever routines change
+  useEffect(() => {
+    if (routines.length > 0) {
+      const incomplete = routines.filter((r) => !r.completedToday).length;
+      const atRisk = routines
+        .filter((r) => !r.completedToday && r.currentStreak >= 2)
+        .map((r) => r.name);
+      syncHabitNotifications({
+        incompleteCount: incomplete,
+        totalCount: routines.length,
+        atRiskStreakNames: atRisk,
+      });
+    }
+  }, [routines]);
 
   // Back Button integration: close open modals first
   useEffect(() => {

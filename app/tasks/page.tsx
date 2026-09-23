@@ -166,7 +166,7 @@ export default function TasksPage() {
 
     // 2. Silent background sync (queues offline when disconnected)
     try {
-      await offlineQueue.offlineFetch(
+      const res = await offlineQueue.offlineFetch(
         `/api/tasks/${taskId}`,
         {
           method: "PATCH",
@@ -175,6 +175,17 @@ export default function TasksPage() {
         },
         `Task status -> ${newStatus}`
       );
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data.nextTask && data.nextTask.remindAt) {
+          scheduleTaskNotification({
+            id: data.nextTask.id,
+            title: data.nextTask.title,
+            remindAt: data.nextTask.remindAt,
+            description: data.nextTask.description || undefined,
+          });
+        }
+      }
     } catch (err) {
       console.error("Task toggle error:", err);
       if (navigator.onLine) {

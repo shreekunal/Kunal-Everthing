@@ -42,10 +42,10 @@ export async function PATCH(
       data: updateData,
     });
 
-    // Reward XP on task completion
+    // Reward XP on task completion (Balanced ratios: HIGH 50, MEDIUM 25, LOW 10)
     if (isMarkingComplete) {
       const priorityXP =
-        existingTask.priority === "HIGH" ? 50 : existingTask.priority === "MEDIUM" ? 35 : 20;
+        existingTask.priority === "HIGH" ? 50 : existingTask.priority === "MEDIUM" ? 25 : 10;
 
       await awardPoints({
         userId: user.id,
@@ -69,6 +69,7 @@ export async function PATCH(
 
 
     // Handle Smart Recurrence: Generate next instance if marked complete and recurring
+    let nextTask: any = null;
     if (isMarkingComplete && existingTask.recurrence && existingTask.recurrence !== "NONE") {
       let baseDate = existingTask.dueDate ? parseISO(existingTask.dueDate) : new Date();
       let nextDate: Date;
@@ -86,15 +87,23 @@ export async function PATCH(
         nextDate = addDays(baseDate, 1);
       }
 
-      await prisma.task.create({
+      const nextDateStr = format(nextDate, "yyyy-MM-dd");
+      let nextRemindAt: Date | null = null;
+      if (existingTask.remindAt && existingTask.dueTime) {
+        nextRemindAt = parseISO(`${nextDateStr}T${existingTask.dueTime}:00`);
+      }
+
+      nextTask = await prisma.task.create({
         data: {
           userId: user.id,
           title: existingTask.title,
           description: existingTask.description,
           priority: existingTask.priority,
           status: "TODO",
-          dueDate: format(nextDate, "yyyy-MM-dd"),
+          dueDate: nextDateStr,
           dueTime: existingTask.dueTime,
+          remindAt: nextRemindAt,
+          reminderOffset: existingTask.reminderOffset,
           recurrence: existingTask.recurrence,
           category: existingTask.category,
           notes: existingTask.notes,
@@ -102,7 +111,7 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json({ task: updatedTask });
+    return NextResponse.json({ task: updatedTask, nextTask });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
