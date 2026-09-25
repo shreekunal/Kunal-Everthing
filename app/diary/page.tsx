@@ -8,13 +8,10 @@ import {
   Heart,
   Sparkles,
   Calendar,
-  Send,
   Download,
   Share2,
   Trash2,
   CheckCircle2,
-  Plus,
-  Minus,
   Droplets,
   Clock,
   X,
@@ -35,7 +32,7 @@ export default function DailyDiaryPage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Form State: Single Writing Section & Telemetry
+  // Form State
   const [content, setContent] = useState("");
   const [telemetrySnapshot, setTelemetrySnapshot] = useState<any>(null);
 
@@ -103,32 +100,7 @@ export default function DailyDiaryPage() {
     fetchDiaryData(newDate);
   };
 
-  // Quick water increment/decrement
-  const handleAdjustWater = async (delta: number) => {
-    haptics.selection();
-    const currentGlasses =
-      telemetrySnapshot?.waterGlasses ?? todayLiveTelemetry?.waterGlasses ?? 0;
-    const newCount = Math.max(0, currentGlasses + delta);
-
-    const updatedTelemetry = {
-      ...(telemetrySnapshot || todayLiveTelemetry || {}),
-      waterGlasses: newCount,
-    };
-    setTelemetrySnapshot(updatedTelemetry);
-    setTodayLiveTelemetry((prev: any) => ({ ...(prev || {}), waterGlasses: newCount }));
-
-    try {
-      await fetch("/api/water", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: newCount, target: 8, date: selectedDate }),
-      });
-    } catch (err) {
-      console.error("Failed to sync water:", err);
-    }
-  };
-
-  const handleSaveDiary = async (e: React.FormEvent) => {
+  const handleSaveAndShare = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     haptics.selection();
@@ -151,6 +123,8 @@ export default function DailyDiaryPage() {
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
         fetchDiaryData(selectedDate);
+        // Prompt with Option to Share as PNG
+        setIsShareModalOpen(true);
       }
     } catch (err) {
       console.error("Failed to save diary:", err);
@@ -181,37 +155,8 @@ export default function DailyDiaryPage() {
   const studyMins = activeTelemetry?.studyMinutes || 0;
   const waterCount = activeTelemetry?.waterGlasses || 0;
 
-  // Generate clean WhatsApp message
-  const generateWhatsAppMessage = () => {
-    let msg = `Daily Diary & Update • ${format(new Date(selectedDate), "EEEE, MMMM d")} ❤️\n\n`;
-    msg += `📊 Discipline:\n`;
-    msg += `⏱️ Study / Focus: ${formatDuration(studyMins)}\n`;
-    msg += `💧 Hydration: ${waterCount} glasses (${waterCount * 250}ml)\n`;
-    if (activeTelemetry?.tasksCompleted || activeTelemetry?.habitsDone) {
-      msg += `✅ Tasks: ${activeTelemetry?.tasksCompleted || 0} done | 🔥 Habits: ${activeTelemetry?.habitsDone || 0} done\n`;
-    }
-
-    if (content.trim()) {
-      msg += `\n📝 Note:\n"${content.trim()}"\n`;
-    }
-
-    msg += `\nAlways in my heart! 💕`;
-    return msg;
-  };
-
-  // 1-Tap WhatsApp Share
-  const handleSendToPartnerWhatsApp = () => {
-    haptics.impactMedium();
-    const cleanPhone = (partner?.phone || "").replace(/[^0-9]/g, "");
-    const message = generateWhatsAppMessage();
-    const url = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-      : `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
-  };
-
-  // Export Letter Card as PNG Image
-  const handleExportLetterCard = async () => {
+  // Export & Share PNG Image only
+  const handleExportPng = async () => {
     if (!diaryCardRef.current) return;
     setIsExporting(true);
     setShareStatus(null);
@@ -219,13 +164,12 @@ export default function DailyDiaryPage() {
 
     try {
       const dataUrl = await toPng(diaryCardRef.current, {
-        pixelRatio: 2.5,
+        pixelRatio: 3,
         cacheBust: true,
-        backgroundColor: "#09090b",
+        backgroundColor: "#fffdf7",
       });
 
       const fileName = `KunalOS-Diary-${selectedDate}.png`;
-      const partnerMessage = generateWhatsAppMessage();
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = dataUrl.split(",")[1];
@@ -238,15 +182,14 @@ export default function DailyDiaryPage() {
         const canShare = await Share.canShare();
         if (canShare.value) {
           await Share.share({
-            title: `Daily Diary • ${selectedDate}`,
-            text: partnerMessage,
+            title: `Diary Page • ${selectedDate}`,
             url: fileResult.uri,
-            dialogTitle: `Send Diary to ${partnerNickname}`,
+            dialogTitle: `Share Diary Page PNG`,
           });
           haptics.success();
-          setShareStatus({ text: `Diary sent to ${partnerNickname}!` });
+          setShareStatus({ text: `Diary page shared successfully!` });
         } else {
-          setShareStatus({ text: `Card image saved: ${fileName}` });
+          setShareStatus({ text: `Diary PNG saved: ${fileName}` });
           haptics.success();
         }
       } else {
@@ -258,12 +201,11 @@ export default function DailyDiaryPage() {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: `Daily Diary for ${partnerNickname}`,
-              text: partnerMessage,
+              title: `Daily Diary • ${selectedDate}`,
             });
             shared = true;
             haptics.success();
-            setShareStatus({ text: `Diary sent to ${partnerNickname}!` });
+            setShareStatus({ text: `Diary PNG shared!` });
           }
         } catch {}
 
@@ -272,21 +214,14 @@ export default function DailyDiaryPage() {
           link.download = fileName;
           link.href = dataUrl;
           link.click();
-
-          const cleanPhone = (partner?.phone || "").replace(/[^0-9]/g, "");
-          const whatsappUrl = cleanPhone
-            ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(partnerMessage)}`
-            : `https://wa.me/?text=${encodeURIComponent(partnerMessage)}`;
-
-          window.open(whatsappUrl, "_blank");
           haptics.success();
-          setShareStatus({ text: `Downloaded card & opened WhatsApp!` });
+          setShareStatus({ text: `Diary page PNG downloaded!` });
         }
       }
     } catch (err: any) {
-      console.error("Diary export failed:", err);
+      console.error("Diary PNG export failed:", err);
       haptics.warning();
-      setShareStatus({ text: "Failed to export card image", error: true });
+      setShareStatus({ text: "Failed to export diary PNG", error: true });
     } finally {
       setIsExporting(false);
     }
@@ -309,12 +244,12 @@ export default function DailyDiaryPage() {
               Daily Diary
             </h1>
             <p className="text-[10px] text-zinc-400 font-mono">
-              Reflection &amp; Daily Log
+              Reflection &amp; Daily Journal
             </p>
           </div>
         </div>
 
-        <span className="text-[10px] font-mono font-medium px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
+        <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-emerald-400" />
           <span>+25 XP</span>
         </span>
@@ -381,16 +316,16 @@ export default function DailyDiaryPage() {
 
       {/* Main Journal Canvas Card */}
       <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] backdrop-blur-2xl shadow-glass-panel space-y-4">
-        {/* Date Label */}
+        {/* Date Title */}
         <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
           <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
             {format(new Date(selectedDate), "EEEE, d MMMM yyyy")}
           </span>
         </div>
 
-        {/* Sleek Mobile Metrics Row (Study & Water) */}
+        {/* Clean Discipline Stats Display (Study & Water without +/- buttons) */}
         <div className="grid grid-cols-2 gap-2.5">
-          {/* Study / Focus Pill */}
+          {/* Study Focus Stat */}
           <Link
             href="/progress"
             className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-purple-500/30 transition-all flex flex-col justify-between gap-1 active:scale-98"
@@ -411,38 +346,19 @@ export default function DailyDiaryPage() {
             </div>
           </Link>
 
-          {/* Water Intake Pill with Quick +/- Buttons */}
+          {/* Water Intake Stat */}
           <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex flex-col justify-between gap-1">
             <div className="flex items-center justify-between">
               <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
                 <Droplets className="w-3.5 h-3.5" />
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleAdjustWater(-1)}
-                  className="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white border border-white/5 flex items-center justify-center transition-all active:scale-90"
-                  title="Minus 1 glass"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAdjustWater(1)}
-                  className="w-7 h-7 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 flex items-center justify-center font-bold transition-all active:scale-90"
-                  title="Add 1 glass"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
             </div>
-
             <div className="mt-1">
               <span className="text-[9px] font-mono uppercase text-zinc-400 block font-medium">
                 Hydration
               </span>
               <span className="text-sm font-mono font-bold text-white">
-                {waterCount} <span className="text-xs font-normal text-zinc-400">gl</span>{" "}
+                {waterCount} <span className="text-xs font-normal text-zinc-400">Glasses</span>{" "}
                 <span className="text-[10px] text-zinc-500 font-normal">
                   ({waterCount * 250}ml)
                 </span>
@@ -451,13 +367,13 @@ export default function DailyDiaryPage() {
           </div>
         </div>
 
-        {/* Single Writing Section Form */}
-        <form onSubmit={handleSaveDiary} className="space-y-3">
+        {/* Single Writing Section Form with Single "Save & Share" Button */}
+        <form onSubmit={handleSaveAndShare} className="space-y-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-mono text-zinc-300 uppercase tracking-wider font-semibold flex items-center gap-1.5">
                 <Edit3 className="w-3 h-3 text-rose-400" />
-                <span>Reflection &amp; Note</span>
+                <span>Today&apos;s Diary Note</span>
               </label>
 
               <span
@@ -477,47 +393,42 @@ export default function DailyDiaryPage() {
             <textarea
               rows={8}
               maxLength={MAX_CHAR_LIMIT}
-              placeholder={`Write freely about your day, wins, learnings, or notes for ${partnerNickname}...`}
+              placeholder={`Write freely about your day, wins, learnings, thoughts, or notes for ${partnerNickname}...`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full px-3.5 py-3 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500/50 font-sans leading-relaxed resize-y transition-all"
             />
           </div>
 
-          {/* Mobile Action Buttons */}
-          <div className="flex items-center gap-2 pt-1">
+          {/* Single Save & Share Button */}
+          <div className="pt-1">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-98 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.3)] transition-all min-h-[44px]"
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-pink-600 hover:opacity-95 active:scale-98 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.35)] transition-all min-h-[46px]"
             >
-              {savedSuccess ? (
+              {saving ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Saving &amp; Preparing PNG...</span>
+                </>
+              ) : savedSuccess ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-white" />
                   <span>Saved!</span>
                 </>
               ) : (
                 <>
-                  <BookOpen className="w-4 h-4" />
-                  <span>{saving ? "Saving..." : "Save Entry"}</span>
+                  <Heart className="w-4 h-4 text-rose-200 fill-rose-300/20" />
+                  <span>Save &amp; Share</span>
                 </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsShareModalOpen(true)}
-              className="py-3 px-3.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 active:scale-98 text-purple-300 border border-purple-500/30 text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px]"
-              title={`Share with ${partnerNickname}`}
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Past Diary Entries Timeline (Mobile First with generous spacing) */}
+      {/* Past Diary Entries Timeline */}
       <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/70 border border-white/[0.08] space-y-3">
         {/* Header with clear spacing so Title and Count NEVER touch */}
         <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
@@ -527,7 +438,7 @@ export default function DailyDiaryPage() {
               Past Diary Entries
             </h2>
           </div>
-          <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/5">
+          <span className="text-[10px] font-mono text-zinc-400 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/5">
             {pastEntries.length} {pastEntries.length === 1 ? "entry" : "entries"}
           </span>
         </div>
@@ -596,15 +507,15 @@ export default function DailyDiaryPage() {
         </div>
       </div>
 
-      {/* Mobile Share & Export Modal */}
+      {/* Aesthetic Real Diary Page PNG Share Modal */}
       {isShareModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
           <div className="relative w-full max-w-sm bg-zinc-950 border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-rose-400 fill-rose-500/20" />
+                <BookOpen className="w-4 h-4 text-rose-400" />
                 <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                  Send to {partnerNickname}
+                  Share Diary Page PNG
                 </h3>
               </div>
               <button
@@ -616,62 +527,59 @@ export default function DailyDiaryPage() {
               </button>
             </div>
 
-            {/* Aesthetic Minimalist Letter Card */}
+            {/* Authentic Aesthetic Ruled Diary Page Component */}
             <div className="my-3 flex justify-center">
               <div
                 ref={diaryCardRef}
-                className="w-full rounded-2xl bg-gradient-to-b from-zinc-950 via-zinc-900 to-black p-4 border border-rose-500/30 text-white shadow-[0_0_30px_rgba(244,63,94,0.15)] relative overflow-hidden font-sans"
+                className="w-full rounded-2xl bg-[#fffdf7] text-zinc-900 p-5 shadow-2xl relative overflow-hidden font-serif border border-[#e5dfd3]"
+                style={{
+                  backgroundImage: "radial-gradient(#d8d0c2 0.75px, transparent 0.75px)",
+                  backgroundSize: "14px 14px",
+                }}
               >
-                {/* Header */}
-                <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+                {/* Vertical Red Margin Line */}
+                <div className="absolute top-0 bottom-0 left-7 w-[1.5px] bg-rose-400/60 pointer-events-none" />
+
+                {/* Top Header of Diary Page */}
+                <div className="pl-5 pb-2.5 border-b-2 border-zinc-300/80 flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-xs font-bold font-mono tracking-wide block">
-                      Daily Diary
+                    <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase block font-semibold">
+                      Daily Journal • KunalOS
                     </span>
-                    <span className="text-[10px] text-zinc-400 font-mono">
-                      {format(new Date(selectedDate), "EEEE, MMMM d, yyyy")}
-                    </span>
-                  </div>
-                  <BookOpen className="w-4 h-4 text-rose-400" />
-                </div>
-
-                {/* Metrics */}
-                <div className="py-2.5 space-y-2.5 text-xs">
-                  <div className="p-2 rounded-xl bg-white/[0.03] border border-white/10 grid grid-cols-2 gap-2 text-center font-mono text-[10px]">
-                    <div className="p-1 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <span className="text-purple-300 block text-[9px] uppercase font-semibold">
-                        Study / Focus
-                      </span>
-                      <span className="text-white font-bold text-xs">
-                        {formatDuration(studyMins)}
-                      </span>
-                    </div>
-                    <div className="p-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                      <span className="text-cyan-300 block text-[9px] uppercase font-semibold">
-                        Hydration
-                      </span>
-                      <span className="text-cyan-200 font-bold text-xs">
-                        {waterCount} Glasses
-                      </span>
-                    </div>
+                    <h4 className="text-xs font-bold text-zinc-900 font-serif mt-0.5">
+                      {format(new Date(selectedDate), "EEEE, d MMMM yyyy")}
+                    </h4>
                   </div>
 
-                  {content.trim() && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-200">
-                      <span className="text-[9px] font-mono text-rose-400 uppercase font-bold block mb-1">
-                        Note:
-                      </span>
-                      <p className="font-serif italic text-white/95 text-xs leading-relaxed whitespace-pre-line">
-                        &ldquo;{content.trim()}&rdquo;
-                      </p>
-                    </div>
-                  )}
+                  {/* Stamp Seals for Study & Water */}
+                  <div className="flex flex-col items-end gap-1 font-mono text-[9px]">
+                    <span className="px-2 py-0.5 rounded bg-purple-100/90 text-purple-900 border border-purple-200 font-semibold tracking-tight">
+                      ⏱️ {formatDuration(studyMins)} Focus
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-cyan-100/90 text-cyan-900 border border-cyan-200 font-semibold tracking-tight">
+                      💧 {waterCount} Glasses ({waterCount * 250}ml)
+                    </span>
+                  </div>
                 </div>
 
-                {/* Footer */}
-                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-mono text-zinc-500">
-                  <span>KunalOS</span>
-                  <span>Always with you ❤️</span>
+                {/* Ruled Lines Writing Body */}
+                <div className="pl-5 pt-3 pb-3 min-h-[140px] relative">
+                  <div
+                    className="text-xs text-zinc-800 font-serif italic whitespace-pre-line leading-[26px]"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(transparent, transparent 25px, #e8e2d4 25px, #e8e2d4 26px)",
+                      lineHeight: "26px",
+                    }}
+                  >
+                    {content.trim() || "A day of discipline, focus, and continuous growth."}
+                  </div>
+                </div>
+
+                {/* Bottom Diary Signoff */}
+                <div className="pl-5 pt-2.5 border-t border-zinc-300/80 flex items-center justify-between text-[10px] font-serif text-zinc-600 italic">
+                  <span>With all my love ❤️</span>
+                  <span className="font-mono text-[9px] text-zinc-400 font-medium">Kunal &amp; Mradul</span>
                 </div>
               </div>
             </div>
@@ -691,26 +599,25 @@ export default function DailyDiaryPage() {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* Direct PNG Export Action Button */}
+            <div className="pt-1">
               <button
                 type="button"
                 disabled={isExporting}
-                onClick={handleSendToPartnerWhatsApp}
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-[0_0_12px_rgba(16,185,129,0.25)] min-h-[42px]"
+                onClick={handleExportPng}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-rose-600 hover:opacity-95 text-white text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all active:scale-98 shadow-[0_0_15px_rgba(168,85,247,0.3)] min-h-[44px]"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>WhatsApp</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isExporting}
-                onClick={handleExportLetterCard}
-                className="py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-[0_0_12px_rgba(168,85,247,0.25)] min-h-[42px]"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>{isExporting ? "Exporting..." : "Export PNG"}</span>
+                {isExporting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Exporting PNG...</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4" />
+                    <span>Share PNG Image</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
