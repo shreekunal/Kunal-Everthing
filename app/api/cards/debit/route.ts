@@ -15,12 +15,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const decryptedDebitCards = debitCards.map((c) => ({
-      ...c,
-      cardNumber: decryptCardField(c.cardNumber),
-      expiryDate: decryptCardField(c.expiryDate),
-      cvv: decryptCardField(c.cvv),
-    }));
+    const decryptedDebitCards = debitCards.map((c) => {
+      const decNumber = decryptCardField(c.cardNumber);
+      const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+      const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+
+      return {
+        ...c,
+        last4,
+        cardNumber: decNumber,
+        expiryDate: decryptCardField(c.expiryDate),
+        cvv: decryptCardField(c.cvv),
+      };
+    });
 
     return NextResponse.json({ debitCards: decryptedDebitCards });
   } catch (error: any) {
@@ -45,16 +52,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine clean last4 from cardNumber
-    const cleanDigits = cardNumber ? cardNumber.replace(/\D/g, "") : "";
-    const computedLast4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : null;
-
     const debitCard = await prisma.debitCard.create({
       data: {
         userId: user.id,
         name: name.trim(),
         cardNumber: encryptCardField(cardNumber),
-        last4: computedLast4,
         expiryDate: encryptCardField(expiryDate),
         cvv: encryptCardField(cvv),
         network: network || "VISA",
@@ -62,10 +64,15 @@ export async function POST(request: Request) {
       },
     });
 
+    const decNumber = decryptCardField(debitCard.cardNumber);
+    const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+    const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+
     return NextResponse.json({
       debitCard: {
         ...debitCard,
-        cardNumber: decryptCardField(debitCard.cardNumber),
+        last4,
+        cardNumber: decNumber,
         expiryDate: decryptCardField(debitCard.expiryDate),
         cvv: decryptCardField(debitCard.cvv),
       },

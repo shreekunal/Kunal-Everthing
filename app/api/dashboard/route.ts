@@ -5,6 +5,7 @@ import { getDisciplineSummary } from "@/lib/rewards";
 import { format, startOfWeek, endOfWeek, isPast, parseISO } from "date-fns";
 import { getNextCardDueDate } from "@/lib/formatters";
 import { calculateRoutineStreak } from "@/lib/utils";
+import { decryptCardField } from "@/lib/crypto/cardEncryption";
 
 export const dynamic = "force-dynamic";
 
@@ -95,18 +96,20 @@ export async function GET() {
 
     const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
 
-    const totalCardOutstanding = creditCards.reduce((acc, c) => acc + c.currentOutstanding, 0);
+    const totalCardOutstanding = 0;
 
     const upcomingCardDues = creditCards
       .map((c) => {
         const dueInfo = getNextCardDueDate(c.dueDate);
+        const decNumber = decryptCardField(c.cardNumber);
+        const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+        const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
         return {
           id: c.id,
           name: c.name,
           bank: c.bank,
-          last4: c.last4,
-          outstanding: c.currentOutstanding,
-          minDue: c.minDue,
+          last4,
+          creditLimit: c.creditLimit,
           daysRemaining: dueInfo.daysRemaining,
           dueDateLabel: dueInfo.label,
         };

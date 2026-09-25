@@ -17,7 +17,7 @@ export async function GET() {
 
     // 1. Check Credit Card Dues
     const cards = await prisma.creditCard.findMany({
-      where: { userId: user.id, isArchived: false, currentOutstanding: { gt: 0 } },
+      where: { userId: user.id, isArchived: false },
     });
 
     for (const card of cards) {
@@ -25,8 +25,8 @@ export async function GET() {
       if (dueInfo.daysRemaining <= 3 && dueInfo.daysRemaining >= 0) {
         dynamicNotifs.push({
           id: `card-${card.id}-${dueInfo.daysRemaining}`,
-          title: `Credit Card Due: ${card.bank} ${card.name}`,
-          message: `Payment of ₹${card.currentOutstanding.toLocaleString("en-IN")} is ${dueInfo.label}.`,
+          title: `Credit Card Due: ${card.bank ? `${card.bank} ` : ""}${card.name}`,
+          message: `Payment statement due date is ${dueInfo.label}.`,
           category: "CARD_DUE",
           priority: dueInfo.daysRemaining === 0 ? "URGENT" : "HIGH",
           isRead: false,
@@ -138,7 +138,23 @@ export async function GET() {
       }
     }
 
-    // 5. Persist dynamic alerts into database with actionUrl as dedup key
+    // 5. Check Daily Diary Entry for Today
+    const todayDiary = await prisma.dailyDiary.findFirst({
+      where: { userId: user.id, date: todayStr },
+    });
+
+    if (!todayDiary) {
+      dynamicNotifs.push({
+        id: `diary-pending-${todayStr}`,
+        title: `✍️ Daily Diary Pending`,
+        message: `Take a minute to log your reflection, study hours & water intake for today!`,
+        category: "DIARY",
+        priority: "HIGH",
+        isRead: false,
+      });
+    }
+
+    // 6. Persist dynamic alerts into database with actionUrl as dedup key
     const recentDbNotifs = await prisma.notification.findMany({
       where: {
         userId: user.id,

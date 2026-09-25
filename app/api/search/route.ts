@@ -103,10 +103,10 @@ export async function GET(request: Request) {
       prisma.creditCard.findMany({
         where: {
           userId: user.id,
+          isArchived: false,
           OR: [
             { name: { contains: q, mode: "insensitive" } },
             { bank: { contains: q, mode: "insensitive" } },
-            { last4: { contains: q } },
           ],
         },
         take: 5,
@@ -114,9 +114,8 @@ export async function GET(request: Request) {
           id: true,
           name: true,
           bank: true,
-          last4: true,
           creditLimit: true,
-          currentOutstanding: true,
+          dueDate: true,
         },
       }),
 
@@ -124,16 +123,15 @@ export async function GET(request: Request) {
       prisma.debitCard.findMany({
         where: {
           userId: user.id,
+          isArchived: false,
           OR: [
             { name: { contains: q, mode: "insensitive" } },
-            { last4: { contains: q } },
           ],
         },
         take: 5,
         select: {
           id: true,
           name: true,
-          last4: true,
           network: true,
         },
       }),

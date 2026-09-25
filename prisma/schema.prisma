@@ -25,7 +25,6 @@ model User {
   accounts          FinancialAccount[]
   creditCards       CreditCard[]
   debitCards        DebitCard[]
-  cardPayments      CreditCardPayment[]
   netWorthSnapshots NetWorthSnapshot[]
   importantDates    ImportantDate[]
   partners          Partner[]
@@ -135,21 +134,16 @@ model CreditCard {
   name               String
   bank               String?             @default("")
   network            String              @default("VISA") // VISA, MASTERCARD, AMEX, RUPAY, OTHER
-  last4              String
   cardNumber         String?             // Full 16-digit card number (AES-256-GCM encrypted)
   expiryDate         String?             // MM/YY (AES-256-GCM encrypted)
   cvv                String?             // 3 or 4-digit security code (AES-256-GCM encrypted)
   creditLimit        Float               @default(100000.0)
   statementDate      Int                 @default(12)     // Day of month (1-31)
   dueDate            Int                 @default(30)     // Day of month (1-31)
-  currentOutstanding Float               @default(0.0)
-  minDue             Float               @default(0.0)
-  autopay            Boolean             @default(false)
   notes              String?
   isArchived         Boolean             @default(false)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
-  payments           CreditCardPayment[]
 }
 
 model DebitCard {
@@ -158,7 +152,6 @@ model DebitCard {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   cardNumber String?  // Full 16-digit card number (AES-256-GCM encrypted)
-  last4      String?  // Last 4 digits
   expiryDate String?  // MM/YY (AES-256-GCM encrypted)
   cvv        String?  // 3-digit CVV (AES-256-GCM encrypted)
   network    String   @default("VISA") // VISA, MASTERCARD, RUPAY, OTHER
@@ -166,19 +159,6 @@ model DebitCard {
   isArchived Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-}
-
-model CreditCardPayment {
-  id              String     @id @default(cuid())
-  cardId          String
-  card            CreditCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount          Float
-  paymentDate     String     // YYYY-MM-DD
-  sourceAccountId String?
-  notes           String?
-  createdAt       DateTime   @default(now())
 }
 
 model NetWorthSnapshot {

@@ -17,6 +17,8 @@ import {
   Sparkles,
   X,
   Trophy,
+  BookOpen,
+  Heart,
 } from "lucide-react";
 import { backButton } from "@/lib/backButton";
 import { haptics } from "@/lib/haptics";
@@ -47,24 +49,21 @@ interface SearchResults {
   accounts: Array<{
     id: string;
     name: string;
-    type: string;
     category: string;
+    type?: string;
     balance: number;
   }>;
   creditCards: Array<{
     id: string;
     name: string;
     bank?: string | null;
-    last4: string;
-    currentOutstanding: number;
-    creditLimit: number;
-    dueDate: number;
+    creditLimit?: number;
+    dueDate?: number;
   }>;
   debitCards: Array<{
     id: string;
     name: string;
-    last4?: string | null;
-    network: string;
+    network?: string;
   }>;
   dates: Array<{
     id: string;
@@ -72,11 +71,13 @@ interface SearchResults {
     date: string;
     category: string;
   }>;
-  vaultItems: Array<{
+  dailyDiaries?: Array<{
     id: string;
-    title: string;
-    type: string;
-    category: string;
+    date: string;
+    mood: string;
+    rating: number;
+    highlights?: string | null;
+    partnerNote?: string | null;
   }>;
 }
 
@@ -98,7 +99,7 @@ export function CommandPalette({
     creditCards: [],
     debitCards: [],
     dates: [],
-    vaultItems: [],
+    dailyDiaries: [],
   });
 
   // Register Android Hardware Back Button
@@ -130,7 +131,7 @@ export function CommandPalette({
         creditCards: [],
         debitCards: [],
         dates: [],
-        vaultItems: [],
+        dailyDiaries: [],
       });
       setLoading(false);
       return;
@@ -213,14 +214,25 @@ export function CommandPalette({
       },
     },
     {
-      id: "nav-vault",
-      title: "Encrypted Secure Vault",
-      category: "Security",
-      icon: Shield,
-      badge: "/vault",
+      id: "nav-partner",
+      title: "Partner & Relationship Hub",
+      category: "Partner",
+      icon: Heart,
+      badge: "/partner",
       action: () => {
         onClose();
-        router.push("/vault");
+        router.push("/partner");
+      },
+    },
+    {
+      id: "nav-diary",
+      title: "Daily Diary & Letter Card",
+      category: "Reflection",
+      icon: BookOpen,
+      badge: "/diary",
+      action: () => {
+        onClose();
+        router.push("/diary");
       },
     },
     {
@@ -318,11 +330,11 @@ export function CommandPalette({
     results.creditCards.forEach((c) =>
       flatItems.push({
         id: `card-${c.id}`,
-        title: `${c.name} •• ${c.last4}`,
-        subtitle: `Due Day ${c.dueDate} • Outstanding: ₹${c.currentOutstanding.toLocaleString("en-IN")}`,
+        title: c.name,
+        subtitle: `${c.bank || "Credit Card"}${c.dueDate ? ` • Due Day ${c.dueDate}` : ""}`,
         category: "Credit Cards",
         icon: CreditCard,
-        badge: `₹${c.currentOutstanding.toLocaleString("en-IN")}`,
+        badge: c.creditLimit ? `Limit: ₹${c.creditLimit.toLocaleString("en-IN")}` : "Card",
         action: () => {
           onClose();
           router.push("/money");
@@ -335,7 +347,7 @@ export function CommandPalette({
       flatItems.push({
         id: `routine-${r.id}`,
         title: r.name,
-        subtitle: `${r.category} • ${r.targetDays}`,
+        subtitle: `${r.category}`,
         category: "Routines",
         icon: Flame,
         badge: `${r.currentStreak} 🔥`,
@@ -362,18 +374,18 @@ export function CommandPalette({
       })
     );
 
-    // Vault
-    results.vaultItems.forEach((v) =>
+    // Daily Diary
+    (results.dailyDiaries || []).forEach((dy) =>
       flatItems.push({
-        id: `vault-${v.id}`,
-        title: v.title,
-        subtitle: `Encrypted ${v.type} • ${v.category}`,
-        category: "Vault Items",
-        icon: Shield,
-        badge: "Encrypted",
+        id: `diary-${dy.id}`,
+        title: `Diary: ${dy.date}`,
+        subtitle: `${dy.mood} • ${dy.highlights || dy.partnerNote || "Daily reflection"}`,
+        category: "Daily Diary",
+        icon: BookOpen,
+        badge: `★ ${dy.rating}`,
         action: () => {
           onClose();
-          router.push("/vault");
+          router.push("/diary");
         },
       })
     );
@@ -419,7 +431,7 @@ export function CommandPalette({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tasks, finances, habits, vault, or type a command..."
+            placeholder="Search tasks, finances, habits, diary, or type a command..."
             className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none font-mono"
           />
           {query && (

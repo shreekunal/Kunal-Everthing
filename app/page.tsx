@@ -405,14 +405,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Urgent Credit Card Due Alert Banner */}
+        {/* Upcoming Credit Card Due Alert Banner */}
         {(() => {
           const urgentCard = upcomingDues?.find(
-            (c: any) => c.daysRemaining <= 3 && (c.outstanding > 0 || c.currentOutstanding > 0)
+            (c: any) => c.daysRemaining <= 3 && c.daysRemaining >= 0
           );
           if (!urgentCard) return null;
-
-          const outstandingAmt = urgentCard.outstanding || urgentCard.currentOutstanding || 0;
 
           return (
             <div className="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-between gap-3 text-xs font-mono shadow-glow-red">
@@ -422,12 +420,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-white text-sm truncate">
-                    Urgent Payment Due: {urgentCard.bank} {urgentCard.name}
+                    Payment Statement Due: {urgentCard.bank ? `${urgentCard.bank} ` : ""}{urgentCard.name}
                   </p>
                   <p className="text-red-300 text-[11px] mt-0.5">
                     {urgentCard.daysRemaining <= 0
-                      ? "Payment is DUE TODAY!"
-                      : `Due in ${urgentCard.daysRemaining} days`} • Outstanding: {formatINR(outstandingAmt)}
+                      ? "Statement is DUE TODAY!"
+                      : `Due in ${urgentCard.daysRemaining} days`} • Due Day {urgentCard.dueDate || 30}
                   </p>
                 </div>
               </div>
@@ -435,7 +433,7 @@ export default function DashboardPage() {
                 href="/money"
                 className="px-3.5 py-1.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors whitespace-nowrap active:scale-95 flex-shrink-0"
               >
-                Pay Now
+                View Cards
               </Link>
             </div>
           );

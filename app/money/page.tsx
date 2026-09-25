@@ -75,7 +75,6 @@ export default function MoneyPage() {
   const [cardLimit, setCardLimit] = useState("150000");
   const [cardStatementDate, setCardStatementDate] = useState("12");
   const [cardDueDate, setCardDueDate] = useState("30");
-  const [cardOutstanding, setCardOutstanding] = useState("0");
 
   const [selectedCardForEdit, setSelectedCardForEdit] = useState<any | null>(null);
   const [cardToDelete, setCardToDelete] = useState<any | null>(null);
@@ -99,8 +98,6 @@ export default function MoneyPage() {
   const [selectedCardForPayment, setSelectedCardForPayment] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentSourceId, setPaymentSourceId] = useState("");
-  const [quickPayCard, setQuickPayCard] = useState<any | null>(null);
-  const [isPayingQuick, setIsPayingQuick] = useState(false);
 
   // CVV Visibility & Clipboard Copy States
   const [showCvvMap, setShowCvvMap] = useState<{ [key: string]: boolean }>({});
@@ -259,7 +256,6 @@ export default function MoneyPage() {
           expiryDate: cardExpiry ? cardExpiry.trim() : null,
           cvv: cardCvv ? cardCvv.trim() : null,
           creditLimit: Number(cardLimit) || 100000,
-          currentOutstanding: Number(cardOutstanding) || 0,
           statementDate: Number(cardStatementDate) || 12,
           dueDate: Number(cardDueDate) || 30,
         }),
@@ -271,7 +267,6 @@ export default function MoneyPage() {
       setCardCvv("");
       setCardNetwork("VISA");
       setCardLimit("150000");
-      setCardOutstanding("0");
       setIsAddCardOpen(false);
       fetchFinancials();
     } catch (err) {
@@ -289,7 +284,6 @@ export default function MoneyPage() {
       expiryDate: card.expiryDate || "",
       cvv: card.cvv || "",
       creditLimit: String(card.creditLimit || 100000),
-      currentOutstanding: String(card.currentOutstanding || 0),
       statementDate: String(card.statementDate || 12),
       dueDate: String(card.dueDate || 30),
     });
@@ -315,7 +309,6 @@ export default function MoneyPage() {
             : null,
           cvv: selectedCardForEdit.cvv ? selectedCardForEdit.cvv.trim() : null,
           creditLimit: Number(selectedCardForEdit.creditLimit) || 100000,
-          currentOutstanding: Number(selectedCardForEdit.currentOutstanding) || 0,
           statementDate: Number(selectedCardForEdit.statementDate) || 12,
           dueDate: Number(selectedCardForEdit.dueDate) || 30,
         }),
@@ -341,36 +334,6 @@ export default function MoneyPage() {
       console.error("Delete card error:", err);
     } finally {
       setIsDeletingCard(false);
-    }
-  };
-
-  const handleQuickPay = (card: any) => {
-    if (!card.currentOutstanding || card.currentOutstanding <= 0) {
-      haptics.impactLight();
-      alert("This card has ₹0 outstanding balance!");
-      return;
-    }
-    setQuickPayCard(card);
-  };
-
-  const handleExecuteQuickPay = async () => {
-    if (!quickPayCard) return;
-    setIsPayingQuick(true);
-    haptics.success();
-    try {
-      await fetch(`/api/cards/${quickPayCard.id}/payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: quickPayCard.currentOutstanding,
-        }),
-      });
-      setQuickPayCard(null);
-      fetchFinancials();
-    } catch (err) {
-      console.error("Quick pay error:", err);
-    } finally {
-      setIsPayingQuick(false);
     }
   };
 
@@ -2209,19 +2172,6 @@ export default function MoneyPage() {
         confirmText="Delete Account"
         confirmVariant="red"
         iconType="danger"
-      />
-
-      {/* 1-Click Quick Pay Full Balance Confirmation */}
-      <ConfirmDialog
-        isOpen={Boolean(quickPayCard)}
-        onClose={() => setQuickPayCard(null)}
-        onConfirm={handleExecuteQuickPay}
-        isLoading={isPayingQuick}
-        title="1-Click Mark Balance Paid"
-        message={`Mark full outstanding balance of ${formatINR(quickPayCard?.currentOutstanding || 0)} on ${quickPayCard?.name} as settled & paid in full?`}
-        confirmText="Confirm Settlement"
-        confirmVariant="red"
-        iconType="warning"
       />
     </div>
   );

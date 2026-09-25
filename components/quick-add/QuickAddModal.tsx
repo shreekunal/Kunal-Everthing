@@ -82,7 +82,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
   const [expenseNotes, setExpenseNotes] = useState("");
   const [financeData, setFinanceData] = useState<{
     accounts: Array<{ id: string; name: string; balance: number; type: string }>;
-    creditCards: Array<{ id: string; name: string; currentOutstanding: number; last4: string }>;
+    creditCards: Array<{ id: string; name: string; last4?: string }>;
   }>({ accounts: [], creditCards: [] });
 
   React.useEffect(() => {
@@ -370,17 +370,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
           }),
         });
         if (!res.ok) throw new Error("Failed to deduct from account balance");
-      } else {
-        const targetCard = financeData.creditCards.find((c) => c.id === expenseSourceId);
-        const currentOutstanding = targetCard ? targetCard.currentOutstanding : 0;
-        const res = await fetch(`/api/cards/${expenseSourceId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            currentOutstanding: currentOutstanding + amt,
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to update card outstanding");
       }
 
       haptics.success();

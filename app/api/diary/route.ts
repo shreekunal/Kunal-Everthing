@@ -113,6 +113,9 @@ export async function POST(request: Request) {
       telemetry,
     } = body;
 
+    const MAX_CONTENT_LENGTH = 1000;
+    const cleanContent = (content || "").trim().slice(0, MAX_CONTENT_LENGTH);
+
     const entry = await prisma.dailyDiary.upsert({
       where: {
         userId_date: {
@@ -123,7 +126,7 @@ export async function POST(request: Request) {
       update: {
         mood: mood || "Grateful",
         rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
-        content: content || "",
+        content: cleanContent,
         highlights: highlight || null,
         gratitude: gratitude || null,
         partnerNote: partnerNote || null,
@@ -133,7 +136,7 @@ export async function POST(request: Request) {
         date,
         mood: mood || "Grateful",
         rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
-        content: content || "",
+        content: cleanContent,
         highlights: highlight || null,
         gratitude: gratitude || null,
         partnerNote: partnerNote || null,

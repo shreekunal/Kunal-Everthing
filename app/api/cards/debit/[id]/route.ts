@@ -25,18 +25,11 @@ export async function PATCH(
 
     const { name, cardNumber, expiryDate, cvv, network, notes } = body;
 
-    let computedLast4 = existing.last4;
-    if (cardNumber !== undefined) {
-      const cleanDigits = cardNumber ? cardNumber.replace(/\D/g, "") : "";
-      computedLast4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : null;
-    }
-
     const updated = await prisma.debitCard.update({
       where: { id },
       data: {
         name: name !== undefined ? name.trim() : existing.name,
         cardNumber: cardNumber !== undefined ? encryptCardField(cardNumber) : existing.cardNumber,
-        last4: computedLast4,
         expiryDate: expiryDate !== undefined ? encryptCardField(expiryDate) : existing.expiryDate,
         cvv: cvv !== undefined ? encryptCardField(cvv) : existing.cvv,
         network: network !== undefined ? network : existing.network,
@@ -44,10 +37,15 @@ export async function PATCH(
       },
     });
 
+    const decNumber = decryptCardField(updated.cardNumber);
+    const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+    const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+
     return NextResponse.json({
       debitCard: {
         ...updated,
-        cardNumber: decryptCardField(updated.cardNumber),
+        last4,
+        cardNumber: decNumber,
         expiryDate: decryptCardField(updated.expiryDate),
         cvv: decryptCardField(updated.cvv),
       },

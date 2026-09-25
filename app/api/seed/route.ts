@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { encryptCardField } from "@/lib/crypto/cardEncryption";
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,7 +64,6 @@ export async function POST(req: NextRequest) {
     // 2. Credit Card
     if (cardName) {
       const cleanNum = (cardNumber || "").replace(/\s+/g, "");
-      const derivedLast4 = cleanNum.length >= 4 ? cleanNum.slice(-4) : "0000";
 
       await prisma.creditCard.create({
         data: {
@@ -71,12 +71,10 @@ export async function POST(req: NextRequest) {
           name: cardName,
           bank: cardBank || "",
           network: "VISA",
-          cardNumber: cleanNum || null,
-          expiryDate: cardExpiry || expiryDate || null,
-          cvv: cardCvv || null,
-          last4: derivedLast4,
+          cardNumber: cleanNum ? encryptCardField(cleanNum) : null,
+          expiryDate: cardExpiry || expiryDate ? encryptCardField(cardExpiry || expiryDate) : null,
+          cvv: cardCvv ? encryptCardField(cardCvv) : null,
           creditLimit: Number(cardLimit) || 100000,
-          currentOutstanding: Number(cardOutstanding) || 0,
           statementDate: 12,
           dueDate: Number(cardDueDate) || 30,
         },
@@ -181,7 +179,6 @@ export async function DELETE() {
     await prisma.routineCompletion.deleteMany({ where: { userId: user.id } });
     await prisma.routine.deleteMany({ where: { userId: user.id } });
     await prisma.workSession.deleteMany({ where: { userId: user.id } });
-    await prisma.creditCardPayment.deleteMany({ where: { userId: user.id } });
     await prisma.creditCard.deleteMany({ where: { userId: user.id } });
     await prisma.debitCard.deleteMany({ where: { userId: user.id } });
     await prisma.financialAccount.deleteMany({ where: { userId: user.id } });

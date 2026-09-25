@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { format } from "date-fns";
+import { decryptCardField } from "@/lib/crypto/cardEncryption";
 
 export async function GET() {
   try {
@@ -17,12 +18,38 @@ export async function GET() {
 
     const creditCards = await prisma.creditCard.findMany({
       where: { userId: user.id, isArchived: false },
-      orderBy: { currentOutstanding: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     const debitCards = await prisma.debitCard.findMany({
       where: { userId: user.id, isArchived: false },
       orderBy: { createdAt: "desc" },
+    });
+
+    const decryptedCreditCards = creditCards.map((c) => {
+      const decNumber = decryptCardField(c.cardNumber);
+      const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+      const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+      return {
+        ...c,
+        last4,
+        cardNumber: decNumber,
+        expiryDate: decryptCardField(c.expiryDate),
+        cvv: decryptCardField(c.cvv),
+      };
+    });
+
+    const decryptedDebitCards = debitCards.map((c) => {
+      const decNumber = decryptCardField(c.cardNumber);
+      const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+      const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+      return {
+        ...c,
+        last4,
+        cardNumber: decNumber,
+        expiryDate: decryptCardField(c.expiryDate),
+        cvv: decryptCardField(c.cvv),
+      };
     });
 
     const totalAssets = accounts
@@ -33,12 +60,8 @@ export async function GET() {
       .filter((a) => a.type === "LIABILITY")
       .reduce((acc, a) => acc + a.balance, 0);
 
-    const totalCardOutstanding = creditCards.reduce(
-      (acc, c) => acc + c.currentOutstanding,
-      0
-    );
-
-    const totalLiabilities = otherLiabilities + totalCardOutstanding;
+    const totalCardOutstanding = 0;
+    const totalLiabilities = otherLiabilities;
     const netWorth = totalAssets - totalLiabilities;
 
     // Record or update daily snapshot
@@ -77,8 +100,8 @@ export async function GET() {
       totalLiabilities,
       totalCardOutstanding,
       accounts,
-      creditCards,
-      debitCards,
+      creditCards: decryptedCreditCards,
+      debitCards: decryptedDebitCards,
       snapshots,
     });
   } catch (error: any) {
@@ -102,7 +125,7 @@ export async function POST(request: Request) {
     const account = await prisma.financialAccount.create({
       data: {
         userId: user.id,
-        name,
+        name: name.trim(),
         type: type || "ASSET",
         category: category || "BANK",
         balance: parseFloat(balance) || 0.0,

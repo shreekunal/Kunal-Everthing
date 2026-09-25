@@ -15,6 +15,7 @@ import {
   Trash2,
   CheckCircle2,
   Plus,
+  Minus,
   RotateCcw,
   Droplets,
   Clock,
@@ -25,18 +26,16 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { formatDuration } from "@/lib/formatters";
 import { haptics } from "@/lib/haptics";
-import { offlineCache } from "@/lib/offlineCache";
 import { toPng } from "html-to-image";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import clsx from "clsx";
+
+const MAX_CHAR_LIMIT = 1000;
 
 const MOOD_OPTIONS = [
   { label: "Loved", emoji: "🥰", color: "from-rose-500/20 to-pink-500/20 border-rose-500/40 text-rose-300" },
@@ -52,13 +51,10 @@ export default function DailyDiaryPage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Form State
+  // Form State: Mood, Rating, Single Writing Section & Telemetry
   const [mood, setMood] = useState("Loved");
   const [rating, setRating] = useState(5);
-  const [highlight, setHighlight] = useState("");
-  const [gratitude, setGratitude] = useState("");
   const [content, setContent] = useState("");
-  const [partnerNote, setPartnerNote] = useState("");
   const [telemetrySnapshot, setTelemetrySnapshot] = useState<any>(null);
 
   // Data & History
@@ -97,19 +93,15 @@ export default function DailyDiaryPage() {
         if (match) {
           setMood(match.mood || "Loved");
           setRating(match.rating || 5);
-          setHighlight(match.highlights || match.highlight || "");
-          setGratitude(match.gratitude || "");
-          setContent(match.content || "");
-          setPartnerNote(match.partnerNote || "");
+          // Prefer content; fallback to legacy highlights/partnerNote if present
+          const existingText = match.content || match.highlights || match.partnerNote || "";
+          setContent(existingText.slice(0, MAX_CHAR_LIMIT));
           setTelemetrySnapshot(match.telemetry);
         } else {
           // Reset form for fresh entry
           setMood("Loved");
           setRating(5);
-          setHighlight("");
-          setGratitude("");
           setContent("");
-          setPartnerNote("");
           setTelemetrySnapshot(null);
         }
       }
@@ -146,10 +138,38 @@ export default function DailyDiaryPage() {
     }
   };
 
+  // Quick water increment/decrement
+  const handleAdjustWater = async (delta: number) => {
+    haptics.selection();
+    const currentGlasses =
+      telemetrySnapshot?.waterGlasses ?? todayLiveTelemetry?.waterGlasses ?? 0;
+    const newCount = Math.max(0, currentGlasses + delta);
+
+    // Update local telemetry state immediately for responsive UI
+    const updatedTelemetry = {
+      ...(telemetrySnapshot || todayLiveTelemetry || {}),
+      waterGlasses: newCount,
+    };
+    setTelemetrySnapshot(updatedTelemetry);
+    setTodayLiveTelemetry((prev: any) => ({ ...(prev || {}), waterGlasses: newCount }));
+
+    try {
+      await fetch("/api/water", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: newCount, target: 8, date: selectedDate }),
+      });
+    } catch (err) {
+      console.error("Failed to sync water:", err);
+    }
+  };
+
   const handleSaveDiary = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     haptics.selection();
+
+    const activeTelemetry = telemetrySnapshot || todayLiveTelemetry;
 
     try {
       const res = await fetch("/api/diary", {
@@ -159,11 +179,8 @@ export default function DailyDiaryPage() {
           date: selectedDate,
           mood,
           rating,
-          highlight: highlight.trim() || null,
-          gratitude: gratitude.trim() || null,
-          content: content.trim() || null,
-          partnerNote: partnerNote.trim() || null,
-          telemetry: telemetrySnapshot || todayLiveTelemetry,
+          content: content.trim().slice(0, MAX_CHAR_LIMIT),
+          telemetry: activeTelemetry,
         }),
       });
 
@@ -198,18 +215,25 @@ export default function DailyDiaryPage() {
   };
 
   const partnerNickname = partner?.nickname || partner?.name || "Partner";
+  const activeTelemetry = telemetrySnapshot || todayLiveTelemetry;
+  const studyMins = activeTelemetry?.studyMinutes || 0;
+  const waterCount = activeTelemetry?.waterGlasses || 0;
 
-  // Generate WhatsApp formatted text
+  // Generate WhatsApp formatted text with study & water details
   const generateWhatsAppMessage = () => {
-    let msg = `Dear ${partnerNickname} ❤️ Here is my Daily Diary for ${format(new Date(selectedDate), "EEEE, MMMM d")}:\n`;
-    msg += `⭐ Rating: ${rating}/5 • Mood: ${mood}\n`;
-    if (highlight) msg += `✨ Highlight: ${highlight}\n`;
-    if (gratitude) msg += `🙏 Grateful For: ${gratitude}\n`;
-    if (telemetrySnapshot || todayLiveTelemetry) {
-      const t = telemetrySnapshot || todayLiveTelemetry;
-      msg += `📊 Discipline: ⏱️ ${formatDuration(t.studyMinutes || 0)} study | 💧 ${t.waterGlasses || 0} glasses | ✅ ${t.habitsDone || 0} habits\n`;
+    let msg = `Daily Diary & Update • ${format(new Date(selectedDate), "EEEE, MMMM d")} ❤️\n`;
+    msg += `⭐ Rating: ${rating}/5 • Mood: ${mood}\n\n`;
+    msg += `📊 Discipline:\n`;
+    msg += `⏱️ Study / Focus: ${formatDuration(studyMins)}\n`;
+    msg += `💧 Water Hydration: ${waterCount} glasses (${waterCount * 250}ml)\n`;
+    if (activeTelemetry?.tasksCompleted || activeTelemetry?.habitsDone) {
+      msg += `✅ Tasks Done: ${activeTelemetry?.tasksCompleted || 0} | 🔥 Habits: ${activeTelemetry?.habitsDone || 0}\n`;
     }
-    if (partnerNote) msg += `💌 Note for you: ${partnerNote}\n`;
+
+    if (content.trim()) {
+      msg += `\n📝 Reflection & Note:\n"${content.trim()}"\n`;
+    }
+
     msg += `\nAlways in my heart! 💕`;
     return msg;
   };
@@ -261,7 +285,7 @@ export default function DailyDiaryPage() {
           haptics.success();
           setShareStatus({ text: `Diary letter sent to ${partnerNickname}!` });
         } else {
-          setShareStatus({ text: `Letter image saved to cache: ${fileName}` });
+          setShareStatus({ text: `Letter image saved: ${fileName}` });
           haptics.success();
         }
       } else {
@@ -297,7 +321,7 @@ export default function DailyDiaryPage() {
 
           window.open(whatsappUrl, "_blank");
           haptics.success();
-          setShareStatus({ text: `Image downloaded & WhatsApp opened for ${partnerNickname}!` });
+          setShareStatus({ text: `Card downloaded & WhatsApp opened for ${partnerNickname}!` });
         }
       }
     } catch (err: any) {
@@ -310,6 +334,9 @@ export default function DailyDiaryPage() {
   };
 
   const activeMoodObj = MOOD_OPTIONS.find((m) => m.label === mood) || MOOD_OPTIONS[0];
+  const charLength = content.length;
+  const isNearLimit = charLength >= MAX_CHAR_LIMIT * 0.85;
+  const isAtLimit = charLength >= MAX_CHAR_LIMIT;
 
   return (
     <div className="space-y-6 pb-14 animate-in fade-in duration-300">
@@ -324,7 +351,7 @@ export default function DailyDiaryPage() {
               Daily Diary &amp; Partner Letter
             </h1>
             <p className="text-xs text-zinc-400 font-mono">
-              Reflect, record discipline &amp; share daily letters
+              Single note reflection • Study &amp; Hydration Sharing
             </p>
           </div>
         </div>
@@ -359,7 +386,10 @@ export default function DailyDiaryPage() {
             }}
             className={clsx(
               "px-3 py-1.5 rounded-xl text-xs font-mono border transition-all flex items-center gap-1.5 shrink-0",
-              showDatePicker || (selectedDate !== format(new Date(), "yyyy-MM-dd") && selectedDate !== format(subDays(new Date(), 1), "yyyy-MM-dd") && selectedDate !== format(subDays(new Date(), 2), "yyyy-MM-dd"))
+              showDatePicker ||
+                (selectedDate !== format(new Date(), "yyyy-MM-dd") &&
+                  selectedDate !== format(subDays(new Date(), 1), "yyyy-MM-dd") &&
+                  selectedDate !== format(subDays(new Date(), 2), "yyyy-MM-dd"))
                 ? "bg-rose-600 text-white border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] font-bold"
                 : "bg-white/[0.04] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
             )}
@@ -472,13 +502,13 @@ export default function DailyDiaryPage() {
               </div>
             </div>
 
-            {/* 3. 1-Tap Auto-Pull Telemetry Snapshot */}
-            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/10">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
+            {/* 3. Study & Water Details Snapshot */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/10">
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-2">
                   <Flame className="w-3.5 h-3.5 text-brand-red" />
-                  <span className="text-[11px] font-mono text-zinc-300 uppercase font-bold">
-                    Discipline &amp; Health Telemetry
+                  <span className="text-[11px] font-mono text-zinc-200 uppercase font-bold tracking-wider">
+                    Today&apos;s Study &amp; Hydration Progress
                   </span>
                 </div>
 
@@ -486,114 +516,113 @@ export default function DailyDiaryPage() {
                   type="button"
                   onClick={handlePullTelemetry}
                   className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/10 text-[10px] font-mono text-zinc-300 hover:text-white border border-white/10 transition-all flex items-center gap-1 active:scale-95"
+                  title="Pull live metrics from today's logs"
                 >
                   <RotateCcw className="w-3 h-3 text-rose-400" />
-                  <span>Auto-Sync Today</span>
+                  <span>Sync Metrics</span>
                 </button>
               </div>
 
-              {/* Telemetry Display Chips */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-                <div className="p-2 rounded-xl bg-black/50 border border-white/5 flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <div>
-                    <span className="text-[9px] text-zinc-500 block">Study</span>
-                    <span className="font-bold text-white">
-                      {formatDuration(telemetrySnapshot?.studyMinutes ?? todayLiveTelemetry?.studyMinutes ?? 0)}
-                    </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Study Time Metric Card */}
+                <div className="p-3 rounded-xl bg-purple-500/[0.06] border border-purple-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-purple-300 block font-semibold">
+                        Study &amp; Focus
+                      </span>
+                      <span className="text-sm font-mono font-bold text-white">
+                        {formatDuration(studyMins)}
+                      </span>
+                    </div>
                   </div>
+                  <Link
+                    href="/progress"
+                    className="text-[10px] font-mono text-purple-400 hover:underline px-2 py-1 rounded bg-purple-500/10 border border-purple-500/20"
+                  >
+                    Log Study →
+                  </Link>
                 </div>
 
-                <div className="p-2 rounded-xl bg-black/50 border border-white/5 flex items-center gap-2">
-                  <Droplets className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <div>
-                    <span className="text-[9px] text-zinc-500 block">Water</span>
-                    <span className="font-bold text-white">
-                      {telemetrySnapshot?.waterGlasses ?? todayLiveTelemetry?.waterGlasses ?? 0} Glasses
-                    </span>
+                {/* Water Intake Metric Card with Quick Adjust */}
+                <div className="p-3 rounded-xl bg-cyan-500/[0.06] border border-cyan-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300">
+                      <Droplets className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-cyan-300 block font-semibold">
+                        Water Hydration
+                      </span>
+                      <span className="text-sm font-mono font-bold text-white">
+                        {waterCount} Glasses <span className="text-[10px] text-zinc-400">({waterCount * 250}ml)</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="p-2 rounded-xl bg-black/50 border border-white/5 flex items-center gap-2">
-                  <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <div>
-                    <span className="text-[9px] text-zinc-500 block">Tasks</span>
-                    <span className="font-bold text-white">
-                      {telemetrySnapshot?.tasksCompleted ?? todayLiveTelemetry?.tasksCompleted ?? 0} Done
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-2 rounded-xl bg-black/50 border border-white/5 flex items-center gap-2">
-                  <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <div>
-                    <span className="text-[9px] text-zinc-500 block">Habits</span>
-                    <span className="font-bold text-white">
-                      {telemetrySnapshot?.habitsDone ?? todayLiveTelemetry?.habitsDone ?? 0} Done
-                    </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustWater(-1)}
+                      className="p-1 rounded-md bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
+                      title="Minus 1 glass"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustWater(1)}
+                      className="p-1 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200 border border-cyan-500/40 font-bold transition-all active:scale-95"
+                      title="Add 1 glass"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 4. Best Moment / Highlight */}
+            {/* 4. Single Unified Writing Section with Character Limit */}
             <div>
-              <label className="block text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-1">
-                ✨ Best Moment / Highlight of the Day
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Smashed 4 hours of deep coding & had coffee"
-                value={highlight}
-                onChange={(e) => setHighlight(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 font-sans"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-mono text-zinc-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                  <span>✍️ Today&apos;s Diary &amp; Reflection Note</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={clsx(
+                      "text-[10px] font-mono px-2 py-0.5 rounded-full border transition-colors",
+                      isAtLimit
+                        ? "bg-red-500/20 text-red-300 border-red-500/40 font-bold"
+                        : isNearLimit
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-white/5 text-zinc-400 border-white/10"
+                    )}
+                  >
+                    {charLength} / {MAX_CHAR_LIMIT} chars
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  rows={8}
+                  maxLength={MAX_CHAR_LIMIT}
+                  placeholder={`Write your daily journal, thoughts, key wins, reflections, or note for ${partnerNickname}... (Max ${MAX_CHAR_LIMIT} characters)`}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/15 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 font-sans leading-relaxed resize-y transition-colors"
+                />
+              </div>
+              <p className="text-[10px] text-zinc-500 font-mono mt-1">
+                Concise daily entries keep your database fast and lightweight for years.
+              </p>
             </div>
 
-            {/* 5. Gratitude */}
-            <div>
-              <label className="block text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-1">
-                🙏 What I&apos;m Grateful For Today
-              </label>
-              <textarea
-                rows={2}
-                placeholder="e.g. Good health, peace of mind, and continuous growth"
-                value={gratitude}
-                onChange={(e) => setGratitude(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 font-sans resize-none"
-              />
-            </div>
-
-            {/* 6. Journal & Deep Reflections */}
-            <div>
-              <label className="block text-[11px] font-mono text-zinc-400 uppercase tracking-wider mb-1">
-                ✍️ Daily Journal &amp; Private Reflections
-              </label>
-              <textarea
-                rows={4}
-                placeholder="Write freely about your day, ideas, wins, challenges, and thoughts..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 font-sans resize-none"
-              />
-            </div>
-
-            {/* 7. Special Note / Letter for Partner */}
-            <div>
-              <label className="block text-[11px] font-mono text-rose-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 fill-rose-500/20 text-rose-400" />
-                <span>💌 Special Note for {partnerNickname} (Included in WhatsApp letter)</span>
-              </label>
-              <textarea
-                rows={3}
-                placeholder={`Write a sweet note or message to ${partnerNickname}...`}
-                value={partnerNote}
-                onChange={(e) => setPartnerNote(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-rose-500/[0.04] border border-rose-500/25 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-400 font-sans resize-none"
-              />
-            </div>
-
-            {/* Actions: Save & Send */}
+            {/* Actions: Save & Share */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
               <div className="flex items-center gap-2">
                 <Button
@@ -629,7 +658,7 @@ export default function DailyDiaryPage() {
           </form>
         </Card>
 
-        {/* Right 1 Col: Letter Preview & Quick Actions */}
+        {/* Right 1 Col: Letter Preview & History */}
         <div className="space-y-6">
           {/* Aesthetic Letter Card Live Preview */}
           <Card glow="rose" className="p-4 bg-black/95 border-purple-500/30">
@@ -658,27 +687,38 @@ export default function DailyDiaryPage() {
                 </span>
               </div>
 
-              {highlight && (
-                <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
-                  <span className="text-[10px] text-amber-400 font-mono uppercase block font-bold mb-0.5">
-                    Day Highlight:
-                  </span>
-                  <p className="text-zinc-200 line-clamp-2 italic">&ldquo;{highlight}&rdquo;</p>
+              {/* Telemetry in Preview */}
+              <div className="grid grid-cols-2 gap-2 font-mono text-[10px]">
+                <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <div>
+                    <span className="text-zinc-400 block text-[9px]">Study / Focus</span>
+                    <span className="text-white font-bold">{formatDuration(studyMins)}</span>
+                  </div>
                 </div>
-              )}
 
-              {partnerNote ? (
+                <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center gap-2">
+                  <Droplets className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <div>
+                    <span className="text-zinc-400 block text-[9px]">Hydration</span>
+                    <span className="text-white font-bold">{waterCount} Glasses</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Written Reflection Note */}
+              {content.trim() ? (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-200">
                   <span className="text-[10px] text-rose-400 font-mono uppercase block font-bold mb-1">
-                    💌 Letter for {partnerNickname}:
+                    💌 Reflection &amp; Message:
                   </span>
-                  <p className="font-serif italic text-white/90 text-sm leading-relaxed whitespace-pre-line">
-                    &ldquo;{partnerNote}&rdquo;
+                  <p className="font-serif italic text-white/90 text-sm leading-relaxed whitespace-pre-line line-clamp-6">
+                    &ldquo;{content.trim()}&rdquo;
                   </p>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-dashed border-white/10 text-center text-zinc-500 text-[11px] font-mono">
-                  Write a note for {partnerNickname} on the left to see it previewed here!
+                  Write your daily reflection on the left to preview the letter here!
                 </div>
               )}
 
@@ -719,6 +759,7 @@ export default function DailyDiaryPage() {
                 pastEntries.map((item) => {
                   const isExpanded = expandedId === item.id;
                   const isCurrent = item.date === selectedDate;
+                  const entryText = item.content || item.highlights || item.partnerNote || "";
                   return (
                     <div key={item.id} className="py-2">
                       <div className="flex items-center justify-between">
@@ -727,10 +768,15 @@ export default function DailyDiaryPage() {
                           onClick={() => handleDateChange(item.date)}
                           className="flex items-center gap-2 text-left min-w-0 flex-1 hover:opacity-80 transition-opacity"
                         >
-                          <span className={clsx("text-xs font-mono font-bold", isCurrent ? "text-rose-400" : "text-white")}>
+                          <span
+                            className={clsx(
+                              "text-xs font-mono font-bold",
+                              isCurrent ? "text-rose-400" : "text-white"
+                            )}
+                          >
                             {format(new Date(item.date), "d MMM yyyy")}
                           </span>
-                          <span className="text-[11px] text-zinc-400">
+                          <span className="text-[11px] text-zinc-400 truncate">
                             {item.mood}
                           </span>
                         </button>
@@ -744,22 +790,27 @@ export default function DailyDiaryPage() {
                             onClick={() => setExpandedId(isExpanded ? null : item.id)}
                             className="p-1 text-zinc-500 hover:text-zinc-300"
                           >
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {isExpanded ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
                           </button>
                         </div>
                       </div>
 
                       {isExpanded && (
                         <div className="mt-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5 text-xs text-zinc-300 animate-in fade-in duration-150">
-                          {(item.highlights || item.highlight) && (
-                            <p className="text-[11px]">
-                              <strong className="text-white">Highlight:</strong> {item.highlights || item.highlight}
+                          {entryText && (
+                            <p className="text-[11px] text-zinc-200 italic leading-relaxed">
+                              &ldquo;{entryText}&rdquo;
                             </p>
                           )}
-                          {item.partnerNote && (
-                            <p className="text-[11px] text-rose-300">
-                              <strong>Note:</strong> {item.partnerNote}
-                            </p>
+                          {item.telemetry && (
+                            <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-400 pt-1">
+                              <span>⏱️ {formatDuration(item.telemetry.studyMinutes || 0)}</span>
+                              <span>💧 {item.telemetry.waterGlasses || 0} glasses</span>
+                            </div>
                           )}
                           <div className="flex items-center justify-between pt-1 border-t border-white/5">
                             <button
@@ -838,64 +889,34 @@ export default function DailyDiaryPage() {
 
                 {/* Body Content */}
                 <div className="py-4 space-y-3 relative z-10 text-xs">
-                  {highlight && (
-                    <div>
-                      <span className="text-[9px] font-mono text-amber-400 uppercase font-bold block mb-0.5">
-                        ✨ Day&apos;s Highlight:
-                      </span>
-                      <p className="text-zinc-200 italic">&ldquo;{highlight}&rdquo;</p>
+                  {/* Telemetry Snapshot in Letter */}
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 grid grid-cols-2 gap-2 text-center font-mono text-[10px]">
+                    <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <span className="text-purple-300 block text-[9px] uppercase font-semibold">Study / Focus</span>
+                      <span className="text-white font-bold text-xs">{formatDuration(studyMins)}</span>
                     </div>
-                  )}
-
-                  {gratitude && (
-                    <div>
-                      <span className="text-[9px] font-mono text-purple-300 uppercase font-bold block mb-0.5">
-                        🙏 Grateful For:
-                      </span>
-                      <p className="text-zinc-300">{gratitude}</p>
+                    <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                      <span className="text-cyan-300 block text-[9px] uppercase font-semibold">Hydration</span>
+                      <span className="text-cyan-200 font-bold text-xs">{waterCount} Glasses</span>
                     </div>
-                  )}
+                  </div>
 
-                  {partnerNote && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-200">
+                  {content.trim() && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-200">
                       <span className="text-[9px] font-mono text-rose-400 uppercase font-bold block mb-1">
-                        💌 Letter for You, {partnerNickname}:
+                        💌 Note for You, {partnerNickname}:
                       </span>
                       <p className="font-serif italic text-white/95 text-sm leading-relaxed whitespace-pre-line">
-                        &ldquo;{partnerNote}&rdquo;
+                        &ldquo;{content.trim()}&rdquo;
                       </p>
-                    </div>
-                  )}
-
-                  {/* Telemetry Snapshot in Letter */}
-                  {(telemetrySnapshot || todayLiveTelemetry) && (
-                    <div className="pt-2 border-t border-white/10 grid grid-cols-3 gap-1.5 text-center font-mono text-[10px]">
-                      <div className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5">
-                        <span className="text-zinc-500 block">Focus</span>
-                        <span className="text-white font-bold">
-                          {formatDuration((telemetrySnapshot || todayLiveTelemetry).studyMinutes || 0)}
-                        </span>
-                      </div>
-                      <div className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5">
-                        <span className="text-zinc-500 block">Water</span>
-                        <span className="text-cyan-300 font-bold">
-                          {(telemetrySnapshot || todayLiveTelemetry).waterGlasses || 0} gl
-                        </span>
-                      </div>
-                      <div className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5">
-                        <span className="text-zinc-500 block">Habits</span>
-                        <span className="text-emerald-300 font-bold">
-                          {(telemetrySnapshot || todayLiveTelemetry).habitsDone || 0} done
-                        </span>
-                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Letter Footer */}
                 <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-mono text-zinc-500 relative z-10">
-                  <span>KunalOS • Daily Discipline &amp; Love</span>
-                  <span>With Love ❤️</span>
+                  <span>KunalOS • Discipline &amp; Love</span>
+                  <span>Always with You ❤️</span>
                 </div>
               </div>
             </div>

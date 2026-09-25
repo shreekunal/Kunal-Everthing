@@ -33,17 +33,8 @@ export async function PATCH(
       creditLimit,
       statementDate,
       dueDate,
-      currentOutstanding,
-      minDue,
-      autopay,
       notes,
     } = body;
-
-    let computedLast4 = existing.last4;
-    if (cardNumber !== undefined) {
-      const cleanDigits = cardNumber ? cardNumber.replace(/\D/g, "") : "";
-      computedLast4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : existing.last4;
-    }
 
     const updated = await prisma.creditCard.update({
       where: { id },
@@ -52,23 +43,24 @@ export async function PATCH(
         bank: bank !== undefined ? bank.trim() : existing.bank,
         network: network !== undefined ? network : existing.network,
         cardNumber: cardNumber !== undefined ? encryptCardField(cardNumber) : existing.cardNumber,
-        last4: computedLast4,
         expiryDate: expiryDate !== undefined ? encryptCardField(expiryDate) : existing.expiryDate,
         cvv: cvv !== undefined ? encryptCardField(cvv) : existing.cvv,
         creditLimit: creditLimit !== undefined ? parseFloat(creditLimit) : existing.creditLimit,
         statementDate: statementDate !== undefined ? parseInt(statementDate, 10) : existing.statementDate,
         dueDate: dueDate !== undefined ? parseInt(dueDate, 10) : existing.dueDate,
-        currentOutstanding: currentOutstanding !== undefined ? parseFloat(currentOutstanding) : existing.currentOutstanding,
-        minDue: minDue !== undefined ? parseFloat(minDue) : existing.minDue,
-        autopay: autopay !== undefined ? Boolean(autopay) : existing.autopay,
         notes: notes !== undefined ? (notes ? notes.trim() : null) : existing.notes,
       },
     });
 
+    const decNumber = decryptCardField(updated.cardNumber);
+    const cleanDigits = decNumber ? decNumber.replace(/\D/g, "") : "";
+    const last4 = cleanDigits.length >= 4 ? cleanDigits.slice(-4) : "••••";
+
     return NextResponse.json({
       card: {
         ...updated,
-        cardNumber: decryptCardField(updated.cardNumber),
+        last4,
+        cardNumber: decNumber,
         expiryDate: decryptCardField(updated.expiryDate),
         cvv: decryptCardField(updated.cvv),
       },
