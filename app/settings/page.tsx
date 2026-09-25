@@ -1331,8 +1331,8 @@ export default function SettingsPage() {
               <span className="font-bold text-white">{restorePreview?.counts?.debitCards ?? 0}</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
-              <span className="text-zinc-400">Vault Items</span>
-              <span className="font-bold text-white">{restorePreview?.counts?.vaultItems ?? 0}</span>
+              <span className="text-zinc-400">Daily Diary Entries</span>
+              <span className="font-bold text-white">{restorePreview?.counts?.dailyDiaries ?? 0}</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-black/40 rounded-lg">
               <span className="text-zinc-400">Important Dates</span>

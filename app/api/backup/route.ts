@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       partner,
       messageTemplates,
       scheduledMessages,
-      vaultItems,
+      dailyDiaries,
       disciplineStreaks,
       rewardLogs,
       rewardItems,
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       prisma.partner.findUnique({ where: { userId: user.id } }),
       prisma.messageTemplate.findMany({ where: { userId: user.id } }),
       prisma.scheduledMessage.findMany({ where: { userId: user.id } }),
-      prisma.vaultItem.findMany({ where: { userId: user.id } }),
+      prisma.dailyDiary.findMany({ where: { userId: user.id } }),
       prisma.disciplineStreak.findMany({ where: { userId: user.id } }),
       prisma.rewardLog.findMany({ where: { userId: user.id } }),
       prisma.rewardItem.findMany({ where: { userId: user.id } }),
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       partner,
       messageTemplates,
       scheduledMessages,
-      vaultItems,
+      dailyDiaries,
       disciplineStreaks,
       rewardLogs,
       rewardItems,
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
         accounts: accounts.length,
         creditCards: creditCards.length,
         debitCards: debitCards.length,
-        vaultItems: vaultItems.length,
+        dailyDiaries: dailyDiaries.length,
         importantDates: importantDates.length,
         rewardLogs: rewardLogs.length,
       },
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
           accounts: data.accounts?.length || 0,
           creditCards: data.creditCards?.length || 0,
           debitCards: data.debitCards?.length || 0,
-          vaultItems: data.vaultItems?.length || 0,
+          dailyDiaries: data.dailyDiaries?.length || 0,
           importantDates: data.importantDates?.length || 0,
           workSessions: data.workSessions?.length || 0,
         },
@@ -253,14 +253,14 @@ export async function POST(request: Request) {
         }
       }
 
-      // 8. Encrypted Vault Items
-      if (Array.isArray(data.vaultItems)) {
-        for (const v of data.vaultItems) {
-          const { id, userId, createdAt, updatedAt, ...vaultData } = v;
-          await tx.vaultItem.upsert({
-            where: { id: id || "temp-id" },
-            create: { id, userId: user.id, ...vaultData },
-            update: { ...vaultData },
+      // 8. Daily Diary
+      if (Array.isArray(data.dailyDiaries)) {
+        for (const dy of data.dailyDiaries) {
+          const { id, userId, createdAt, updatedAt, ...diaryData } = dy;
+          await tx.dailyDiary.upsert({
+            where: { userId_date: { userId: user.id, date: diaryData.date } },
+            create: { id, userId: user.id, ...diaryData },
+            update: { ...diaryData },
           });
         }
       }

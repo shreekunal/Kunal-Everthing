@@ -18,6 +18,7 @@ import {
   Settings,
   Lock,
   Trophy,
+  BookOpen,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
@@ -133,10 +134,10 @@ export function BottomNav({
       return;
     }
 
-    // Short tap: navigate normally to /relationship
+    // Short tap: navigate normally to /partner
     haptics.selection();
     if (isDrawerOpen) setIsDrawerOpen(false);
-    router.push("/relationship");
+    router.push("/partner");
   };
 
   const handleLovePointerCancel = () => {
@@ -174,7 +175,7 @@ export function BottomNav({
   };
 
   const extendedNav = [
-    { name: "Partner", href: "/partner", icon: Users },
+    { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Habits", href: "/routines", icon: Flame },
     { name: "Focus", href: "/progress", icon: BarChart3 },
@@ -366,13 +367,13 @@ export function BottomNav({
             onClick={(e) => e.preventDefault()}
             className={clsx(
               "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none",
-              pathname === "/relationship" ? "text-rose-400" : "text-zinc-400 hover:text-white"
+              pathname === "/partner" || pathname === "/relationship" ? "text-rose-400" : "text-zinc-400 hover:text-white"
             )}
           >
             <div
               className={clsx(
                 "p-1.5 rounded-xl transition-all",
-                pathname === "/relationship"
+                pathname === "/partner" || pathname === "/relationship"
                   ? "bg-rose-500/15 text-rose-400"
                   : "group-hover:text-rose-400"
               )}
@@ -382,7 +383,7 @@ export function BottomNav({
             <span
               className={clsx(
                 "w-1 h-1 rounded-full mt-0.5 transition-all",
-                pathname === "/relationship"
+                pathname === "/partner" || pathname === "/relationship"
                   ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
                   : "bg-transparent opacity-0"
               )}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { encryptCardField, decryptCardField } from "@/lib/crypto/cardEncryption";
 
 export async function GET() {
   try {
@@ -14,7 +15,14 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ debitCards });
+    const decryptedDebitCards = debitCards.map((c) => ({
+      ...c,
+      cardNumber: decryptCardField(c.cardNumber),
+      expiryDate: decryptCardField(c.expiryDate),
+      cvv: decryptCardField(c.cvv),
+    }));
+
+    return NextResponse.json({ debitCards: decryptedDebitCards });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -45,16 +53,23 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         name: name.trim(),
-        cardNumber: cardNumber ? cardNumber.trim() : null,
+        cardNumber: encryptCardField(cardNumber),
         last4: computedLast4,
-        expiryDate: expiryDate ? expiryDate.trim() : null,
-        cvv: cvv ? cvv.trim() : null,
+        expiryDate: encryptCardField(expiryDate),
+        cvv: encryptCardField(cvv),
         network: network || "VISA",
         notes: notes ? notes.trim() : null,
       },
     });
 
-    return NextResponse.json({ debitCard }, { status: 201 });
+    return NextResponse.json({
+      debitCard: {
+        ...debitCard,
+        cardNumber: decryptCardField(debitCard.cardNumber),
+        expiryDate: decryptCardField(debitCard.expiryDate),
+        cvv: decryptCardField(debitCard.cvv),
+      },
+    }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

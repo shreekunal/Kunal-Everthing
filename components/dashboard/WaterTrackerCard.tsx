@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
   Droplets,
@@ -14,9 +13,10 @@ import {
   CheckCircle2,
   RotateCcw,
   Trophy,
+  Calendar,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import clsx from "clsx";
 import {
   scheduleWaterReminders,
@@ -61,6 +61,42 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
   const [rewardMessage, setRewardMessage] = useState<string>("+30 Monk Karma XP Earned!");
   const [testingNotif, setTestingNotif] = useState<boolean>(false);
   const [notifFeedback, setNotifFeedback] = useState<string | null>(null);
+
+  // Weekly Hydration Track State
+  const [weeklyData, setWeeklyData] = useState<{
+    totalGlasses: number;
+    avgGlasses: number;
+    daysMetGoal: number;
+    days: Array<{
+      date: string;
+      dayLabel: string;
+      dayNumber: string;
+      count: number;
+      target: number;
+      goalMet: boolean;
+      percent: number;
+    }>;
+  }>({
+    totalGlasses: 0,
+    avgGlasses: 0,
+    daysMetGoal: 0,
+    days: [],
+  });
+
+  // Fetch weekly hydration data from API
+  const fetchWaterData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/water?userId=${encodeURIComponent(activeUserId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.week) {
+          setWeeklyData(json.week);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load weekly water telemetry:", err);
+    }
+  }, [activeUserId]);
 
   // Claim XP reward from API
   const claimReward = async (showToast = true) => {
@@ -125,14 +161,14 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
     }
   };
 
-  // Initialize from storage on mount or user switch
+  // Initialize from storage & fetch weekly data on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let initialGlasses = 0;
     let currentTarget = DEFAULT_TARGET_GLASSES;
 
-    // Load today's count (with fallback to legacy key if primary)
+    // Load today's count
     let savedCount = localStorage.getItem(storageCountKey);
     if (savedCount === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
       savedCount = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
@@ -154,7 +190,7 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
     }
     if (savedTarget !== null) {
       const parsed = parseInt(savedTarget, 10);
-      if (!isNaN(parsed) && parsed > 0) {
+      if (!isNaN(parsed)) {
         currentTarget = parsed;
         setTargetGlasses(parsed);
       }
@@ -179,7 +215,9 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
         claimReward(false);
       }
     }
-  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey, activeUserId, todayKey]);
+
+    fetchWaterData();
+  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey, activeUserId, todayKey, fetchWaterData]);
 
   // Sync claimed state with server rewards on mount
   useEffect(() => {
@@ -212,11 +250,35 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
       window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
 
-    // Sync to database for partner visibility
+    // Optimistically update weekly track today item
+    setWeeklyData((prev) => {
+      const days = (prev.days || []).map((d) => {
+        if (d.date === todayKey) {
+          return {
+            ...d,
+            count: val,
+            goalMet: val >= d.target,
+            percent: Math.min(100, Math.round((val / Math.max(1, d.target)) * 100)),
+          };
+        }
+        return d;
+      });
+      const total = days.reduce((acc, d) => acc + d.count, 0);
+      const met = days.filter((d) => d.goalMet).length;
+      return {
+        ...prev,
+        days,
+        totalGlasses: total,
+        daysMetGoal: met,
+        avgGlasses: Number((total / Math.max(1, days.length)).toFixed(1)),
+      };
+    });
+
+    // Sync to database for telemetry
     fetch("/api/water", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: val, target: targetGlasses }),
+      body: JSON.stringify({ count: val, target: targetGlasses, date: todayKey }),
     }).catch(() => {});
 
     const wasAchieved = prevCount >= targetGlasses;
@@ -244,7 +306,7 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
     fetch("/api/water", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: drankGlasses, target: val }),
+      body: JSON.stringify({ count: drankGlasses, target: val, date: todayKey }),
     }).catch(() => {});
     haptics.impactLight();
   };
@@ -513,6 +575,75 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
           )}
         </div>
 
+        {/* 7-Day Rolling Weekly Hydration Track */}
+        <div className="pt-3 border-t border-white/[0.08]">
+          <div className="flex items-center justify-between text-[11px] font-mono mb-2">
+            <span className="text-zinc-300 flex items-center gap-1.5 font-bold">
+              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <span>7-Day Hydration Track</span>
+            </span>
+            <span className="text-[10px] text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
+              {weeklyData.daysMetGoal}/7 Days Goal Met • {((weeklyData.totalGlasses * 250) / 1000).toFixed(1)}L Total
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5">
+            {(weeklyData.days.length > 0 ? weeklyData.days : Array.from({ length: 7 }).map((_, i) => ({
+              date: "",
+              dayLabel: ["M", "T", "W", "T", "F", "S", "S"][i],
+              dayNumber: "",
+              count: 0,
+              target: 8,
+              goalMet: false,
+              percent: 0,
+            }))).map((day, idx) => {
+              const isToday = day.date === todayKey;
+              const isMet = isToday ? drankGlasses >= targetGlasses : day.goalMet;
+              const count = isToday ? drankGlasses : day.count;
+              const target = isToday ? targetGlasses : day.target;
+              const pct = Math.min(100, Math.round((count / Math.max(1, target)) * 100));
+
+              return (
+                <div
+                  key={day.date || idx}
+                  className={clsx(
+                    "p-2 rounded-xl border flex flex-col items-center justify-between transition-all",
+                    isToday
+                      ? "bg-cyan-500/15 border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                      : isMet
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                      : "bg-white/[0.02] border-white/5 text-zinc-400"
+                  )}
+                >
+                  <span className="text-[9px] font-mono uppercase text-zinc-400">
+                    {day.dayLabel}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-white mt-0.5">
+                    {day.dayNumber || ""}
+                  </span>
+
+                  {/* Micro Cylinder Level Indicator */}
+                  <div className="w-full h-8 bg-black/40 border border-white/10 rounded-md overflow-hidden relative my-1.5 p-0.5 flex flex-col justify-end">
+                    <div
+                      className={clsx(
+                        "w-full rounded-sm transition-all duration-500",
+                        isMet
+                          ? "bg-gradient-to-t from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                          : "bg-gradient-to-t from-cyan-600 to-cyan-400"
+                      )}
+                      style={{ height: `${Math.max(6, pct)}%` }}
+                    />
+                  </div>
+
+                  <span className="text-[9px] font-mono font-semibold">
+                    {isMet ? "✓" : `${count}/${target}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Notification Status & 1-Click Verification Trigger */}
         <div className="pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono">
           <div className="flex items-center gap-1.5 text-zinc-400">
@@ -537,7 +668,7 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
             className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 active:scale-95 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.15)] disabled:opacity-50"
             title="Fire an instant water notification in 2 seconds"
           >
-            <Bell className="w-3 h-3 text-cyan-400" />
+            <Bell className="w-3.5 h-3.5 text-cyan-400" />
             <span>{testingNotif ? "Scheduling..." : "Test Alert (2s)"}</span>
           </button>
         </div>

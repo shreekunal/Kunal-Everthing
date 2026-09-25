@@ -18,6 +18,7 @@ import {
   CheckCheck,
   Lock,
   Trophy,
+  BookOpen,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { BrandLogo } from "../ui/BrandLogo";
@@ -67,9 +68,9 @@ export function Navbar({
     { name: "Routines", href: "/routines", icon: Flame },
     { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Progress", href: "/progress", icon: GraduationCap },
-    { name: "Partner", href: "/partner", icon: Users },
+    { name: "Partner", href: "/partner", icon: Heart },
+    { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
-    { name: "Love", href: "/relationship", icon: Heart },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
   ];

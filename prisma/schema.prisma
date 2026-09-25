@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
   id                  String         @id @default(cuid())
   email               String         @unique
@@ -32,13 +31,12 @@ model User {
   partners          Partner[]
   messageTemplates  MessageTemplate[]
   scheduledMessages ScheduledMessage[]
-  vaultItems        VaultItem[]
   notifications     Notification[]
   rewardLogs        RewardLog[]
   disciplineStreaks DisciplineStreak[]
   rewardItems       RewardItem[]
+  diaries           DailyDiary[]
 }
-
 
 model UserSettings {
   id                   String   @id @default(cuid())
@@ -138,9 +136,9 @@ model CreditCard {
   bank               String?             @default("")
   network            String              @default("VISA") // VISA, MASTERCARD, AMEX, RUPAY, OTHER
   last4              String
-  cardNumber         String?             // Full 16-digit card number
-  expiryDate         String?             // MM/YY (e.g. 08/29)
-  cvv                String?             // 3 or 4-digit security code
+  cardNumber         String?             // Full 16-digit card number (AES-256-GCM encrypted)
+  expiryDate         String?             // MM/YY (AES-256-GCM encrypted)
+  cvv                String?             // 3 or 4-digit security code (AES-256-GCM encrypted)
   creditLimit        Float               @default(100000.0)
   statementDate      Int                 @default(12)     // Day of month (1-31)
   dueDate            Int                 @default(30)     // Day of month (1-31)
@@ -159,10 +157,10 @@ model DebitCard {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
-  cardNumber String?  // Full 16-digit card number
+  cardNumber String?  // Full 16-digit card number (AES-256-GCM encrypted)
   last4      String?  // Last 4 digits
-  expiryDate String?  // MM/YY
-  cvv        String?  // 3-digit CVV
+  expiryDate String?  // MM/YY (AES-256-GCM encrypted)
+  cvv        String?  // 3-digit CVV (AES-256-GCM encrypted)
   network    String   @default("VISA") // VISA, MASTERCARD, RUPAY, OTHER
   notes      String?
   isArchived Boolean  @default(false)
@@ -256,19 +254,24 @@ model ScheduledMessage {
   updatedAt     DateTime  @updatedAt
 }
 
-model VaultItem {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type         String    @default("PASSWORD") // PASSWORD, CARD, NOTE, API_KEY, RECOVERY
-  title        String
-  category     String    @default("General")
-  iv           String    // Base64 encoded Initialization Vector
-  ciphertext   String    // Base64 encoded AES-256-GCM ciphertext
-  salt         String    // Base64 encoded salt used for derivation
-  lastCopiedAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+model DailyDiary {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String    // YYYY-MM-DD
+  title       String?
+  content     String    // Reflections and thoughts
+  mood        String    @default("GRATEFUL") // GRATEFUL, LOVING, ENERGETIC, TIRED, REFLECTIVE, VICTORIOUS, CALM, STRESSED
+  rating      Int       @default(5) // 1 to 5 stars
+  gratitude   String?   // What made me smile or grateful
+  partnerNote String?   // Special note for partner
+  highlights  String?   // Key accomplishments / highlights
+  isShared    Boolean   @default(false)
+  sharedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, date])
 }
 
 model Notification {
@@ -289,10 +292,10 @@ model RewardLog {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   points      Int      // Positive for reward, negative for penalty
-  type        String   // TASK_COMPLETED, ROUTINE_COMPLETED, STREAK_BONUS, PENALTY_UNHEALTHY_FOOD, PENALTY_FAP, PENALTY_CUSTOM, REWARD_CUSTOM, REWARD_REDEMPTION
+  type        String   // TASK_COMPLETED, ROUTINE_COMPLETED, STREAK_BONUS, PENALTY_UNHEALTHY_FOOD, PENALTY_FAP, PENALTY_CUSTOM, REWARD_CUSTOM, REWARD_REDEMPTION, WATER_LOG
   title       String
   reason      String?
-  category    String   @default("GENERAL") // PRODUCTIVITY, HABITS, NUTRITION, PURITY, MINDFULNESS
+  category    String   @default("GENERAL") // PRODUCTIVITY, HABITS, NUTRITION, PURITY, MINDFULNESS, HEALTH
   referenceId String?
   createdAt   DateTime @default(now())
 }
@@ -325,4 +328,3 @@ model RewardItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
-

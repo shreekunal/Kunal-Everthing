@@ -12,9 +12,9 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const q = searchParams.get("q")?.trim() || "";
+    const q = searchParams.get("q")?.trim();
 
-    if (!q || q.length < 1) {
+    if (!q || q.length === 0) {
       return NextResponse.json({
         query: "",
         tasks: [],
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
         creditCards: [],
         debitCards: [],
         dates: [],
-        vaultItems: [],
+        dailyDiaries: [],
       });
     }
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       creditCards,
       debitCards,
       dates,
-      vaultItems,
+      dailyDiaries,
     ] = await Promise.all([
       // Tasks
       prisma.task.findMany({
@@ -76,24 +76,26 @@ export async function GET(request: Request) {
           name: true,
           category: true,
           currentStreak: true,
-          targetDays: true,
+          bestStreak: true,
         },
       }),
 
-      // Bank & Financial Accounts
+      // Financial Accounts
       prisma.financialAccount.findMany({
         where: {
           userId: user.id,
-          isArchived: false,
-          name: { contains: q, mode: "insensitive" },
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { category: { contains: q, mode: "insensitive" } },
+          ],
         },
-        take: 6,
+        take: 5,
         select: {
           id: true,
           name: true,
+          balance: true,
           type: true,
           category: true,
-          balance: true,
         },
       }),
 
@@ -101,22 +103,20 @@ export async function GET(request: Request) {
       prisma.creditCard.findMany({
         where: {
           userId: user.id,
-          isArchived: false,
           OR: [
             { name: { contains: q, mode: "insensitive" } },
             { bank: { contains: q, mode: "insensitive" } },
             { last4: { contains: q } },
           ],
         },
-        take: 6,
+        take: 5,
         select: {
           id: true,
           name: true,
           bank: true,
           last4: true,
-          currentOutstanding: true,
           creditLimit: true,
-          dueDate: true,
+          currentOutstanding: true,
         },
       }),
 
@@ -124,13 +124,12 @@ export async function GET(request: Request) {
       prisma.debitCard.findMany({
         where: {
           userId: user.id,
-          isArchived: false,
           OR: [
             { name: { contains: q, mode: "insensitive" } },
             { last4: { contains: q } },
           ],
         },
-        take: 4,
+        take: 5,
         select: {
           id: true,
           name: true,
@@ -157,21 +156,27 @@ export async function GET(request: Request) {
         },
       }),
 
-      // Vault Items (Title & Category only - zero sensitive payload leak)
-      prisma.vaultItem.findMany({
+      // Daily Diaries
+      prisma.dailyDiary.findMany({
         where: {
           userId: user.id,
           OR: [
-            { title: { contains: q, mode: "insensitive" } },
-            { category: { contains: q, mode: "insensitive" } },
+            { content: { contains: q, mode: "insensitive" } },
+            { highlights: { contains: q, mode: "insensitive" } },
+            { gratitude: { contains: q, mode: "insensitive" } },
+            { partnerNote: { contains: q, mode: "insensitive" } },
+            { mood: { contains: q, mode: "insensitive" } },
           ],
         },
         take: 6,
+        orderBy: { date: "desc" },
         select: {
           id: true,
-          title: true,
-          type: true,
-          category: true,
+          date: true,
+          mood: true,
+          rating: true,
+          highlights: true,
+          partnerNote: true,
         },
       }),
     ]);
@@ -184,7 +189,7 @@ export async function GET(request: Request) {
       creditCards,
       debitCards,
       dates,
-      vaultItems,
+      dailyDiaries,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

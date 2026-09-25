@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { format, subDays } from "date-fns";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -21,20 +22,28 @@ export async function GET() {
       where: { userId: user.id, isArchived: false },
       include: {
         completions: {
-          where: {
-            date: { in: past30Days },
-          },
+          where: { completed: true },
+          select: { date: true, completed: true },
         },
       },
       orderBy: { createdAt: "asc" },
     });
 
     const formattedRoutines = routines.map((r) => {
-      const completionMap = new Map(r.completions.map((c) => [c.date, c.completed]));
+      const completedDatesSet = new Set(
+        r.completions.filter((c) => c.completed).map((c) => c.date)
+      );
+
       const pastHistory = past30Days.map((date) => ({
         date,
-        completed: completionMap.get(date) || false,
+        completed: completedDatesSet.has(date),
       }));
+
+      // Dynamically calculate accurate live streak
+      const { currentStreak, bestStreak } = calculateRoutineStreak(
+        completedDatesSet,
+        todayStr
+      );
 
       return {
         id: r.id,
@@ -42,9 +51,9 @@ export async function GET() {
         category: r.category,
         targetDays: r.targetDays,
         targetDurationMinutes: r.targetDurationMinutes,
-        currentStreak: r.currentStreak,
-        bestStreak: r.bestStreak,
-        completedToday: completionMap.get(todayStr) || false,
+        currentStreak,
+        bestStreak: Math.max(bestStreak, r.bestStreak || 0),
+        completedToday: completedDatesSet.has(todayStr),
         pastHistory,
       };
     });

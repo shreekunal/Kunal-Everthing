@@ -20,6 +20,7 @@ import {
 import { offlineCache } from "@/lib/offlineCache";
 import { offlineQueue } from "@/lib/offlineQueue";
 import { syncHabitNotifications } from "@/lib/notifications";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 export default function RoutinesPage() {
   const [routines, setRoutines] = useState<any[]>([]);
@@ -105,24 +106,51 @@ export default function RoutinesPage() {
 
   const handleToggleCompletion = async (routineId: string, date?: string) => {
     haptics.success();
+    const todayKey = format(new Date(), "yyyy-MM-dd");
+    const targetDate = date || todayKey;
 
     // 1. Instant 0ms Optimistic UI update
     let updatedRoutinesList: any[] = [];
     setRoutines((prev) => {
       updatedRoutinesList = prev.map((r) => {
         if (r.id !== routineId) return r;
-        const willBeCompleted = !r.completedToday;
+
+        // Update pastHistory array accurately
+        const updatedHistory = (r.pastHistory || []).map((h: any) => {
+          if (h.date === targetDate) {
+            return { ...h, completed: !h.completed };
+          }
+          return h;
+        });
+
+        // Determine if target date is today
+        const isTargetToday = targetDate === todayKey;
+        const willBeCompletedToday = isTargetToday ? !r.completedToday : r.completedToday;
+
+        // Collect completed dates for accurate streak computation
+        const completedDatesSet = new Set<string>(
+          updatedHistory.filter((h: any) => h.completed).map((h: any) => h.date)
+        );
+        if (willBeCompletedToday) {
+          completedDatesSet.add(todayKey);
+        } else {
+          completedDatesSet.delete(todayKey);
+        }
+
+        const { currentStreak, bestStreak } = calculateRoutineStreak(
+          completedDatesSet,
+          todayKey
+        );
+
         return {
           ...r,
-          completedToday: willBeCompleted,
-          currentStreak: willBeCompleted
-            ? (r.currentStreak || 0) + 1
-            : Math.max(0, (r.currentStreak || 1) - 1),
-          pastHistory: r.pastHistory?.map((h: any) =>
-            h.date === date ? { ...h, completed: !h.completed } : h
-          ),
+          completedToday: willBeCompletedToday,
+          currentStreak,
+          bestStreak: Math.max(r.bestStreak || 0, bestStreak),
+          pastHistory: updatedHistory,
         };
       });
+
       // Synchronize optimistic state directly into offline cache
       offlineCache.set("routines", {
         routines: updatedRoutinesList,
@@ -139,7 +167,7 @@ export default function RoutinesPage() {
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date }),
+          body: JSON.stringify({ date: targetDate }),
         },
         "Routine streak update"
       );

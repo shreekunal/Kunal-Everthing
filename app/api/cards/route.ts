@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getNextCardDueDate } from "@/lib/formatters";
+import { encryptCardField, decryptCardField, migrateAndEncryptAllCards } from "@/lib/crypto/cardEncryption";
 
 export async function GET() {
   try {
@@ -9,6 +10,9 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Auto-migrate any legacy plaintext cards silently on first read
+    migrateAndEncryptAllCards().catch((e) => console.warn("Background card encryption migration error:", e));
 
     const cards = await prisma.creditCard.findMany({
       where: { userId: user.id, isArchived: false },
@@ -39,9 +43,9 @@ export async function GET() {
         utilization: Math.round(utilization),
         statementDate: c.statementDate,
         dueDate: c.dueDate,
-        cardNumber: c.cardNumber,
-        expiryDate: c.expiryDate,
-        cvv: c.cvv,
+        cardNumber: decryptCardField(c.cardNumber),
+        expiryDate: decryptCardField(c.expiryDate),
+        cvv: decryptCardField(c.cvv),
         autopay: c.autopay,
         daysRemaining: dueInfo.daysRemaining,
         dueDateLabel: dueInfo.label,
@@ -101,9 +105,9 @@ export async function POST(request: Request) {
         bank: bank ? bank.trim() : "",
         network: network || "VISA",
         last4: computedLast4,
-        cardNumber: cardNumber ? cardNumber.trim() : null,
-        expiryDate: expiryDate ? expiryDate.trim() : null,
-        cvv: cvv ? cvv.trim() : null,
+        cardNumber: encryptCardField(cardNumber),
+        expiryDate: encryptCardField(expiryDate),
+        cvv: encryptCardField(cvv),
         creditLimit: parseFloat(creditLimit) || 100000.0,
         statementDate: parseInt(statementDate, 10) || 12,
         dueDate: parseInt(dueDate, 10) || 30,
@@ -114,7 +118,14 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ card }, { status: 201 });
+    return NextResponse.json({
+      card: {
+        ...card,
+        cardNumber: decryptCardField(card.cardNumber),
+        expiryDate: decryptCardField(card.expiryDate),
+        cvv: decryptCardField(card.cvv),
+      },
+    }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

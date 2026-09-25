@@ -92,7 +92,7 @@ export async function GET() {
         totalMinutes: weekWorkMins + weekStudyMins + weekPersonalMins,
       },
       last7Days,
-      recentSessions: monthSessions.filter((s) => s.type === "STUDY").slice(0, 15),
+      recentSessions: monthSessions.filter((s) => s.type === "STUDY").slice(0, 20),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -140,6 +140,42 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ session, earnedXP }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get("id");
+
+    if (!sessionId) {
+      return NextResponse.json({ error: "Session ID required" }, { status: 400 });
+    }
+
+    const session = await prisma.workSession.findUnique({
+      where: { id: sessionId, userId: user.id },
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    await prisma.workSession.delete({
+      where: { id: sessionId },
+    });
+
+    // Clean up reward log
+    await prisma.rewardLog.deleteMany({
+      where: { userId: user.id, referenceId: sessionId },
+    });
+
+    return NextResponse.json({ success: true, deletedId: sessionId });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

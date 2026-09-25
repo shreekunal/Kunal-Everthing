@@ -190,7 +190,7 @@ export async function DELETE() {
     await prisma.scheduledMessage.deleteMany({ where: { userId: user.id } });
     await prisma.messageTemplate.deleteMany({ where: { userId: user.id } });
     await prisma.partner.deleteMany({ where: { userId: user.id } });
-    await prisma.vaultItem.deleteMany({ where: { userId: user.id } });
+    await prisma.dailyDiary.deleteMany({ where: { userId: user.id } });
     await prisma.notification.deleteMany({ where: { userId: user.id } });
     await prisma.rewardLog.deleteMany({ where: { userId: user.id } });
     await prisma.disciplineStreak.deleteMany({ where: { userId: user.id } });

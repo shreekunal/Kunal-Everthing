@@ -22,6 +22,10 @@ import {
   Clock,
   Heart,
   Pencil,
+  Trash2,
+  RotateCcw,
+  Calendar,
+  History,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
@@ -44,7 +48,7 @@ import { toPng } from "html-to-image";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import clsx from "clsx";
 
 export default function ProgressPage() {
@@ -57,6 +61,9 @@ export default function ProgressPage() {
   const [manualProject, setManualProject] = useState("");
   const [manualDuration, setManualDuration] = useState("45");
   const [manualCategory, setManualCategory] = useState("Deep Study");
+  const [manualDate, setManualDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [showCustomDate, setShowCustomDate] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Study Goal State (Daily & Weekly)
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
@@ -166,6 +173,7 @@ export default function ProgressPage() {
           durationMinutes: Number(manualDuration),
           type: "STUDY",
           notes: manualCategory,
+          date: manualDate,
         }),
       });
       haptics.success();
@@ -177,7 +185,47 @@ export default function ProgressPage() {
     }
   };
 
+  const handleRepeatSession = (session: any) => {
+    haptics.selection();
+    setManualProject(session.project || "");
+    if (session.notes) setManualCategory(session.notes);
+    if (session.durationMinutes) setManualDuration(String(session.durationMinutes));
+    // Scroll form into view
+    window.scrollTo({ top: 400, behavior: "smooth" });
+  };
+
+  const handleDeleteSession = async (id: string) => {
+    try {
+      setDeletingId(id);
+      haptics.warning();
+      const res = await fetch(`/api/progress?id=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        haptics.success();
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to delete session:", err);
+      haptics.error();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const { today, thisWeek, last7Days, recentSessions } = data || {};
+
+  // Extract unique subjects from recent study sessions for 1-tap quick suggestions
+  const recentSubjectChips = Array.from(
+    new Set(
+      (recentSessions || [])
+        .map((s: any) => s.project?.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 5) as string[];
+
+  const defaultSubjectChips = ["Algorithms", "System Design", "Core CS", "Development"];
+  const displaySubjectChips = recentSubjectChips.length > 0 ? recentSubjectChips : defaultSubjectChips;
 
   const todayStudyMinutes = today?.studyMinutes || 0;
   const todayStudySessions = (today?.sessions || []).filter((s: any) => s.type === "STUDY");
@@ -699,10 +747,112 @@ export default function ProgressPage() {
             </CardHeader>
 
             <form onSubmit={handleManualLog} className="space-y-3.5">
+              {/* Date Selection Options */}
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
-                  Subject / Focus Area *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-mono text-zinc-400 uppercase">
+                    Session Date
+                  </label>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {manualDate === format(new Date(), "yyyy-MM-dd")
+                      ? "Today"
+                      : manualDate === format(subDays(new Date(), 1), "yyyy-MM-dd")
+                      ? "Yesterday"
+                      : manualDate}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                  {[
+                    { label: "Today", date: format(new Date(), "yyyy-MM-dd") },
+                    { label: "Yesterday", date: format(subDays(new Date(), 1), "yyyy-MM-dd") },
+                    { label: "2d Ago", date: format(subDays(new Date(), 2), "yyyy-MM-dd") },
+                  ].map((p) => {
+                    const isSelected = manualDate === p.date && !showCustomDate;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          haptics.selection();
+                          setManualDate(p.date);
+                          setShowCustomDate(false);
+                        }}
+                        className={clsx(
+                          "py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center font-medium",
+                          isSelected
+                            ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                            : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setShowCustomDate(!showCustomDate);
+                    }}
+                    className={clsx(
+                      "py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex items-center justify-center gap-1",
+                      showCustomDate || (manualDate !== format(new Date(), "yyyy-MM-dd") && manualDate !== format(subDays(new Date(), 1), "yyyy-MM-dd") && manualDate !== format(subDays(new Date(), 2), "yyyy-MM-dd"))
+                        ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                        : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    <Calendar className="w-3 h-3" />
+                    <span>Pick</span>
+                  </button>
+                </div>
+
+                {showCustomDate && (
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <input
+                      type="date"
+                      value={manualDate}
+                      max={format(new Date(), "yyyy-MM-dd")}
+                      onChange={(e) => setManualDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-mono text-zinc-400 uppercase">
+                    Subject / Focus Area *
+                  </label>
+                  {displaySubjectChips.length > 0 && (
+                    <span className="text-[9px] font-mono text-zinc-500">Quick Suggetions</span>
+                  )}
+                </div>
+
+                {/* Quick Subject Chips */}
+                {displaySubjectChips.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {displaySubjectChips.map((subj) => (
+                      <button
+                        key={subj}
+                        type="button"
+                        onClick={() => {
+                          haptics.selection();
+                          setManualProject(subj);
+                        }}
+                        className={clsx(
+                          "text-[10px] font-mono px-2 py-1 rounded-lg border transition-all active:scale-95",
+                          manualProject === subj
+                            ? "bg-brand-red/20 text-brand-red border-brand-red/40 font-bold"
+                            : "bg-white/[0.02] text-zinc-400 border-white/10 hover:border-white/25 hover:text-zinc-200"
+                        )}
+                      >
+                        {subj}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <input
                   type="text"
                   required
@@ -832,9 +982,14 @@ export default function ProgressPage() {
       {/* Activity Log */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-brand-red" />
-            <CardTitle>Recent Study Sessions</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-brand-red" />
+              <CardTitle>Recent Study Sessions</CardTitle>
+            </div>
+            <span className="text-[10px] font-mono text-zinc-500">
+              {recentSessions?.length || 0} logged
+            </span>
           </div>
         </CardHeader>
 
@@ -847,27 +1002,48 @@ export default function ProgressPage() {
             recentSessions.map((s: any) => (
               <div
                 key={s.id}
-                className="py-3.5 px-3 flex items-center justify-between text-xs"
+                className="py-3 px-3 flex items-center justify-between text-xs hover:bg-white/[0.02] transition-colors rounded-lg group"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <Badge variant="red" size="sm">
                     STUDY
                   </Badge>
-                  <div>
-                    <span className="font-bold text-white block">{s.project}</span>
-                    {s.notes && (
-                      <span className="text-[10px] text-zinc-400 font-mono block">
-                        {s.notes}
-                      </span>
-                    )}
+                  <div className="min-w-0">
+                    <span className="font-bold text-white block truncate">{s.project}</span>
+                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
+                      {s.notes && <span>{s.notes}</span>}
+                      <span>•</span>
+                      <span>{formatDate(s.date)}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-zinc-400 font-mono">
-                  <span className="text-white font-bold">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <span className="text-white font-bold font-mono text-xs">
                     {formatDuration(s.durationMinutes)}
                   </span>
-                  <span>{formatDate(s.date)}</span>
+
+                  {/* 1-Tap Repeat Action */}
+                  <button
+                    type="button"
+                    title="Repeat session parameters"
+                    onClick={() => handleRepeatSession(s)}
+                    className="p-1.5 rounded-lg bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all text-[10px] font-mono flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3 text-brand-red" />
+                    <span className="hidden sm:inline">Repeat</span>
+                  </button>
+
+                  {/* Delete Action */}
+                  <button
+                    type="button"
+                    title="Delete session"
+                    disabled={deletingId === s.id}
+                    onClick={() => handleDeleteSession(s.id)}
+                    className="p-1.5 rounded-lg bg-white/[0.02] text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             ))

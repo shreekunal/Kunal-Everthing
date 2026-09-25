@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { awardPoints } from "@/lib/rewards";
-import { format, subDays } from "date-fns";
-
+import { format } from "date-fns";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 export async function PATCH(
   request: Request,
@@ -16,7 +16,8 @@ export async function PATCH(
     }
     const { id } = params;
     const body = await request.json();
-    const targetDate = body.date || format(new Date(), "yyyy-MM-dd");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const targetDate = body.date || todayStr;
 
     const routine = await prisma.routine.findUnique({
       where: { id, userId: user.id },
@@ -26,7 +27,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Routine not found" }, { status: 404 });
     }
 
-    // Toggle or set completion
+    // Toggle or set completion for targetDate
     const existingCompletion = await prisma.routineCompletion.findUnique({
       where: {
         routineId_date: {
@@ -54,31 +55,19 @@ export async function PATCH(
       });
     }
 
-    // Recalculate streak backwards from today
-    let currentStreak = 0;
-    const today = new Date();
-    for (let i = 0; i < 365; i++) {
-      const checkDateStr = format(subDays(today, i), "yyyy-MM-dd");
-      const comp = await prisma.routineCompletion.findUnique({
-        where: {
-          routineId_date: {
-            routineId: id,
-            date: checkDateStr,
-          },
-        },
-      });
+    // Fetch all completed dates for this routine to calculate accurate streak
+    const allCompletions = await prisma.routineCompletion.findMany({
+      where: { routineId: id, completed: true },
+      select: { date: true },
+    });
+    const completedDatesSet = new Set(allCompletions.map((c) => c.date));
 
-      if (comp && comp.completed) {
-        currentStreak++;
-      } else if (i === 0) {
-        // Today is not completed yet, check if yesterday was
-        continue;
-      } else {
-        break;
-      }
-    }
+    const { currentStreak, bestStreak } = calculateRoutineStreak(
+      completedDatesSet,
+      todayStr
+    );
 
-    const newBestStreak = Math.max(routine.bestStreak, currentStreak);
+    const newBestStreak = Math.max(routine.bestStreak || 0, bestStreak);
 
     const updated = await prisma.routine.update({
       where: { id },
@@ -177,13 +166,12 @@ export async function PATCH(
 
     return NextResponse.json({
       routine: updated,
-      completedToday: isCompletedNow,
+      completedToday: completedDatesSet.has(todayStr),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
 
 export async function DELETE(
   request: Request,

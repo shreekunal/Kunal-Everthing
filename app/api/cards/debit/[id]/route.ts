@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { encryptCardField, decryptCardField } from "@/lib/crypto/cardEncryption";
 
 export async function PATCH(
   request: Request,
@@ -34,16 +35,23 @@ export async function PATCH(
       where: { id },
       data: {
         name: name !== undefined ? name.trim() : existing.name,
-        cardNumber: cardNumber !== undefined ? (cardNumber ? cardNumber.trim() : null) : existing.cardNumber,
+        cardNumber: cardNumber !== undefined ? encryptCardField(cardNumber) : existing.cardNumber,
         last4: computedLast4,
-        expiryDate: expiryDate !== undefined ? (expiryDate ? expiryDate.trim() : null) : existing.expiryDate,
-        cvv: cvv !== undefined ? (cvv ? cvv.trim() : null) : existing.cvv,
+        expiryDate: expiryDate !== undefined ? encryptCardField(expiryDate) : existing.expiryDate,
+        cvv: cvv !== undefined ? encryptCardField(cvv) : existing.cvv,
         network: network !== undefined ? network : existing.network,
         notes: notes !== undefined ? (notes ? notes.trim() : null) : existing.notes,
       },
     });
 
-    return NextResponse.json({ debitCard: updated });
+    return NextResponse.json({
+      debitCard: {
+        ...updated,
+        cardNumber: decryptCardField(updated.cardNumber),
+        expiryDate: decryptCardField(updated.expiryDate),
+        cvv: decryptCardField(updated.cvv),
+      },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

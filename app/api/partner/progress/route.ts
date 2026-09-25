@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, ensureDualProfiles } from "@/lib/auth";
 import { getDisciplineSummary } from "@/lib/rewards";
-import { format, startOfWeek, endOfWeek, startOfDay } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfDay, subDays } from "date-fns";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,11 @@ export async function GET() {
     const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
     const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
+    // Fetch last 7 days keys for water tracking
+    const past7DaysKeys = Array.from({ length: 7 }, (_, i) =>
+      format(subDays(new Date(), 6 - i), "yyyy-MM-dd")
+    );
+
     // Fetch all partner dimensions in parallel
     const [
       discipline,
@@ -35,7 +41,8 @@ export async function GET() {
       routines,
       workSessionsToday,
       workSessionsWeek,
-      waterLogRecord,
+      waterLogRecordsWeek,
+      latestDiary,
     ] = await Promise.all([
       // 1. Companion & Karma
       getDisciplineSummary(partnerUser.id, false),
@@ -60,7 +67,7 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
       }),
 
-      // 3. Habits / Routines
+      // 3. Habits / Routines (with all completed completions for dynamic streak)
       prisma.routine.findMany({
         where: {
           userId: partnerUser.id,
@@ -68,7 +75,8 @@ export async function GET() {
         },
         include: {
           completions: {
-            where: { date: todayStr },
+            where: { completed: true },
+            select: { date: true, completed: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -91,37 +99,78 @@ export async function GET() {
         },
       }),
 
-      // 5. Water Hydration Log for Today
-      prisma.rewardLog.findFirst({
+      // 5. Water Hydration Logs for the past 7 days
+      prisma.rewardLog.findMany({
         where: {
           userId: partnerUser.id,
+          category: { in: ["HEALTH", "GENERAL"] },
           OR: [
-            { referenceId: `water_count_${todayStr}` },
-            { referenceId: `water_${todayStr}` },
+            { referenceId: { in: past7DaysKeys.map((d) => `water_count_${d}`) } },
+            { referenceId: { in: past7DaysKeys.map((d) => `water_${d}`) } },
+            { type: "WATER_LOG" },
             { type: "REWARD_WATER" },
           ],
         },
         orderBy: { createdAt: "desc" },
       }),
+
+      // 6. Latest Daily Diary Entry (from Kunal or Partner)
+      prisma.dailyDiary.findFirst({
+        where: {
+          userId: { in: [user.id, partnerUser.id] },
+        },
+        orderBy: { date: "desc" },
+      }),
     ]);
 
-    // Parse Water
-    let waterGlasses = 0;
-    let waterTarget = 8;
-    if (waterLogRecord) {
-      if (waterLogRecord.reason) {
-        try {
-          const parsed = JSON.parse(waterLogRecord.reason);
-          if (typeof parsed.count === "number") waterGlasses = parsed.count;
-          if (typeof parsed.target === "number") waterTarget = parsed.target;
-        } catch {
-          waterGlasses = waterLogRecord.points || 0;
+    // Parse Today & Weekly Water
+    const waterByDate = new Map<string, { count: number; target: number }>();
+    for (const log of waterLogRecordsWeek) {
+      let dKey = "";
+      if (log.referenceId?.startsWith("water_count_")) {
+        dKey = log.referenceId.replace("water_count_", "");
+      } else if (log.referenceId?.startsWith("water_")) {
+        dKey = log.referenceId.replace("water_", "");
+      } else {
+        dKey = format(log.createdAt, "yyyy-MM-dd");
+      }
+
+      if (!waterByDate.has(dKey)) {
+        let count = 0;
+        let target = 8;
+        if (log.reason) {
+          try {
+            const parsed = JSON.parse(log.reason);
+            if (typeof parsed.count === "number") count = parsed.count;
+            if (typeof parsed.target === "number") target = parsed.target;
+          } catch {
+            count = log.points || 0;
+          }
+        } else if (log.type === "REWARD_WATER") {
+          count = 8;
         }
-      } else if (waterLogRecord.type === "REWARD_WATER" || waterLogRecord.referenceId === `water_${todayStr}`) {
-        // If reward claimed, at least 8 glasses
-        waterGlasses = Math.max(8, waterGlasses);
+        waterByDate.set(dKey, { count, target });
       }
     }
+
+    const todayWater = waterByDate.get(todayStr) || { count: 0, target: 8 };
+    const weeklyWaterDays = past7DaysKeys.map((dStr) => {
+      const data = waterByDate.get(dStr) || { count: 0, target: 8 };
+      const dayDate = new Date(dStr);
+      return {
+        date: dStr,
+        dayLabel: format(dayDate, "EEE"),
+        dayNumber: format(dayDate, "d"),
+        count: data.count,
+        target: data.target,
+        goalMet: data.count >= data.target,
+        percent: Math.min(100, Math.round((data.count / Math.max(1, data.target)) * 100)),
+      };
+    });
+
+    const totalWeeklyGlasses = weeklyWaterDays.reduce((acc, d) => acc + d.count, 0);
+    const weeklyDaysMetGoal = weeklyWaterDays.filter((d) => d.goalMet).length;
+    const avgDailyGlasses = Number((totalWeeklyGlasses / 7).toFixed(1));
 
     // Process Focus Time
     const todayWorkMins = workSessionsToday
@@ -137,18 +186,22 @@ export async function GET() {
       .reduce((sum, s) => sum + s.durationMinutes, 0);
 
     const todayTotalFocusMins = todayWorkMins + todayStudyMins + todayPersonalMins;
-
     const weekTotalFocusMins = workSessionsWeek.reduce((sum, s) => sum + s.durationMinutes, 0);
 
-    // Process Habits
-    const routinesWithStatus = routines.map((r) => ({
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      currentStreak: r.currentStreak,
-      bestStreak: r.bestStreak,
-      completedToday: r.completions.length > 0,
-    }));
+    // Process Habits with live dynamic streak calculation
+    const routinesWithStatus = routines.map((r) => {
+      const completedDatesSet = new Set(r.completions.map((c) => c.date));
+      const { currentStreak, bestStreak } = calculateRoutineStreak(completedDatesSet, todayStr);
+
+      return {
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        currentStreak,
+        bestStreak: Math.max(bestStreak, r.bestStreak || 0),
+        completedToday: completedDatesSet.has(todayStr),
+      };
+    });
 
     const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
     const routineCompletionRate =
@@ -159,19 +212,29 @@ export async function GET() {
     return NextResponse.json({
       partner: {
         id: partnerUser.id,
-        name: partnerUser.name,
+        name: partnerRelation?.name || partnerUser.name,
         nickname: partnerRelation?.nickname || (isCurrentKunal ? "Golu" : "My Love"),
         gender: isCurrentKunal ? "FEMALE" : "MALE",
+        birthday: partnerRelation?.birthday || null,
+        anniversary: partnerRelation?.anniversary || null,
         phone: partnerRelation?.phone || null,
         callLink: partnerRelation?.callLink || null,
+        preferences: partnerRelation?.preferences || null,
+        notes: partnerRelation?.notes || null,
       },
       water: {
-        glasses: waterGlasses,
-        target: waterTarget,
-        ml: waterGlasses * 250,
-        targetMl: waterTarget * 250,
-        percent: Math.min(100, Math.round((waterGlasses / Math.max(1, waterTarget)) * 100)),
-        goalMet: waterGlasses >= waterTarget,
+        glasses: todayWater.count,
+        target: todayWater.target,
+        ml: todayWater.count * 250,
+        targetMl: todayWater.target * 250,
+        percent: Math.min(100, Math.round((todayWater.count / Math.max(1, todayWater.target)) * 100)),
+        goalMet: todayWater.count >= todayWater.target,
+        week: {
+          totalGlasses: totalWeeklyGlasses,
+          avgGlasses: avgDailyGlasses,
+          daysMetGoal: weeklyDaysMetGoal,
+          days: weeklyWaterDays,
+        },
       },
       focus: {
         todayTotalMinutes: todayTotalFocusMins,
@@ -214,6 +277,7 @@ export async function GET() {
         list: routinesWithStatus,
       },
       discipline,
+      latestDiary,
     });
   } catch (error: any) {
     console.error("Partner progress API error:", error);

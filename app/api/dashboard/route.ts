@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDisciplineSummary } from "@/lib/rewards";
 import { format, startOfWeek, endOfWeek, isPast, parseISO } from "date-fns";
 import { getNextCardDueDate } from "@/lib/formatters";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,8 @@ export async function GET() {
         where: { userId: user.id, isArchived: false },
         include: {
           completions: {
-            where: { date: todayStr },
+            where: { completed: true },
+            select: { date: true, completed: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -76,14 +78,20 @@ export async function GET() {
     const completedTasksCount = allTasks.filter((t) => t.status === "DONE").length;
     const totalTasksCount = allTasks.length;
 
-    const routinesWithStatus = routines.map((r) => ({
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      targetDays: r.targetDays,
-      currentStreak: r.currentStreak,
-      completedToday: r.completions.length > 0 && r.completions[0].completed,
-    }));
+    const routinesWithStatus = routines.map((r) => {
+      const completedDatesSet = new Set(r.completions.map((c) => c.date));
+      const { currentStreak, bestStreak } = calculateRoutineStreak(completedDatesSet, todayStr);
+
+      return {
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        targetDays: r.targetDays,
+        currentStreak,
+        bestStreak: Math.max(bestStreak, r.bestStreak || 0),
+        completedToday: completedDatesSet.has(todayStr),
+      };
+    });
 
     const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
 
