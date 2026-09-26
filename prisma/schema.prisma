@@ -114,7 +114,6 @@ model WorkSession {
   endTime            String?     // HH:mm (e.g. "13:00")
   elapsedMinutes     Int?        // Total wall-clock time spent (e.g. 180 mins)
   efficiencyPercent  Float?      // (durationMinutes / elapsedMinutes) * 100
-  focusScore         Int?        // 1 to 5 flow / depth rating
   intention          String?     // Pre-session target: What ONE problem/concept must be solved?
   reflection         String?     // Post-session reflection: What was the hardest bottleneck/concept?
   topicId            String?

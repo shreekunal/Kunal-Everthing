@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +27,6 @@ import {
   Sunset,
   Moon,
   Coffee,
-  Star,
   ChevronDown,
   ChevronRight,
   Flame,
@@ -35,6 +34,10 @@ import {
   Compass,
   Layers,
   Activity,
+  Play,
+  Pause,
+  Square,
+  Timer,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
@@ -71,6 +74,28 @@ function computeElapsed(start?: string, end?: string): number | null {
   return Math.max(1, endTotal - startTotal);
 }
 
+// Format seconds into HH:MM:SS
+function formatStopwatchTime(totalSeconds: number): string {
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  if (hrs > 0) {
+    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+  }
+  return `${pad(mins)}:${pad(secs)}`;
+}
+
+interface StopwatchPersistedState {
+  status: "IDLE" | "RUNNING" | "PAUSED";
+  startTimeMs: number | null;
+  lastResumeTimeMs: number | null;
+  accumulatedSeconds: number;
+  startClock: string;
+}
+
+const STOPWATCH_STORAGE_KEY = "everything_study_stopwatch";
+
 export default function ProgressPage() {
   const [data, setData] = useState<any>(null);
   const [aimsData, setAimsData] = useState<any[]>([]);
@@ -78,7 +103,7 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Active View Tab on Mobile for Sleek Navigation
+  // Active View Tab on Mobile
   const [activeTab, setActiveTab] = useState<"LOG" | "AIMS" | "ANALYTICS">("LOG");
 
   // Study session entry (always logs for today)
@@ -88,14 +113,23 @@ export default function ProgressPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isLoggingStudy, setIsLoggingStudy] = useState(false);
 
-  // From/To Time, Focus Score, Intention, Reflection, Topic Linking
+  // From/To Time, Intention, Reflection, Topic Linking
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
-  const [focusScore, setFocusScore] = useState<number>(5);
   const [intention, setIntention] = useState<string>("");
   const [reflection, setReflection] = useState<string>("");
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
+
+  // ----------------------------------------------------
+  // Phone-Lock Resilient Live Focus Stopwatch State
+  // ----------------------------------------------------
+  const [swStatus, setSwStatus] = useState<"IDLE" | "RUNNING" | "PAUSED">("IDLE");
+  const [swActiveSeconds, setSwActiveSeconds] = useState<number>(0);
+  const [swStartTimeMs, setSwStartTimeMs] = useState<number | null>(null);
+  const [swLastResumeTimeMs, setSwLastResumeTimeMs] = useState<number | null>(null);
+  const [swAccumulatedSecs, setSwAccumulatedSecs] = useState<number>(0);
+  const [swStartClock, setSwStartClock] = useState<string>("");
 
   // Study Goal State
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
@@ -112,7 +146,6 @@ export default function ProgressPage() {
   const [expandedAims, setExpandedAims] = useState<Record<string, boolean>>({});
   const [addingTopicMilestoneId, setAddingTopicMilestoneId] = useState<string | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState("");
-  const [showAllCognitiveWindows, setShowAllCognitiveWindows] = useState(false);
 
   // Share Modal & Image Export states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -120,6 +153,180 @@ export default function ProgressPage() {
   const [shareStatus, setShareStatus] = useState<{ text: string; error?: boolean } | null>(null);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
+  // ----------------------------------------------------
+  // Stopwatch Storage & Hardware Clock Sync
+  // ----------------------------------------------------
+  const saveStopwatchState = (
+    status: "IDLE" | "RUNNING" | "PAUSED",
+    startTimeMs: number | null,
+    lastResumeTimeMs: number | null,
+    accumulatedSeconds: number,
+    startClock: string
+  ) => {
+    if (typeof window === "undefined") return;
+    const payload: StopwatchPersistedState = {
+      status,
+      startTimeMs,
+      lastResumeTimeMs,
+      accumulatedSeconds,
+      startClock,
+    };
+    localStorage.setItem(STOPWATCH_STORAGE_KEY, JSON.stringify(payload));
+  };
+
+  const syncStopwatchTick = useCallback(() => {
+    if (swStatus === "RUNNING" && swLastResumeTimeMs) {
+      const now = Date.now();
+      const currentChunkSecs = Math.max(0, Math.floor((now - swLastResumeTimeMs) / 1000));
+      setSwActiveSeconds(swAccumulatedSecs + currentChunkSecs);
+    } else if (swStatus === "PAUSED") {
+      setSwActiveSeconds(swAccumulatedSecs);
+    } else if (swStatus === "IDLE") {
+      setSwActiveSeconds(0);
+    }
+  }, [swStatus, swLastResumeTimeMs, swAccumulatedSecs]);
+
+  // Load stopwatch state on mount & add visibility sync listener
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(STOPWATCH_STORAGE_KEY);
+      if (raw) {
+        const parsed: StopwatchPersistedState = JSON.parse(raw);
+        setSwStatus(parsed.status);
+        setSwStartTimeMs(parsed.startTimeMs);
+        setSwLastResumeTimeMs(parsed.lastResumeTimeMs);
+        setSwAccumulatedSecs(parsed.accumulatedSeconds || 0);
+        setSwStartClock(parsed.startClock || "");
+
+        if (parsed.status === "RUNNING" && parsed.lastResumeTimeMs) {
+          const now = Date.now();
+          const currentChunk = Math.max(0, Math.floor((now - parsed.lastResumeTimeMs) / 1000));
+          setSwActiveSeconds((parsed.accumulatedSeconds || 0) + currentChunk);
+        } else {
+          setSwActiveSeconds(parsed.accumulatedSeconds || 0);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load stopwatch state:", e);
+    }
+  }, []);
+
+  // Tick loop (every 500ms when running, plus instant resync on app focus/unlock)
+  useEffect(() => {
+    if (swStatus !== "RUNNING") return;
+
+    syncStopwatchTick();
+    const interval = setInterval(syncStopwatchTick, 500);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncStopwatchTick();
+      }
+    };
+    const handleFocus = () => syncStopwatchTick();
+
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handleFocus);
+    };
+  }, [swStatus, syncStopwatchTick]);
+
+  // Stopwatch Controls
+  const handleStartStopwatch = () => {
+    haptics.impactMedium();
+    const now = Date.now();
+    const nowClock = format(new Date(), "HH:mm");
+    setSwStatus("RUNNING");
+    setSwStartTimeMs(now);
+    setSwLastResumeTimeMs(now);
+    setSwAccumulatedSecs(0);
+    setSwActiveSeconds(0);
+    setSwStartClock(nowClock);
+    saveStopwatchState("RUNNING", now, nowClock ? now : null, 0, nowClock);
+  };
+
+  const handlePauseStopwatch = () => {
+    haptics.selection();
+    if (swStatus !== "RUNNING" || !swLastResumeTimeMs) return;
+    const now = Date.now();
+    const chunkSecs = Math.max(0, Math.floor((now - swLastResumeTimeMs) / 1000));
+    const newTotal = swAccumulatedSecs + chunkSecs;
+    setSwStatus("PAUSED");
+    setSwAccumulatedSecs(newTotal);
+    setSwActiveSeconds(newTotal);
+    setSwLastResumeTimeMs(null);
+    saveStopwatchState("PAUSED", swStartTimeMs, null, newTotal, swStartClock);
+  };
+
+  const handleResumeStopwatch = () => {
+    haptics.selection();
+    if (swStatus !== "PAUSED") return;
+    const now = Date.now();
+    setSwStatus("RUNNING");
+    setSwLastResumeTimeMs(now);
+    saveStopwatchState("RUNNING", swStartTimeMs, now, swAccumulatedSecs, swStartClock);
+  };
+
+  const handleStopAndFill = () => {
+    haptics.success();
+    const now = Date.now();
+    let finalPureSecs = swAccumulatedSecs;
+    if (swStatus === "RUNNING" && swLastResumeTimeMs) {
+      finalPureSecs += Math.max(0, Math.floor((now - swLastResumeTimeMs) / 1000));
+    }
+
+    const pureMins = Math.max(1, Math.round(finalPureSecs / 60));
+    const nowClock = format(new Date(), "HH:mm");
+
+    // Populate form fields
+    setManualDuration(String(pureMins));
+    if (swStartClock) setStartTime(swStartClock);
+    setEndTime(nowClock);
+
+    // Reset Stopwatch
+    setSwStatus("IDLE");
+    setSwActiveSeconds(0);
+    setSwAccumulatedSecs(0);
+    setSwStartTimeMs(null);
+    setSwLastResumeTimeMs(null);
+    setSwStartClock("");
+    saveStopwatchState("IDLE", null, null, 0, "");
+
+    // Scroll to logger form smoothly
+    window.scrollTo({ top: 350, behavior: "smooth" });
+  };
+
+  const handleResetStopwatch = () => {
+    haptics.warning();
+    setSwStatus("IDLE");
+    setSwActiveSeconds(0);
+    setSwAccumulatedSecs(0);
+    setSwStartTimeMs(null);
+    setSwLastResumeTimeMs(null);
+    setSwStartClock("");
+    saveStopwatchState("IDLE", null, null, 0, "");
+  };
+
+  // Stopwatch telemetry metrics
+  const swElapsedWallSecs =
+    swStartTimeMs && swStatus !== "IDLE"
+      ? Math.max(1, Math.floor((Date.now() - swStartTimeMs) / 1000))
+      : 0;
+  const swEfficiencyPercent =
+    swElapsedWallSecs > 0 && swActiveSeconds > 0
+      ? Math.min(100, Math.round((swActiveSeconds / swElapsedWallSecs) * 100))
+      : 100;
+
+  // ----------------------------------------------------
+  // Fetch Progress & Targets
+  // ----------------------------------------------------
   const fetchProgress = async () => {
     try {
       const [progressRes, aimsRes, relRes] = await Promise.all([
@@ -222,7 +429,6 @@ export default function ProgressPage() {
           durationMinutes: Number(manualDuration),
           startTime: startTime || null,
           endTime: endTime || null,
-          focusScore: focusScore || 5,
           intention: intention.trim() || null,
           reflection: reflection.trim() || null,
           topicId: selectedTopicId || null,
@@ -238,7 +444,6 @@ export default function ProgressPage() {
       setIntention("");
       setReflection("");
       setSelectedTopicId("");
-      setFocusScore(5);
       setShowAdvancedInputs(false);
       fetchProgress();
     } catch (err) {
@@ -256,7 +461,6 @@ export default function ProgressPage() {
     if (session.durationMinutes) setManualDuration(String(session.durationMinutes));
     if (session.startTime) setStartTime(session.startTime);
     if (session.endTime) setEndTime(session.endTime);
-    if (session.focusScore) setFocusScore(session.focusScore);
     if (session.topicId) setSelectedTopicId(session.topicId);
     setActiveTab("LOG");
   };
@@ -291,7 +495,6 @@ export default function ProgressPage() {
     const nextMastery = cycleMap[currentMastery] || "IN_PROGRESS";
     haptics.selection();
 
-    // Optimistic update
     setAimsData((prevAims) =>
       prevAims.map((aim) => ({
         ...aim,
@@ -391,7 +594,6 @@ export default function ProgressPage() {
   const { today, thisWeek, last7Days, cognitiveWindows, recentSessions } = data || {};
   const primeWindow = cognitiveWindows?.primeWindow;
 
-  // Quick subjects from recent study sessions
   const recentSubjectChips = Array.from(
     new Set(
       (recentSessions || [])
@@ -408,7 +610,6 @@ export default function ProgressPage() {
   const dailyTargetMinutes = dailyTargetHours * 60;
   const weeklyTargetMinutes = weeklyTargetHours * 60;
   const dailyProgressPercent = Math.min(100, Math.round((todayStudyMinutes / dailyTargetMinutes) * 100));
-  const weekProgressPercent = Math.min(100, Math.round((weekStudyMinutes / weeklyTargetMinutes) * 100));
   const remainingDailyMinutes = Math.max(0, dailyTargetMinutes - todayStudyMinutes);
   const todayEarnedXP = Math.floor(todayStudyMinutes / 5);
 
@@ -617,9 +818,8 @@ export default function ProgressPage() {
               Prime Zone: <strong className="text-white">{primeWindow.label}</strong> ({primeWindow.range})
             </span>
           </div>
-          <span className="text-[10px] text-amber-400 font-bold shrink-0 flex items-center gap-0.5">
-            <Star className="w-2.5 h-2.5 fill-amber-400" />
-            {primeWindow.avgFocusScore || 5.0} Flow
+          <span className="text-[10px] text-emerald-400 font-bold shrink-0">
+            {primeWindow.studyHours}h logged
           </span>
         </div>
       )}
@@ -678,9 +878,114 @@ export default function ProgressPage() {
         </button>
       </div>
 
-      {/* TAB 1: Minimalist Study Logger */}
+      {/* TAB 1: Live Stopwatch + Minimalist Study Logger */}
       {activeTab === "LOG" && (
         <div className="space-y-4 animate-in fade-in duration-150">
+          {/* PHONE-LOCK RESILIENT LIVE FOCUS STOPWATCH */}
+          <div className="p-4 rounded-2xl bg-gradient-to-b from-zinc-900/90 via-zinc-950 to-black border border-brand-red/30 shadow-2xl relative overflow-hidden">
+            {/* Status Top Bar */}
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+              <div className="flex items-center gap-1.5">
+                <Timer className="w-4 h-4 text-brand-red animate-pulse" />
+                <span className="text-[11px] font-bold text-white font-mono uppercase tracking-wider">
+                  Live Focus Stopwatch
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {swStatus === "RUNNING" && (
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                    ACTIVE FLOW
+                  </span>
+                )}
+                {swStatus === "PAUSED" && (
+                  <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    PAUSED
+                  </span>
+                )}
+                {swStatus === "IDLE" && (
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    READY
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Glowing Big Digital Counter */}
+            <div className="text-center py-2">
+              <div className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white select-none">
+                {formatStopwatchTime(swActiveSeconds)}
+              </div>
+
+              {/* Real-Time Session Telemetry */}
+              {swStatus !== "IDLE" && swStartClock && (
+                <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-mono text-zinc-400 flex-wrap">
+                  <span>Started: <strong className="text-white">{swStartClock}</strong></span>
+                  <span>•</span>
+                  <span>Elapsed: <strong className="text-white">{formatDuration(Math.round(swElapsedWallSecs / 60))}</strong></span>
+                  <span>•</span>
+                  <span className="text-emerald-400 font-bold">Eff: {swEfficiencyPercent}%</span>
+                </div>
+              )}
+            </div>
+
+            {/* Touch Controls Grid */}
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10">
+              {swStatus === "IDLE" ? (
+                <button
+                  type="button"
+                  onClick={handleStartStopwatch}
+                  className="col-span-3 py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-glow-red active:scale-95 transition-all"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Start Focus Stopwatch</span>
+                </button>
+              ) : (
+                <>
+                  {swStatus === "RUNNING" ? (
+                    <button
+                      type="button"
+                      onClick={handlePauseStopwatch}
+                      className="py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                      <Pause className="w-3.5 h-3.5 fill-amber-400" />
+                      <span>Pause</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResumeStopwatch}
+                      className="py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-emerald-400" />
+                      <span>Resume</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleStopAndFill}
+                    className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-white" />
+                    <span>Stop &amp; Fill</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetStopwatch}
+                    className="py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* MANUAL / PRE-FILLED LOG FORM */}
           <form onSubmit={handleManualLog} className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3 shadow-md">
             {/* Subject Input with Quick Chips */}
             <div>
@@ -846,35 +1151,6 @@ export default function ProgressPage() {
               ))}
             </div>
 
-            {/* Flow State Rating (1 to 5 Stars) */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-mono text-zinc-400 uppercase">
-                  Focus Flow Rating
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-1 p-1.5 rounded-xl bg-white/[0.02] border border-white/5">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => {
-                      haptics.selection();
-                      setFocusScore(star);
-                    }}
-                    className={clsx(
-                      "flex-1 py-1 rounded-lg flex items-center justify-center transition-all",
-                      star <= focusScore
-                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        : "text-zinc-600 hover:text-zinc-400"
-                    )}
-                  >
-                    <Star className={clsx("w-3.5 h-3.5", star <= focusScore ? "fill-amber-400" : "")} />
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Toggle for Target & Bottleneck Prompts */}
             <div>
               <button
@@ -953,15 +1229,9 @@ export default function ProgressPage() {
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-white truncate text-xs">{s.project}</span>
-                        {s.focusScore && (
-                          <span className="text-[9px] text-amber-400 font-mono font-bold flex items-center gap-0.5">
-                            <Star className="w-2.5 h-2.5 fill-amber-400" />
-                            {s.focusScore}
-                          </span>
-                        )}
                         {s.efficiencyPercent && (
                           <span className="text-[9px] text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded">
-                            {s.efficiencyPercent}%
+                            {s.efficiencyPercent}% Eff
                           </span>
                         )}
                       </div>
@@ -1283,8 +1553,8 @@ export default function ProgressPage() {
                     <span className="text-[9px] text-zinc-500 block">{w.range}</span>
                     <div className="mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between text-[10px]">
                       <span className="text-zinc-400">{w.studyHours}h</span>
-                      <span className="text-amber-400 font-bold">
-                        {w.avgFocusScore ? `⭐${w.avgFocusScore}` : "—"}
+                      <span className="text-emerald-400 font-bold">
+                        {w.sessionCount} sess
                       </span>
                     </div>
                   </div>

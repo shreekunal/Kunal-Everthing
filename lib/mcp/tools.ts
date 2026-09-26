@@ -58,7 +58,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   },
   {
     name: "study_summary",
-    description: "Retrieve comprehensive study, cognitive window, focus efficiency, and aim mastery telemetry (daily, weekly, monthly, or all-time) including wall-clock efficiency, flow ratings, peak cognitive prime windows, pre-session intentions, and high-stakes aim syllabus progress.",
+    description: "Retrieve comprehensive study, cognitive window, focus efficiency, and aim mastery telemetry (daily, weekly, monthly, or all-time) including wall-clock efficiency, peak cognitive prime windows, pre-session intentions, and high-stakes aim syllabus progress.",
     inputSchema: {
       type: "object",
       properties: {
@@ -76,7 +76,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   },
   {
     name: "log_study_session",
-    description: "Log a completed study session with pure study focus duration, From/To wall-clock timestamps, focus flow rating (1-5), pre-session intention, and bottleneck reflection.",
+    description: "Log a completed study session with pure study focus duration, From/To wall-clock timestamps, pre-session intention, and bottleneck reflection.",
     inputSchema: {
       type: "object",
       properties: {
@@ -95,11 +95,6 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         endTime: {
           type: "string",
           description: "Wall-clock end time in HH:mm format (optional, e.g. '12:30')",
-        },
-        focusScore: {
-          type: "number",
-          enum: [1, 2, 3, 4, 5],
-          description: "Flow and focus rating from 1 (distracted) to 5 (pure flow zone)",
         },
         intention: {
           type: "string",
@@ -253,7 +248,6 @@ export async function executeMcpTool(
           durationMinutes,
           startTime,
           endTime,
-          focusScore = 5,
           intention,
           reflection,
           topicId,
@@ -282,7 +276,6 @@ export async function executeMcpTool(
             endTime: endTime || null,
             elapsedMinutes: elapsedMins || null,
             efficiencyPercent: efficiencyPct || null,
-            focusScore: focusScore ? Number(focusScore) : 5,
             intention: intention?.trim() || null,
             reflection: reflection?.trim() || null,
             topicId: topicId || null,
@@ -292,15 +285,14 @@ export async function executeMcpTool(
           },
         });
 
-        let earnedXP = Math.max(2, Math.floor(mins / 5));
-        if (focusScore >= 4) earnedXP += focusScore === 5 ? 10 : 5;
+        const earnedXP = Math.max(2, Math.floor(mins / 5));
 
         await awardPoints({
           userId: user.id,
           points: earnedXP,
           type: "WORK_SESSION_LOGGED",
           title: `Study Session: ${project} (${mins}m)`,
-          reason: `Completed ${mins}m focus session [Flow: ${focusScore}/5]`,
+          reason: `Completed ${mins}m focus session`,
           category: "PRODUCTIVITY",
           referenceId: session.id,
         });
@@ -311,7 +303,6 @@ export async function executeMcpTool(
           `- **Pure Focus Duration:** ${mins} mins (+${earnedXP} XP)`,
           ...(startTime && endTime ? [`- **Wall-Clock Time:** ${startTime} → ${endTime} (${elapsedMins}m elapsed)`] : []),
           ...(efficiencyPct ? [`- **Focus Efficiency:** **${efficiencyPct}%**`] : []),
-          `- **Flow State Rating:** ⭐ **${focusScore}/5**`,
           ...(intention ? [`- **Target Focus:** "${intention}"`] : []),
           ...(reflection ? [`- **Bottleneck Review:** "${reflection}"`] : []),
         ];
@@ -504,13 +495,6 @@ export async function executeMcpTool(
         const studySessions = sessions.filter((s) => s.type === "STUDY");
         const totalStudyMinutes = studySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
 
-        // Calculate Average Focus Score and Efficiency
-        const scoredSessions = studySessions.filter((s) => s.focusScore && s.focusScore > 0);
-        const avgFocusScore =
-          scoredSessions.length > 0
-            ? (scoredSessions.reduce((acc, s) => acc + (s.focusScore || 0), 0) / scoredSessions.length).toFixed(1)
-            : "5.0";
-
         const efficiencySessions = studySessions.filter((s) => s.efficiencyPercent && s.efficiencyPercent > 0);
         const avgEfficiency =
           efficiencySessions.length > 0
@@ -518,20 +502,17 @@ export async function executeMcpTool(
             : null;
 
         // Cognitive Prime Window Calculation
-        const windowCounts: Record<string, { mins: number; focusSum: number; count: number }> = {};
+        const windowCounts: Record<string, { mins: number; count: number }> = {};
         for (const s of studySessions) {
           const winName = getWindowFromTime(s.startTime, s.createdAt);
           if (!windowCounts[winName]) {
-            windowCounts[winName] = { mins: 0, focusSum: 0, count: 0 };
+            windowCounts[winName] = { mins: 0, count: 0 };
           }
           windowCounts[winName].mins += s.durationMinutes;
-          windowCounts[winName].focusSum += s.focusScore || 5;
           windowCounts[winName].count += 1;
         }
 
-        const sortedWindows = Object.entries(windowCounts).sort(
-          (a, b) => b[1].mins * (b[1].focusSum / b[1].count) - a[1].mins * (a[1].focusSum / a[1].count)
-        );
+        const sortedWindows = Object.entries(windowCounts).sort((a, b) => b[1].mins - a[1].mins);
         const primeWindow = sortedWindows.length > 0 ? sortedWindows[0] : null;
 
         const formatDuration = (mins: number) => {
@@ -544,17 +525,14 @@ export async function executeMcpTool(
 
         const earnedXP = Math.floor(totalStudyMinutes / 5);
 
-        // Recent session lines with temporal and cognitive parameters
         const recentLines = studySessions.slice(0, 6).map((s) => {
           const effStr = s.efficiencyPercent ? ` [⚡ ${s.efficiencyPercent}% Eff]` : "";
-          const flowStr = s.focusScore ? ` [⭐ Flow: ${s.focusScore}/5]` : "";
           const timeStr = s.startTime && s.endTime ? ` (${s.startTime} → ${s.endTime})` : "";
           const intentStr = s.intention ? `\n    - 🎯 *Target:* "${s.intention}"` : "";
           const reflectStr = s.reflection ? `\n    - 🧠 *Bottleneck:* "${s.reflection}"` : "";
-          return `- **${s.project}** (${formatDuration(s.durationMinutes)})${timeStr}${effStr}${flowStr} on ${s.date}${intentStr}${reflectStr}`;
+          return `- **${s.project}** (${formatDuration(s.durationMinutes)})${timeStr}${effStr} on ${s.date}${intentStr}${reflectStr}`;
         });
 
-        // Aims progress roll-up
         const aimSummaries = aims.map((aim) => {
           let total = 0;
           let mastered = 0;
@@ -575,12 +553,11 @@ export async function executeMcpTool(
           `### ⏱️ Core Focus & Efficiency Metrics`,
           `- **Total Study Time:** **${formatDuration(totalStudyMinutes)}** (${totalStudyMinutes} minutes)`,
           `- **Total Completed Sessions:** **${studySessions.length} sessions**`,
-          `- **Average Focus Flow Rating:** ⭐ **${avgFocusScore}/5**`,
           ...(avgEfficiency ? [`- **Average Wall-Clock Efficiency:** **${avgEfficiency}%** (Pure Study vs Elapsed Time)`] : []),
           `- **Discipline XP Yield:** **+${earnedXP} XP** *(Feeds Companion & Rewards)*`,
           ...(primeWindow
             ? [
-                `- **🔥 Biological Prime Cognitive Window:** **${primeWindow[0]}** (${formatDuration(primeWindow[1].mins)} logged, avg ${(primeWindow[1].focusSum / primeWindow[1].count).toFixed(1)}/5 flow)`,
+                `- **🔥 Biological Prime Cognitive Window:** **${primeWindow[0]}** (${formatDuration(primeWindow[1].mins)} logged across ${primeWindow[1].count} session${primeWindow[1].count === 1 ? "" : "s"})`,
               ]
             : []),
           ``,
@@ -591,7 +568,7 @@ export async function executeMcpTool(
             ? [`### 🕒 Recent Sessions & Cognitive Intentions`, ...recentLines, ``]
             : []),
           `### 🧠 AI Coach Directives`,
-          `- _Use this telemetry (Wall-clock efficiency, flow ratings, prime cognitive window, and syllabus bottlenecks) to provide actionable deliberate practice guidance, spaced repetition timing, and focus preservation strategies._`,
+          `- _Use this telemetry (Wall-clock efficiency, prime cognitive window, and syllabus bottlenecks) to provide actionable deliberate practice guidance, spaced repetition timing, and focus preservation strategies._`,
         ].join("\n");
 
         return {

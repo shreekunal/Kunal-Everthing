@@ -25,7 +25,6 @@ function getWindowFromTime(timeStr?: string | null, fallbackDate?: Date): string
     const parsedH = parseInt(timeStr.split(":")[0], 10);
     if (!isNaN(parsedH)) hour = parsedH;
   } else if (fallbackDate) {
-    // Offset for Asia/Kolkata +5:30 if needed or local hour
     hour = new Date(fallbackDate).getHours();
   }
 
@@ -132,13 +131,13 @@ export async function GET(request: Request) {
       };
     });
 
-    // Peak Cognitive Window Discovery Calculation
+    // Peak Cognitive Window Discovery Calculation (ranked by study hours and focus efficiency)
     const studySessionsForCognitive = allRecentSessions.filter((s) => s.type === "STUDY");
     const windowDefinitions = [
-      { id: "EARLY_MORNING", label: "Early Morning", range: "05:00 - 09:00", icon: "Sunrise", peakTag: "Deep Focus Flow" },
-      { id: "MORNING", label: "Morning", range: "09:00 - 12:00", icon: "Sun", peakTag: "High Energy Zone" },
-      { id: "AFTERNOON", label: "Afternoon", range: "12:00 - 17:00", icon: "Coffee", peakTag: "Analytical Focus" },
-      { id: "EVENING", label: "Evening", range: "17:00 - 21:00", icon: "Sunset", peakTag: "Sprint / Problem Solving" },
+      { id: "EARLY_MORNING", label: "Early Morning", range: "05:00 - 09:00", icon: "Sunrise", peakTag: "High Energy Zone" },
+      { id: "MORNING", label: "Morning", range: "09:00 - 12:00", icon: "Sun", peakTag: "Prime Focus Zone" },
+      { id: "AFTERNOON", label: "Afternoon", range: "12:00 - 17:00", icon: "Coffee", peakTag: "Analytical Sprint" },
+      { id: "EVENING", label: "Evening", range: "17:00 - 21:00", icon: "Sunset", peakTag: "Problem Solving" },
       { id: "NIGHT", label: "Night", range: "21:00 - 01:00", icon: "Moon", peakTag: "Quiet Consolidation" },
       { id: "LATE_NIGHT", label: "Late Night", range: "01:00 - 05:00", icon: "Sparkles", peakTag: "Silent Grinding" },
     ];
@@ -150,19 +149,14 @@ export async function GET(request: Request) {
       });
 
       const totalMins = matching.reduce((acc, s) => acc + s.durationMinutes, 0);
-      const scoredSessions = matching.filter((s) => s.focusScore && s.focusScore > 0);
-      const avgFocus = scoredSessions.length > 0
-        ? Number((scoredSessions.reduce((acc, s) => acc + (s.focusScore || 0), 0) / scoredSessions.length).toFixed(1))
-        : null;
-
       const efficiencySessions = matching.filter((s) => s.efficiencyPercent && s.efficiencyPercent > 0);
       const avgEfficiency = efficiencySessions.length > 0
         ? Math.round(efficiencySessions.reduce((acc, s) => acc + (s.efficiencyPercent || 0), 0) / efficiencySessions.length)
         : null;
 
-      // Composite score for ranking prime time
+      // Composite score based on consistency and efficiency
       const compositeRank = matching.length > 0
-        ? (avgFocus ? avgFocus / 5 : 0.6) * 60 + (avgEfficiency ? avgEfficiency / 100 : 0.7) * 40 + Math.min(20, totalMins / 30)
+        ? totalMins + (avgEfficiency || 80) * 2
         : 0;
 
       return {
@@ -170,7 +164,6 @@ export async function GET(request: Request) {
         sessionCount: matching.length,
         totalStudyMins: totalMins,
         studyHours: Number((totalMins / 60).toFixed(1)),
-        avgFocusScore: avgFocus,
         avgEfficiencyPercent: avgEfficiency,
         compositeRank,
       };
@@ -225,7 +218,6 @@ export async function POST(request: Request) {
       durationMinutes,
       startTime,
       endTime,
-      focusScore,
       intention,
       reflection,
       topicId,
@@ -257,7 +249,6 @@ export async function POST(request: Request) {
         endTime: endTime || null,
         elapsedMinutes: elapsedMins || null,
         efficiencyPercent: efficiencyPct || null,
-        focusScore: focusScore ? Number(focusScore) : null,
         intention: intention?.trim() || null,
         reflection: reflection?.trim() || null,
         topicId: topicId || null,
@@ -279,18 +270,14 @@ export async function POST(request: Request) {
     });
 
     // Base XP: 1 XP per 5 minutes
-    let earnedXP = Math.max(2, Math.floor(mins / 5));
-    // Focus Bonus XP if user achieved high flow rating
-    if (focusScore && focusScore >= 4) {
-      earnedXP += focusScore === 5 ? 10 : 5;
-    }
+    const earnedXP = Math.max(2, Math.floor(mins / 5));
 
     await awardPoints({
       userId: user.id,
       points: earnedXP,
       type: "WORK_SESSION_LOGGED",
       title: `Study Session: ${project} (${mins}m)`,
-      reason: `Completed ${mins} minutes of ${type || "STUDY"} focus session${focusScore ? ` [⭐ Flow: ${focusScore}/5]` : ""}`,
+      reason: `Completed ${mins} minutes of ${type || "STUDY"} focus session`,
       category: "PRODUCTIVITY",
       referenceId: session.id,
     });
