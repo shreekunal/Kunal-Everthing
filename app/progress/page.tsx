@@ -757,7 +757,7 @@ function ProgressContent() {
               <span className="text-2xl font-bold font-mono text-white tracking-tight">
                 {formatDuration(todayStudyMinutes)}
               </span>
-              <span className="text-[10px] font-mono text-emerald-400 font-semibold">
+              <span className="text-[10px] font-mono text-brand-red font-semibold">
                 +{todayEarnedXP} XP
               </span>
             </div>
@@ -781,15 +781,10 @@ function ProgressContent() {
           </div>
         </div>
 
-        {/* Minimal Progress Bar */}
+        {/* Minimal Progress Bar in Brand Red */}
         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
           <div
-            className={clsx(
-              "h-full rounded-full transition-all duration-500",
-              todayStudyMinutes >= dailyTargetMinutes
-                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-                : "bg-brand-red shadow-glow-red"
-            )}
+            className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-brand-redDark via-brand-red to-brand-redLight shadow-glow-red"
             style={{ width: `${Math.max(3, dailyProgressPercent)}%` }}
           />
         </div>
@@ -821,14 +816,14 @@ function ProgressContent() {
 
       {/* Biological Prime Time Pill */}
       {primeWindow && (
-        <div className="p-2.5 px-3 rounded-xl bg-gradient-to-r from-red-950/30 via-zinc-900/40 to-black border border-red-500/20 flex items-center justify-between text-xs font-mono">
+        <div className="p-2.5 px-3 rounded-xl bg-zinc-950 border border-brand-red/20 flex items-center justify-between text-xs font-mono">
           <div className="flex items-center gap-2 min-w-0">
-            <Flame className="w-3.5 h-3.5 text-brand-red shrink-0 fill-rose-500/30" />
+            <Flame className="w-3.5 h-3.5 text-brand-red shrink-0" />
             <span className="text-[11px] text-zinc-300 truncate">
               Prime Zone: <strong className="text-white">{primeWindow.label}</strong> ({primeWindow.range})
             </span>
           </div>
-          <span className="text-[10px] text-emerald-400 font-bold shrink-0">
+          <span className="text-[10px] text-red-300 font-bold shrink-0">
             {primeWindow.studyHours}h logged
           </span>
         </div>
@@ -849,8 +844,8 @@ function ProgressContent() {
               : "text-zinc-400 hover:text-white"
           )}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Log Focus</span>
+          <Timer className="w-3.5 h-3.5" />
+          <span>Focus</span>
         </button>
 
         <button
@@ -867,7 +862,7 @@ function ProgressContent() {
           )}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Aims ({aimsData.length})</span>
+          <span>Study ({aimsData.length})</span>
         </button>
 
         <button
@@ -904,13 +899,13 @@ function ProgressContent() {
 
               <div className="flex items-center gap-1.5">
                 {swStatus === "RUNNING" && (
-                  <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-                    ACTIVE FLOW
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-red-300 font-bold bg-brand-red/15 px-2 py-0.5 rounded-full border border-brand-red/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping inline-block" />
+                    FLOW STATE
                   </span>
                 )}
                 {swStatus === "PAUSED" && (
-                  <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  <span className="text-[10px] font-mono text-zinc-300 font-bold bg-white/[0.05] px-2 py-0.5 rounded-full border border-white/10">
                     PAUSED
                   </span>
                 )}
@@ -935,7 +930,7 @@ function ProgressContent() {
                   <span>•</span>
                   <span>Elapsed: <strong className="text-white">{formatDuration(Math.round(swElapsedWallSecs / 60))}</strong></span>
                   <span>•</span>
-                  <span className="text-emerald-400 font-bold">Eff: {swEfficiencyPercent}%</span>
+                  <span className="text-red-300 font-bold">Eff: {swEfficiencyPercent}%</span>
                 </div>
               )}
             </div>
@@ -957,18 +952,18 @@ function ProgressContent() {
                     <button
                       type="button"
                       onClick={handlePauseStopwatch}
-                      className="py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                      className="py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
                     >
-                      <Pause className="w-3.5 h-3.5 fill-amber-400" />
+                      <Pause className="w-3.5 h-3.5 fill-white" />
                       <span>Pause</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleResumeStopwatch}
-                      className="py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                      className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
                     >
-                      <Play className="w-3.5 h-3.5 fill-emerald-400" />
+                      <Play className="w-3.5 h-3.5 fill-white" />
                       <span>Resume</span>
                     </button>
                   )}
@@ -976,7 +971,7 @@ function ProgressContent() {
                   <button
                     type="button"
                     onClick={handleStopAndFill}
-                    className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                    className="py-2.5 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
                   >
                     <Square className="w-3.5 h-3.5 fill-white" />
                     <span>Stop &amp; Fill</span>
@@ -1368,12 +1363,12 @@ function ProgressContent() {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-bold font-mono text-emerald-400">
+                        <span className="text-xs font-bold font-mono text-red-300">
                           {stats.masteryPercent || 0}%
                         </span>
                         <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
                           <div
-                            className="h-full bg-emerald-400 rounded-full"
+                            className="h-full bg-brand-red rounded-full shadow-glow-red-subtle"
                             style={{ width: `${Math.max(4, stats.masteryPercent || 0)}%` }}
                           />
                         </div>
@@ -1394,11 +1389,11 @@ function ProgressContent() {
 
                             <div className="space-y-1">
                               {m.topics.map((t: any) => {
-                                const badges: Record<string, { icon: string; style: string }> = {
-                                  NOT_STARTED: { icon: "⚪", style: "bg-zinc-800 text-zinc-400 border-zinc-700" },
-                                  IN_PROGRESS: { icon: "🟡", style: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-                                  CONFIDENT: { icon: "🟢", style: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-                                  MASTERED: { icon: "💎", style: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold" },
+                                const badges: Record<string, { label: string; style: string }> = {
+                                  NOT_STARTED: { label: "Queue", style: "bg-white/[0.02] text-zinc-500 border-white/10" },
+                                  IN_PROGRESS: { label: "Learning", style: "bg-white/[0.08] text-zinc-200 border-white/20" },
+                                  CONFIDENT: { label: "Confident", style: "bg-brand-red/15 text-red-300 border-brand-red/30" },
+                                  MASTERED: { label: "Mastered", style: "bg-brand-red text-white border-brand-red shadow-glow-red-subtle font-bold" },
                                 };
                                 const b = badges[t.mastery] || badges.NOT_STARTED;
 
@@ -1413,9 +1408,9 @@ function ProgressContent() {
                                       <button
                                         type="button"
                                         onClick={() => handleUpdateMastery(t.id, t.mastery)}
-                                        className={clsx("px-1.5 py-0.5 rounded text-[10px] font-mono border", b.style)}
+                                        className={clsx("px-2 py-0.5 rounded text-[9px] font-mono border transition-all active:scale-95", b.style)}
                                       >
-                                        <span>{b.icon}</span>
+                                        <span>{b.label}</span>
                                       </button>
                                       <button
                                         type="button"
@@ -1425,7 +1420,7 @@ function ProgressContent() {
                                           setSelectedTopicId(t.id);
                                           setActiveTab("LOG");
                                         }}
-                                        className="p-1 text-zinc-500 hover:text-brand-red"
+                                        className="p-1 text-zinc-500 hover:text-brand-red transition-colors"
                                       >
                                         <Zap className="w-3 h-3" />
                                       </button>
