@@ -19,6 +19,8 @@ import {
   Lock,
   Trophy,
   BookOpen,
+  Target,
+  GraduationCap,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
@@ -31,6 +33,7 @@ interface BottomNavProps {
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
   onOpenQuickAddRadial?: (origin?: { x: number; y: number }) => void;
+  onOpenNavRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function BottomNav({
@@ -38,6 +41,7 @@ export function BottomNav({
   onOpenProfileSwitcher,
   onOpenPartnerRadial,
   onOpenQuickAddRadial,
+  onOpenNavRadial,
 }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -52,6 +56,10 @@ export function BottomNav({
   // Quick Add (+) Radial Hold State
   const quickAddHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isQuickAddLongPressRef = useRef(false);
+
+  // More Apps Radial Hold State (Touch & Drag)
+  const moreHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMoreLongPressRef = useRef(false);
 
   const handleQuickAddPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -147,6 +155,51 @@ export function BottomNav({
     }
   };
 
+  const handleMorePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    isMoreLongPressRef.current = false;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+    };
+
+    moreHoldTimerRef.current = setTimeout(() => {
+      isMoreLongPressRef.current = true;
+      haptics.impactMedium();
+      if (isDrawerOpen) setIsDrawerOpen(false);
+      if (onOpenNavRadial) {
+        onOpenNavRadial(origin);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("open-nav-radial", { detail: { origin } })
+        );
+      }
+    }, 180);
+  };
+
+  const handleMorePointerUp = () => {
+    if (moreHoldTimerRef.current) {
+      clearTimeout(moreHoldTimerRef.current);
+      moreHoldTimerRef.current = null;
+    }
+
+    if (isMoreLongPressRef.current) {
+      return;
+    }
+
+    haptics.impactLight();
+    setIsDrawerOpen((prev) => !prev);
+  };
+
+  const handleMorePointerCancel = () => {
+    if (moreHoldTimerRef.current) {
+      clearTimeout(moreHoldTimerRef.current);
+      moreHoldTimerRef.current = null;
+    }
+  };
+
   React.useEffect(() => {
     fetch("/api/auth/status")
       .then((res) => res.json())
@@ -178,7 +231,8 @@ export function BottomNav({
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Habits", href: "/routines", icon: Flame },
-    { name: "Focus", href: "/progress", icon: BarChart3 },
+    { name: "Focus", href: "/progress?tab=LOG", icon: Target },
+    { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },
     { name: "Discipline", href: "/rewards", icon: Trophy },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
@@ -390,15 +444,17 @@ export function BottomNav({
             />
           </button>
 
-          {/* 5. More Button (Toggles extending the menu up) */}
+          {/* 5. More Button (Tap for Drawer, Touch & Drag for Radial Arc Nav) */}
           <button
+            type="button"
             aria-label={isDrawerOpen ? "Close Menu" : "More Applications"}
-            onClick={() => {
-              haptics.impactLight();
-              setIsDrawerOpen(!isDrawerOpen);
-            }}
+            onPointerDown={handleMorePointerDown}
+            onPointerUp={handleMorePointerUp}
+            onPointerCancel={handleMorePointerCancel}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={(e) => e.preventDefault()}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none",
               isDrawerOpen ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >

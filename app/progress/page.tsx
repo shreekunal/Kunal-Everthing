@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -60,6 +60,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 import clsx from "clsx";
 
 // Helper for elapsed minutes calculation
@@ -96,7 +97,8 @@ interface StopwatchPersistedState {
 
 const STOPWATCH_STORAGE_KEY = "everything_study_stopwatch";
 
-export default function ProgressPage() {
+function ProgressContent() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<any>(null);
   const [aimsData, setAimsData] = useState<any[]>([]);
   const [partner, setPartner] = useState<{ name: string; nickname: string; phone: string | null } | null>(null);
@@ -105,6 +107,13 @@ export default function ProgressPage() {
 
   // Active View Tab on Mobile
   const [activeTab, setActiveTab] = useState<"LOG" | "AIMS" | "ANALYTICS">("LOG");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "AIMS" || tabParam === "LOG" || tabParam === "ANALYTICS") {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
 
   // Study session entry (always logs for today)
   const [manualProject, setManualProject] = useState("");
@@ -172,6 +181,7 @@ export default function ProgressPage() {
       startClock,
     };
     localStorage.setItem(STOPWATCH_STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent("everything-stopwatch-update"));
   };
 
   const syncStopwatchTick = useCallback(() => {
@@ -1690,5 +1700,19 @@ export default function ProgressPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ProgressPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-xs text-zinc-500 font-mono">
+          Loading telemetry &amp; focus metrics...
+        </div>
+      }
+    >
+      <ProgressContent />
+    </Suspense>
   );
 }

@@ -19,9 +19,11 @@ import {
   Lock,
   Trophy,
   BookOpen,
+  Target,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { BrandLogo } from "../ui/BrandLogo";
+import { MiniFocusIsland } from "./MiniFocusIsland";
 import { haptics } from "@/lib/haptics";
 import {
   DropdownMenu,
@@ -67,7 +69,8 @@ export function Navbar({
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Routines", href: "/routines", icon: Flame },
     { name: "Karma", href: "/rewards", icon: Trophy },
-    { name: "Progress", href: "/progress", icon: GraduationCap },
+    { name: "Focus", href: "/progress?tab=LOG", icon: Target },
+    { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },
     { name: "Partner", href: "/partner", icon: Heart },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
@@ -211,6 +214,9 @@ export function Navbar({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Live Focus Island (Stopwatch running indicator) */}
+          <MiniFocusIsland />
+
           {/* Notification Center */}
           {mounted ? (
             <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>

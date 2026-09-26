@@ -39,7 +39,7 @@ const PETALS = [
     textColor: "text-rose-400",
     accentHex: "#F43F5E",
     title: "Send Love",
-    text: "I love you so much ❤️",
+    text: "I Love you so much Babu❤️",
   },
   {
     id: "affection",
@@ -110,7 +110,7 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
           offlineCache.set("partner_profile", data.partner);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Back button integration: dismiss on Android back
@@ -371,10 +371,10 @@ export function PartnerRadialWheel({ isOpen, onClose, origin }: PartnerRadialWhe
                   "relative w-13 h-13 rounded-2xl border flex items-center justify-center text-white backdrop-blur-xl transition-all duration-200 pointer-events-auto",
                   isSelected
                     ? clsx(
-                        "bg-gradient-to-br ring-4 ring-white/70 border-white",
-                        petal.gradient,
-                        petal.shadowGlow
-                      )
+                      "bg-gradient-to-br ring-4 ring-white/70 border-white",
+                      petal.gradient,
+                      petal.shadowGlow
+                    )
                     : "bg-zinc-900/85 hover:bg-zinc-800/90 border-white/15 text-zinc-300 hover:text-white shadow-xl hover:scale-105"
                 )}
                 style={{ width: "52px", height: "52px" }}

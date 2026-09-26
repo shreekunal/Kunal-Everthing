@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDisciplineSummary, awardPoints, deductPoints, ensureDefaultRewardItems } from "@/lib/rewards";
+import {
+  getDisciplineSummary,
+  awardPoints,
+  deductPoints,
+  ensureDefaultRewardItems,
+  undoRecentRewardAction,
+} from "@/lib/rewards";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -31,17 +37,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await req.json();
-    const { action, points, title, reason, notes, itemId } = body;
+    const { action, points, title, reason, notes, itemId, logId } = body;
+
+    // Undo recent reward or penalty action
+    if (action === "UNDO_REWARD" || action === "UNDO_ACTION") {
+      if (!logId) {
+        return NextResponse.json({ error: "logId is required for undo" }, { status: 400 });
+      }
+      const undoResult = await undoRecentRewardAction(user.id, logId);
+      return NextResponse.json(undoResult);
+    }
 
     // 1. Unhealthy food penalty (High Minus: -150 XP)
-    if (action === "PENALTY_UNHEALTHY_FOOD") {
+    if (action === "PENALTY_UNHEALTHY_FOOD" || action === "PENALTY_JUNK_FOOD") {
       const deduction = points || 150;
       const log = await deductPoints({
         userId: user.id,
         points: deduction,
         type: "PENALTY_UNHEALTHY_FOOD",
-        title: title || "Discipline Infraction: Unhealthy / Junk Food",
-        reason: notes || reason || "Ate junk/processed food. Resetting clean nutrition streak.",
+        title: title || "Discipline Infraction: Eat Junk Food",
+        reason: notes || reason || "Ate junk/unhealthy food. Resetting clean nutrition streak.",
         category: "NUTRITION",
       });
       return NextResponse.json({ success: true, log });
@@ -53,10 +68,24 @@ export async function POST(req: NextRequest) {
       const log = await deductPoints({
         userId: user.id,
         points: deduction,
-        type: "PENALTY_FAP",
+        type: "PENALTY_RELAPSE",
         title: title || "Monk Protocol Breach: Relapse",
         reason: notes || reason || "Discipline relapse logged. Resetting purity streak to Day 0.",
         category: "PURITY",
+      });
+      return NextResponse.json({ success: true, log });
+    }
+
+    // 2b. Sleep penalty (Minus: -100 XP)
+    if (action === "PENALTY_SLEEP") {
+      const deduction = points || 100;
+      const log = await deductPoints({
+        userId: user.id,
+        points: deduction,
+        type: "PENALTY_SLEEP",
+        title: title || "Discipline Infraction: Sleep Protocol Broken",
+        reason: notes || reason || "Broke regular sleep schedule or stayed up excessively late.",
+        category: "LEISURE",
       });
       return NextResponse.json({ success: true, log });
     }

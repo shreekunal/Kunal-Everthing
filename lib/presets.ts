@@ -94,8 +94,8 @@ export const DEFAULT_ROUTINES_PRESET = [
 export const DEFAULT_MESSAGE_TEMPLATES = [
   {
     category: "LOVE",
-    title: "I love you so much ❤️",
-    content: "I love you so much ❤️",
+    title: "I Love you so much Babu❤️",
+    content: "I Love you so much Babu❤️",
   },
   {
     category: "AFFECTION",

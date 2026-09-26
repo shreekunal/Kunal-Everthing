@@ -161,7 +161,7 @@ export async function deductPoints({
     });
   }
 
-  // If Relapse  penalty -> reset PURITY_NOFAP streak
+  // If Relapse penalty -> reset PURITY_NOFAP streak
   if (type === "PENALTY_FAP" || type === "PENALTY_RELAPSE") {
     await prisma.disciplineStreak.upsert({
       where: { userId_type: { userId, type: "PURITY_NOFAP" } },
@@ -191,6 +191,35 @@ export async function deductPoints({
     });
   }
 
+  // If Sleep penalty -> reset SLEEP_SCHEDULE streak
+  if (type === "PENALTY_SLEEP") {
+    await prisma.disciplineStreak.upsert({
+      where: { userId_type: { userId, type: "SLEEP_SCHEDULE" } },
+      create: {
+        userId,
+        type: "SLEEP_SCHEDULE",
+        name: "Sleep & Recovery Protocol",
+        currentStreak: 0,
+        bestStreak: 0,
+        lastResetDate: now,
+      },
+      update: {
+        currentStreak: 0,
+        lastResetDate: now,
+      },
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title: "Discipline Infraction: Sleep Protocol Broken",
+        message: `${Math.abs(points)} XP deducted. Sleep Schedule streak reset. Prioritize restorative rest!`,
+        category: "SYSTEM",
+        priority: "NORMAL",
+      },
+    });
+  }
+
   return log;
 }
 
@@ -201,6 +230,7 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
   const types = [
     { type: "PURITY_NOFAP", name: "Monk Purity (No-Fap)" },
     { type: "CLEAN_DIET", name: "Clean Nutrition & Diet" },
+    { type: "SLEEP_SCHEDULE", name: "Sleep & Recovery Protocol" },
   ];
 
   const now = new Date();
@@ -242,60 +272,25 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
 
 export const DEFAULT_STORE_PERKS = [
   {
-    title: "Cheat Meal / Junk Food Pass",
+    title: "Eat Junk Pass",
     cost: 150,
     category: "FOOD",
     icon: "Pizza",
-    description: "One planned, guilt-free cheat meal or junk food treat.",
+    description: "One planned, guilt-free cheat meal or junk food treat without penalty.",
   },
   {
-    title: "1-Hour Gaming / Streaming Pass",
+    title: "Relapse Pass",
+    cost: 300,
+    category: "DISCIPLINE",
+    icon: "Zap",
+    description: "Controlled forgiveness release protocol without long-term streak demotion.",
+  },
+  {
+    title: "Sleep Pass",
     cost: 100,
     category: "LEISURE",
-    icon: "Gamepad2",
-    description: "1 hour of guilt-free video games, YouTube, or anime/Netflix.",
-  },
-  {
-    title: "Streak Freeze Shield",
-    cost: 80,
-    category: "DISCIPLINE",
-    icon: "Shield",
-    description: "Emergency safeguard to protect any routine streak for 1 day.",
-  },
-  {
-    title: "Specialty Coffee / Cafe Treat",
-    cost: 60,
-    category: "FOOD",
-    icon: "Coffee",
-    description: "Treat yourself to a special artisan coffee or dessert outing.",
-  },
-  {
-    title: "Movie / Cinema Night Out",
-    cost: 200,
-    category: "ENTERTAINMENT",
-    icon: "Film",
-    description: "Unwind with a new cinema film release or movie night with snacks.",
-  },
-  {
-    title: "Wishlist Impulse Buy (<₹500)",
-    cost: 250,
-    category: "BUY",
-    icon: "ShoppingBag",
-    description: "Guilt-free purchase for a book, tech accessory, or desk item.",
-  },
-  {
-    title: "Sunday Sleep-In Pass (+1 Hr)",
-    cost: 50,
-    category: "LEISURE",
     icon: "Moon",
-    description: "Sleep in 1 extra hour past regular waking time on the weekend.",
-  },
-  {
-    title: "Half-Day Rest & Relaxation",
-    cost: 300,
-    category: "LEISURE",
-    icon: "Sparkles",
-    description: "Total mental unplug: afternoon off from all study/work guilt-free.",
+    description: "Guilt-free +1.5 hour extra sleep-in or deep restorative rest day.",
   },
 ];
 
@@ -303,8 +298,21 @@ export const DEFAULT_STORE_PERKS = [
  * Seed default reward store items if none exist
  */
 export async function ensureDefaultRewardItems(userId: string) {
+  // Archive or remove legacy store items not in the 3 default perks
+  const validTitles = new Set(DEFAULT_STORE_PERKS.map((p) => p.title.toLowerCase().trim()));
+  
   const existing = await prisma.rewardItem.findMany({ where: { userId, isArchived: false } });
-  const existingTitles = new Set(existing.map((i) => i.title.toLowerCase().trim()));
+  for (const item of existing) {
+    if (!validTitles.has(item.title.toLowerCase().trim())) {
+      await prisma.rewardItem.update({
+        where: { id: item.id },
+        data: { isArchived: true },
+      });
+    }
+  }
+
+  const refreshed = await prisma.rewardItem.findMany({ where: { userId, isArchived: false } });
+  const existingTitles = new Set(refreshed.map((i) => i.title.toLowerCase().trim()));
 
   const toCreate: any[] = [];
   for (const perk of DEFAULT_STORE_PERKS) {
@@ -322,6 +330,39 @@ export async function ensureDefaultRewardItems(userId: string) {
   if (toCreate.length > 0) {
     await prisma.rewardItem.createMany({ data: toCreate });
   }
+}
+
+/**
+ * Undo recent reward deduction or redemption action
+ */
+export async function undoRecentRewardAction(userId: string, logId: string) {
+  const log = await prisma.rewardLog.findUnique({
+    where: { id: logId, userId },
+  });
+
+  if (!log) {
+    throw new Error("Reward log entry not found or unauthorized");
+  }
+
+  // If it was a store redemption, decrement redemption counter
+  if (log.type === "REWARD_REDEMPTION" && log.referenceId) {
+    await prisma.rewardItem.updateMany({
+      where: { id: log.referenceId, userId },
+      data: { timesRedeemed: { decrement: 1 } },
+    });
+  }
+
+  // Delete the log entry
+  await prisma.rewardLog.delete({
+    where: { id: log.id },
+  });
+
+  return {
+    success: true,
+    restoredPoints: Math.abs(log.points),
+    type: log.type,
+    title: log.title,
+  };
 }
 
 /**
@@ -406,6 +447,11 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     bestStreak: 0,
   };
 
+  const sleepStreak = streaks.find((s: any) => s.type === "SLEEP_SCHEDULE") || {
+    currentStreak: 0,
+    bestStreak: 0,
+  };
+
   const todayStr = format(now, "yyyy-MM-dd");
   const hasPurityCheckedIn = todayLogs.some(
     (l: any) =>
@@ -435,6 +481,7 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     streaks: {
       purity: purityStreak,
       diet: dietStreak,
+      sleep: sleepStreak,
     },
     todayCheckins: {
       purity: hasPurityCheckedIn,

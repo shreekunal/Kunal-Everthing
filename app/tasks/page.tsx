@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InputDate } from "@/components/ui/InputDate";
+import { SwipeableListItem } from "@/components/ui/SwipeableListItem";
 import { getDueStatus } from "@/lib/formatters";
 import {
   CheckSquare,
@@ -495,186 +496,192 @@ export default function TasksPage() {
             const isQuickOpen = quickReminderTaskId === task.id;
 
             return (
-              <div
+              <SwipeableListItem
                 key={task.id}
-                className={clsx(
-                  "group relative overflow-hidden rounded-2xl border transition-all duration-200",
-                  isDone
-                    ? "bg-black/40 border-white/5 opacity-55 hover:opacity-75"
-                    : task.priority === "HIGH"
-                    ? "bg-gradient-to-r from-red-950/20 via-black/85 to-black border-red-500/30 shadow-glow-red-subtle hover:border-red-500/50"
-                    : "bg-zinc-950/80 hover:bg-zinc-900/60 border-white/[0.08] hover:border-white/20 shadow-sm"
-                )}
+                isCompleted={isDone}
+                onComplete={() => handleToggleTask(task.id, task.status)}
+                completeLabel="Complete Task (+10 XP)"
               >
-                {/* Sleek Crimson Accent Spine for Urgent Tasks */}
-                {task.priority === "HIGH" && !isDone && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-red shadow-glow-red" />
-                )}
+                <div
+                  className={clsx(
+                    "group relative overflow-hidden rounded-2xl border transition-all duration-200",
+                    isDone
+                      ? "bg-black/40 border-white/5 opacity-55 hover:opacity-75"
+                      : task.priority === "HIGH"
+                      ? "bg-gradient-to-r from-red-950/20 via-black/85 to-black border-red-500/30 shadow-glow-red-subtle hover:border-red-500/50"
+                      : "bg-zinc-950/80 hover:bg-zinc-900/60 border-white/[0.08] hover:border-white/20 shadow-sm"
+                  )}
+                >
+                  {/* Sleek Crimson Accent Spine for Urgent Tasks */}
+                  {task.priority === "HIGH" && !isDone && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-red shadow-glow-red" />
+                  )}
 
-                <div className="p-3.5 sm:p-4">
-                  <div className="flex items-start gap-3">
-                    {/* Tactile Nothing-style Checkbox */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTask(task.id, task.status)}
-                      className={clsx(
-                        "w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-200 active:scale-90 flex-shrink-0 mt-0.5",
-                        isDone
-                          ? "bg-brand-red border-brand-red text-white shadow-glow-red"
-                          : "border-zinc-700 hover:border-brand-red/80 bg-white/[0.02] hover:bg-brand-red/10 text-transparent"
-                      )}
-                      aria-label={isDone ? "Mark todo" : "Mark done"}
-                    >
-                      <Check className={clsx("w-3.5 h-3.5 stroke-[2.5]", isDone ? "opacity-100" : "opacity-0")} />
-                    </button>
+                  <div className="p-3.5 sm:p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Tactile Nothing-style Checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleTask(task.id, task.status)}
+                        className={clsx(
+                          "w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-200 active:scale-90 flex-shrink-0 mt-0.5",
+                          isDone
+                            ? "bg-brand-red border-brand-red text-white shadow-glow-red"
+                            : "border-zinc-700 hover:border-brand-red/80 bg-white/[0.02] hover:bg-brand-red/10 text-transparent"
+                        )}
+                        aria-label={isDone ? "Mark todo" : "Mark done"}
+                      >
+                        <Check className={clsx("w-3.5 h-3.5 stroke-[2.5]", isDone ? "opacity-100" : "opacity-0")} />
+                      </button>
 
-                    <div className="min-w-0 flex-1">
-                      {/* Header Row: Title & Badges */}
-                      <div className="flex items-start justify-between gap-2">
-                        <p
-                          className={clsx(
-                            "text-sm font-semibold tracking-tight leading-snug transition-all",
-                            isDone ? "line-through text-zinc-500 font-normal" : "text-zinc-100 group-hover:text-white"
-                          )}
-                        >
-                          {task.title}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        {/* Header Row: Title & Badges */}
+                        <div className="flex items-start justify-between gap-2">
+                          <p
+                            className={clsx(
+                              "text-sm font-semibold tracking-tight leading-snug transition-all",
+                              isDone ? "line-through text-zinc-500 font-normal" : "text-zinc-100 group-hover:text-white"
+                            )}
+                          >
+                            {task.title}
+                          </p>
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {task.priority === "HIGH" && !isDone && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider uppercase bg-red-500/15 text-red-400 border border-red-500/30">
-                              Urgent
-                            </span>
-                          )}
-                          {task.category && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono text-zinc-400 bg-white/[0.03] border border-white/5 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-red" />
-                              <span>{task.category}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      {task.description && (
-                        <p className="text-xs text-zinc-400/85 mt-1 leading-relaxed line-clamp-2 font-sans font-normal">
-                          {task.description}
-                        </p>
-                      )}
-
-                      {/* Sleek Metadata & Action Dock */}
-                      <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2 flex-wrap text-xs font-mono">
-                        {/* Left: Due Date, Reminders & Recurrence */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {task.dueDate && (
-                            <span
-                              className={clsx(
-                                "text-[10px] font-mono px-2 py-0.5 rounded-md border flex items-center gap-1",
-                                dueInfo.isOverdue && !isDone
-                                  ? "bg-red-500/15 border-red-500/30 text-red-400 font-bold"
-                                  : dueInfo.isToday && !isDone
-                                  ? "bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold"
-                                  : "bg-white/[0.03] border-white/10 text-zinc-400"
-                              )}
-                            >
-                              {dueInfo.isOverdue && !isDone ? (
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                              ) : (
-                                <Calendar className="w-2.5 h-2.5 opacity-70" />
-                              )}
-                              <span>{dueInfo.label}</span>
-                            </span>
-                          )}
-
-                          {hasReminder && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-brand-red/15 border border-brand-red/35 text-brand-red flex items-center gap-1 font-bold">
-                              <Bell className="w-2.5 h-2.5 fill-brand-red" />
-                              <span>{format(new Date(task.remindAt), "MMM d, h:mm a")}</span>
-                            </span>
-                          )}
-
-                          {task.recurrence && task.recurrence !== "NONE" && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.02] text-zinc-400 border border-white/5 flex items-center gap-1">
-                              <Repeat className="w-2.5 h-2.5 opacity-50" />
-                              <span className="capitalize">{task.recurrence.toLowerCase()}</span>
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {task.priority === "HIGH" && !isDone && (
+                              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider uppercase bg-red-500/15 text-red-400 border border-red-500/30">
+                                Urgent
+                              </span>
+                            )}
+                            {task.category && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono text-zinc-400 bg-white/[0.03] border border-white/5 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-brand-red" />
+                                <span>{task.category}</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Right: Sleek Action Dock */}
-                        <div className="flex items-center gap-1.5 ml-auto">
-                          {!isDone && (
+                        {/* Description */}
+                        {task.description && (
+                          <p className="text-xs text-zinc-400/85 mt-1 leading-relaxed line-clamp-2 font-sans font-normal">
+                            {task.description}
+                          </p>
+                        )}
+
+                        {/* Sleek Metadata & Action Dock */}
+                        <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between gap-2 flex-wrap text-xs font-mono">
+                          {/* Left: Due Date, Reminders & Recurrence */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {task.dueDate && (
+                              <span
+                                className={clsx(
+                                  "text-[10px] font-mono px-2 py-0.5 rounded-md border flex items-center gap-1",
+                                  dueInfo.isOverdue && !isDone
+                                    ? "bg-red-500/15 border-red-500/30 text-red-400 font-bold"
+                                    : dueInfo.isToday && !isDone
+                                    ? "bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold"
+                                    : "bg-white/[0.03] border-white/10 text-zinc-400"
+                                )}
+                              >
+                                {dueInfo.isOverdue && !isDone ? (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                                ) : (
+                                  <Calendar className="w-2.5 h-2.5 opacity-70" />
+                                )}
+                                <span>{dueInfo.label}</span>
+                              </span>
+                            )}
+
+                            {hasReminder && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-brand-red/15 border border-brand-red/35 text-brand-red flex items-center gap-1 font-bold">
+                                <Bell className="w-2.5 h-2.5 fill-brand-red" />
+                                <span>{format(new Date(task.remindAt), "MMM d, h:mm a")}</span>
+                              </span>
+                            )}
+
+                            {task.recurrence && task.recurrence !== "NONE" && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.02] text-zinc-400 border border-white/5 flex items-center gap-1">
+                                <Repeat className="w-2.5 h-2.5 opacity-50" />
+                                <span className="capitalize">{task.recurrence.toLowerCase()}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Right: Sleek Action Dock */}
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            {!isDone && (
+                              <button
+                                type="button"
+                                onClick={() => handlePostponeTask(task)}
+                                className="h-6 px-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 border border-white/10 text-[10px] font-mono text-zinc-300 hover:text-white flex items-center gap-1 transition-all"
+                                title="Postpone 1 Day"
+                              >
+                                <Calendar className="w-2.5 h-2.5 text-brand-red" />
+                                <span>+1d</span>
+                              </button>
+                            )}
+
+                            {!isDone && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={clsx(
+                                      "h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1 active:scale-95 transition-all font-mono",
+                                      hasReminder
+                                        ? "bg-brand-red/15 border-brand-red/40 text-brand-red"
+                                        : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
+                                    )}
+                                  >
+                                    <Bell className="w-2.5 h-2.5" />
+                                    <span>{hasReminder ? "Alarm" : "Remind"}</span>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52 p-1.5 bg-zinc-950/95 backdrop-blur-3xl border-white/15">
+                                  <DropdownMenuLabel>Set Quick Reminder</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "1_HOUR")}>
+                                    <span>In 1 Hour</span>
+                                    <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TODAY_EVENING")}>
+                                    <span>Tonight at 8 PM</span>
+                                    <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TOMORROW_MORNING")}>
+                                    <span>Tomorrow at 9 AM</span>
+                                    <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
+                                  </DropdownMenuItem>
+                                  {hasReminder && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleUpdateReminder(task.id, "NONE")}
+                                      className="text-red-400 focus:bg-red-500/20 focus:text-red-300 border-t border-white/10 mt-1"
+                                    >
+                                      <span>Clear Alarm</span>
+                                      <Trash2 className="w-3.5 h-3.5 ml-auto opacity-60" />
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+
                             <button
                               type="button"
-                              onClick={() => handlePostponeTask(task)}
-                              className="h-6 px-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 border border-white/10 text-[10px] font-mono text-zinc-300 hover:text-white flex items-center gap-1 transition-all"
-                              title="Postpone 1 Day"
+                              onClick={() => {
+                                haptics.warning();
+                                setTaskToDelete(task);
+                              }}
+                              className="h-6 w-6 rounded-lg hover:bg-red-500/15 active:scale-90 text-zinc-500 hover:text-brand-red flex items-center justify-center transition-colors ml-0.5"
+                              aria-label="Delete Task"
                             >
-                              <Calendar className="w-2.5 h-2.5 text-brand-red" />
-                              <span>+1d</span>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
-
-                          {!isDone && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  className={clsx(
-                                    "h-6 px-2 rounded-lg border text-[10px] flex items-center gap-1 active:scale-95 transition-all font-mono",
-                                    hasReminder
-                                      ? "bg-brand-red/15 border-brand-red/40 text-brand-red"
-                                      : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
-                                  )}
-                                >
-                                  <Bell className="w-2.5 h-2.5" />
-                                  <span>{hasReminder ? "Alarm" : "Remind"}</span>
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-52 p-1.5 bg-zinc-950/95 backdrop-blur-3xl border-white/15">
-                                <DropdownMenuLabel>Set Quick Reminder</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "1_HOUR")}>
-                                  <span>In 1 Hour</span>
-                                  <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TODAY_EVENING")}>
-                                  <span>Tonight at 8 PM</span>
-                                  <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateReminder(task.id, "TOMORROW_MORNING")}>
-                                  <span>Tomorrow at 9 AM</span>
-                                  <Clock className="w-3.5 h-3.5 ml-auto opacity-60 text-zinc-400" />
-                                </DropdownMenuItem>
-                                {hasReminder && (
-                                  <DropdownMenuItem
-                                    onClick={() => handleUpdateReminder(task.id, "NONE")}
-                                    className="text-red-400 focus:bg-red-500/20 focus:text-red-300 border-t border-white/10 mt-1"
-                                  >
-                                    <span>Clear Alarm</span>
-                                    <Trash2 className="w-3.5 h-3.5 ml-auto opacity-60" />
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              haptics.warning();
-                              setTaskToDelete(task);
-                            }}
-                            className="h-6 w-6 rounded-lg hover:bg-red-500/15 active:scale-90 text-zinc-500 hover:text-brand-red flex items-center justify-center transition-colors ml-0.5"
-                            aria-label="Delete Task"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </SwipeableListItem>
             );
           })
         )}

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { SwipeableListItem } from "@/components/ui/SwipeableListItem";
 import { Flame, Plus, Check, Trophy, Trash2, Sun, Moon, Sunset, Calendar, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { haptics } from "@/lib/haptics";
@@ -432,14 +433,19 @@ export default function RoutinesPage() {
             const visibleHistory = isExpanded ? history : history.slice(-7);
 
             return (
-              <Card
+              <SwipeableListItem
                 key={routine.id}
-                className={`p-4 transition-all border ${
-                  routine.completedToday
-                    ? "border-red-500/30 bg-red-500/[0.02]"
-                    : "border-white/10 hover:border-white/20"
-                }`}
+                isCompleted={routine.completedToday}
+                onComplete={() => handleToggleCompletion(routine.id)}
+                completeLabel="Complete Habit (+5 XP)"
               >
+                <Card
+                  className={`p-4 transition-all border ${
+                    routine.completedToday
+                      ? "border-red-500/30 bg-red-500/[0.02]"
+                      : "border-white/10 hover:border-white/20"
+                  }`}
+                >
                 {/* Main Row: Big Check Button + Info + Streaks */}
                 <div className="flex items-center gap-3">
                   {/* Big Touch-Friendly Today Button */}
@@ -564,7 +570,8 @@ export default function RoutinesPage() {
                   </div>
                 </div>
               </Card>
-            );
+            </SwipeableListItem>
+          );
           })
         )}
       </div>

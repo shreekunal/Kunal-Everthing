@@ -9,6 +9,7 @@ import { CommandPalette } from "../search/CommandPalette";
 import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 import { PartnerRadialWheel } from "../relationship/PartnerRadialWheel";
 import { QuickAddRadialWheel } from "../quick-add/QuickAddRadialWheel";
+import { NavRadialWheel } from "./NavRadialWheel";
 import { OfflineBanner } from "../ui/OfflineBanner";
 import { backButton } from "@/lib/backButton";
 import { autoLock } from "@/lib/autoLock";
@@ -31,6 +32,9 @@ export function AppShell({ children }: AppShellProps) {
 
   const [isQuickAddRadialOpen, setIsQuickAddRadialOpen] = useState(false);
   const [quickAddRadialOrigin, setQuickAddRadialOrigin] = useState<{ x: number; y: number } | null>(null);
+
+  const [isNavRadialOpen, setIsNavRadialOpen] = useState(false);
+  const [navRadialOrigin, setNavRadialOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("Kunal");
@@ -140,13 +144,21 @@ export function AppShell({ children }: AppShellProps) {
       }
       setIsQuickAddRadialOpen(true);
     };
+    const handleOpenNavRadial = (e: any) => {
+      if (e?.detail?.origin) {
+        setNavRadialOrigin(e.detail.origin);
+      }
+      setIsNavRadialOpen(true);
+    };
     window.addEventListener("open-profile-switcher", handleOpenProfileSwitcher);
     window.addEventListener("open-partner-radial", handleOpenPartnerRadial);
     window.addEventListener("open-quickadd-radial", handleOpenQuickAddRadial);
+    window.addEventListener("open-nav-radial", handleOpenNavRadial);
     return () => {
       window.removeEventListener("open-profile-switcher", handleOpenProfileSwitcher);
       window.removeEventListener("open-partner-radial", handleOpenPartnerRadial);
       window.removeEventListener("open-quickadd-radial", handleOpenQuickAddRadial);
+      window.removeEventListener("open-nav-radial", handleOpenNavRadial);
     };
   }, []);
 
@@ -276,6 +288,10 @@ export function AppShell({ children }: AppShellProps) {
           if (origin) setQuickAddRadialOrigin(origin);
           setIsQuickAddRadialOpen(true);
         }}
+        onOpenNavRadial={(origin) => {
+          if (origin) setNavRadialOrigin(origin);
+          setIsNavRadialOpen(true);
+        }}
       />
 
       {/* Global Partner Message Radial Wheel */}
@@ -299,6 +315,16 @@ export function AppShell({ children }: AppShellProps) {
         onSelectTab={(tab) => {
           setQuickAddInitialTab(tab);
           setIsQuickAddOpen(true);
+        }}
+      />
+
+      {/* Global Apps Navigation Radial Arc Wheel (Touch & Drag on More) */}
+      <NavRadialWheel
+        isOpen={isNavRadialOpen}
+        origin={navRadialOrigin}
+        onClose={() => {
+          setIsNavRadialOpen(false);
+          setNavRadialOrigin(null);
         }}
       />
 
