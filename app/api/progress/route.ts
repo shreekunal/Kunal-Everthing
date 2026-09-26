@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { awardPoints } from "@/lib/rewards";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser();
+    let user = await getCurrentUser();
+    if (!user) {
+      const auth = await authenticateMcpRequest(request);
+      if (auth.authenticated && auth.user) {
+        user = auth.user;
+      }
+    }
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -101,7 +108,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
+    let user = await getCurrentUser();
+    if (!user) {
+      const auth = await authenticateMcpRequest(request);
+      if (auth.authenticated && auth.user) {
+        user = auth.user;
+      }
+    }
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
