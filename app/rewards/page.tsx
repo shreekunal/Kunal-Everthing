@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -9,25 +8,25 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { UndoToast } from "@/components/ui/UndoToast";
 import {
   Trophy,
-  Shield,
   ShieldCheck,
   Zap,
   Plus,
   Minus,
   UtensilsCrossed,
   RotateCcw,
-  CheckCircle2,
-  AlertCircle,
-  Gift,
-  History,
   Sparkles,
   Pizza,
   Moon,
   Droplets,
-  BedDouble,
+  Coins,
+  Flame,
+  Clock,
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { format } from "date-fns";
 import { haptics } from "@/lib/haptics";
+import clsx from "clsx";
 
 export default function RewardsPage() {
   const [data, setData] = useState<any>(null);
@@ -326,7 +325,7 @@ export default function RewardsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto w-full pb-10">
+    <div className="space-y-6 max-w-5xl mx-auto w-full pb-16 px-1 sm:px-0 select-none">
       {/* 10-Second Undo Safety Toast */}
       <UndoToast
         isOpen={undoState.isOpen}
@@ -338,343 +337,300 @@ export default function RewardsPage() {
         onClose={() => setUndoState((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-brand-red" />
-            Discipline Karma &amp; Reward System
-          </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            Core 3-Pillar Protocols: Clean Diet, Monk Purity &amp; Sleep Schedule
-          </p>
+      {/* Hero Master Cockpit: Obsidian Hologram Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-zinc-900/90 via-black to-black border border-white/10 p-6 sm:p-7 shadow-2xl">
+        {/* Ambient Glow Orbs */}
+        <div className="absolute top-0 right-1/4 w-72 h-72 bg-brand-red/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Left: Level Rank & Massive Karma XP */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-red/15 border border-brand-red/30 text-xs font-mono font-bold text-red-300">
+                <span className="w-2 h-2 rounded-full bg-brand-red animate-ping" />
+                <span>LEVEL {level}</span>
+                <span className="text-zinc-500">•</span>
+                <span>{levelTitle}</span>
+              </div>
+              {season && (
+                <span className="text-[11px] font-mono text-zinc-400 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/5">
+                  {season.name} ({season.daysRemaining}d left)
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-baseline gap-3">
+              <span className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white drop-shadow-sm">
+                {totalXP.toLocaleString()}
+              </span>
+              <span className="text-xs sm:text-sm font-mono font-bold text-brand-red uppercase tracking-wider">
+                Karma XP
+              </span>
+            </div>
+
+            <p className="text-xs text-zinc-400 font-mono flex items-center gap-2">
+              <span>Spendable Coins: <strong className="text-white font-bold">{totalXP}</strong></span>
+              <span>•</span>
+              <span>Lifetime Earned: <strong className="text-zinc-300">{lifetimeXP} XP</strong></span>
+            </p>
+          </div>
+
+          {/* Right: Daily Gain/Loss Telemetry & Quick Action Pill */}
+          <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl">
+              <div className="px-3 py-1 text-left">
+                <span className="text-[9px] text-zinc-500 font-mono block uppercase">Today Earned</span>
+                <span className="text-xs font-bold font-mono text-emerald-400">+{todayEarned} XP</span>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div className="px-3 py-1 text-left">
+                <span className="text-[9px] text-zinc-500 font-mono block uppercase">Today Lost</span>
+                <span className="text-xs font-bold font-mono text-brand-red">-{todayDeducted} XP</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() => setIsDeductModalOpen(true)}
+                className="text-xs text-zinc-300 hover:text-white border-white/10"
+              >
+                <span>Custom Penalty</span>
+              </Button>
+              <Button
+                variant="glass"
+                size="sm"
+                onClick={() => setIsRewardModalOpen(true)}
+                className="text-xs text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                <span>Award XP</span>
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* 3-Pillar Quick Action Suite */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-            className="text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10 gap-1.5"
-          >
-            <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
-            <span>Eat Junk (-150 XP)</span>
-          </Button>
-
-          <Button
-            variant="red"
-            size="sm"
-            onClick={() => handleQuickDeduct("RELAPSE")}
-            className="text-xs shadow-glow-red gap-1.5"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Relapse (-300 XP)</span>
-          </Button>
-
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={() => handleQuickDeduct("SLEEP")}
-            className="text-xs border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 gap-1.5"
-          >
-            <Moon className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Sleep (-100 XP)</span>
-          </Button>
-
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={() => setIsRewardModalOpen(true)}
-            className="text-xs text-zinc-300"
-          >
-            <Plus className="w-3.5 h-3.5 text-white" />
-            <span>Custom</span>
-          </Button>
+        {/* Level Progression Progress Bar */}
+        <div className="relative z-10 mt-6 pt-4 border-t border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-mono">
+            <span className="text-zinc-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-brand-red" />
+              <span>Level {level} Advancement</span>
+            </span>
+            <span className="text-white font-bold">
+              {currentLevelXP} / {nextLevelXP} XP ({progressPercent}%)
+            </span>
+          </div>
+          <div className="w-full h-2.5 bg-white/5 border border-white/10 rounded-full overflow-hidden p-0.5">
+            <div
+              className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 rounded-full transition-all duration-500 shadow-glow-red"
+              style={{ width: `${Math.max(4, progressPercent)}%` }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Hero Level & XP Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Main XP Card */}
-        <Card glow="red" className="lg:col-span-2 relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 3 Core Discipline Protocols (Clean Bento Layout) */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-brand-red" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest font-mono">
+              Core Discipline Pillars
+            </h3>
+          </div>
+          <span className="text-[11px] font-mono text-zinc-500">
+            Streak safeguards &amp; strict penalties
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* Pillar 1: Clean Diet & Nutrition */}
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-b from-amber-500/[0.05] via-zinc-950/80 to-black border border-amber-500/20 hover:border-amber-500/40 p-5 flex flex-col justify-between gap-5 transition-all shadow-lg hover:shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                Diet
+              </span>
+            </div>
+
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse" />
-                <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-widest">
-                  Discipline Rank &amp; Karma {season && `• ${season.name} (${season.daysRemaining}d left)`}
+              <h4 className="text-sm font-bold text-white tracking-tight">Eat Clean Protocol</h4>
+              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                Zero junk food, sweets or processed snacks
+              </p>
+
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black font-mono text-white tracking-tight">
+                  {streaks.diet?.currentStreak || 0}
+                </span>
+                <span className="text-xs font-mono text-zinc-500 uppercase">Days Clean</span>
+                <span className="text-xs font-mono text-zinc-400 ml-auto">
+                  Best: <strong className="text-white">{streaks.diet?.bestStreak || 0}d</strong>
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                <span>{levelTitle}</span>
-              </h3>
-              <p className="text-xs text-zinc-400 font-mono mt-0.5">
-                Level {level} • Spendable Karma:{" "}
-                <strong className={`font-bold ${totalXP < 0 ? "text-red-400" : "text-white"}`}>{totalXP} XP</strong>
-                <span className="text-zinc-500 ml-2">Lifetime: {lifetimeXP} XP</span>
-              </p>
             </div>
 
-            {/* Today XP Summary Pill */}
-            <div className="flex items-center gap-2 bg-black/60 border border-white/10 p-2.5 rounded-2xl">
-              <div className="px-2.5 py-1 text-center">
-                <span className="text-[9px] text-zinc-500 font-mono block uppercase">Today Gained</span>
-                <span className="text-xs font-bold text-emerald-400 font-mono">+{todayEarned} XP</span>
-              </div>
-              <div className="w-[1px] h-6 bg-white/10" />
-              <div className="px-2.5 py-1 text-center">
-                <span className="text-[9px] text-zinc-500 font-mono block uppercase">Today Lost</span>
-                <span className="text-xs font-bold text-brand-red font-mono">-{todayDeducted} XP</span>
-              </div>
-            </div>
-          </div>
-
-          {/* XP Progress Bar */}
-          <div className="mt-5 space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] font-mono">
-              <span className="text-zinc-400">Level {level} Progress</span>
-              <span className="text-white font-semibold">
-                {currentLevelXP} / {nextLevelXP} XP ({progressPercent}%)
-              </span>
-            </div>
-            <div className="w-full h-3 bg-white/5 border border-white/10 rounded-full overflow-hidden p-0.5">
-              <div
-                className="h-full bg-gradient-to-r from-red-600 to-brand-red rounded-full transition-all duration-500 shadow-glow-red"
-                style={{ width: `${Math.max(5, progressPercent)}%` }}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Quick Rules & Point System */}
-        <Card className="flex flex-col justify-between">
-          <CardHeader>
-            <CardTitle>Discipline Matrix</CardTitle>
-            <Badge variant="glass" size="sm">Rulebook</Badge>
-          </CardHeader>
-          <div className="space-y-2 text-xs font-mono">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Deep Work Sprint</span>
-              <span className="font-bold text-emerald-400">+1 XP / 5m</span>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Eat Junk Infraction</span>
-              <span className="font-bold text-amber-400">-150 XP</span>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Relapse Infraction</span>
-              <span className="font-bold text-brand-red">-300 XP</span>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Broke Sleep Schedule</span>
-              <span className="font-bold text-indigo-400">-100 XP</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* 3 Core Discipline Protocols */}
-      <Card glow="red" className="relative overflow-hidden">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-brand-red" />
-            <CardTitle>Core Discipline Protocols (3 Pillars)</CardTitle>
-          </div>
-          <Badge variant="red" size="sm">
-            Live Streaks
-          </Badge>
-        </CardHeader>
-
-        <p className="text-xs text-zinc-400 -mt-2 mb-4">
-          Consecutive clean days maintained without infraction across Eat Junk, Relapse &amp; Sleep.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Pillar 1: Clean Diet (Eat Junk) */}
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-amber-500/20 flex flex-col justify-between gap-3 hover:border-amber-500/40 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
-                  <UtensilsCrossed className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white leading-tight">Clean Diet &amp; Nutrition</h4>
-                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                    No junk / processed food
-                  </p>
-                </div>
-              </div>
-              <Badge variant="glass" size="sm" className="border-amber-500/30 text-amber-300">
-                Diet
-              </Badge>
-            </div>
-
-            <div className="my-2 flex items-baseline gap-2">
-              <span className="text-3xl font-black font-mono text-white tracking-tight">
-                {streaks.diet.currentStreak}
-              </span>
-              <span className="text-xs font-mono text-zinc-400 uppercase">Days Clean</span>
-              <span className="text-xs font-mono text-zinc-500 ml-auto">
-                Record: <strong className="text-white">{streaks.diet.bestStreak}d</strong>
-              </span>
-            </div>
-
-            <Button
-              variant="glass"
-              size="sm"
+            <button
+              type="button"
               onClick={() => handleQuickDeduct("UNHEALTHY_FOOD")}
-              className="w-full text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1.5 py-2"
+              className="w-full py-2.5 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 active:scale-95 border border-amber-500/30 text-xs font-mono font-bold text-amber-300 flex items-center justify-center gap-2 transition-all shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Eat Junk &amp; Reset (-150 XP)</span>
-            </Button>
+              <span>Ate Junk Food (-150 XP)</span>
+            </button>
           </div>
 
-          {/* Pillar 2: Monk Purity (Relapse) */}
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-brand-red/30 flex flex-col justify-between gap-3 hover:border-brand-red/50 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red flex-shrink-0">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white leading-tight">Monk Purity Protocol</h4>
-                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                    Consecutive days clean
-                  </p>
-                </div>
+          {/* Pillar 2: Monk Purity (No-Fap) */}
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-b from-red-500/[0.08] via-zinc-950/80 to-black border border-brand-red/30 hover:border-brand-red/50 p-5 flex flex-col justify-between gap-5 transition-all shadow-lg hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]">
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red">
+                <Zap className="w-5 h-5" />
               </div>
-              <Badge variant="red" size="sm">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-brand-red/20 text-red-300 border border-brand-red/40">
                 Purity
-              </Badge>
-            </div>
-
-            <div className="my-2 flex items-baseline gap-2">
-              <span className="text-3xl font-black font-mono text-white tracking-tight">
-                {streaks.purity.currentStreak}
-              </span>
-              <span className="text-xs font-mono text-zinc-400 uppercase">Days Clean</span>
-              <span className="text-xs font-mono text-zinc-500 ml-auto">
-                Record: <strong className="text-white">{streaks.purity.bestStreak}d</strong>
               </span>
             </div>
 
-            <Button
-              variant="glass"
-              size="sm"
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-tight">Monk Purity Protocol</h4>
+              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                Mental clarity &amp; sexual discipline
+              </p>
+
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black font-mono text-white tracking-tight">
+                  {streaks.purity?.currentStreak || 0}
+                </span>
+                <span className="text-xs font-mono text-zinc-500 uppercase">Days Clean</span>
+                <span className="text-xs font-mono text-zinc-400 ml-auto">
+                  Best: <strong className="text-white">{streaks.purity?.bestStreak || 0}d</strong>
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
               onClick={() => handleQuickDeduct("RELAPSE")}
-              className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5 py-2"
+              className="w-full py-2.5 px-3 rounded-2xl bg-brand-red hover:bg-brand-redDark active:scale-95 text-white text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all shadow-glow-red"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Relapse &amp; Reset (-300 XP)</span>
-            </Button>
+              <span>Log Relapse (-300 XP)</span>
+            </button>
           </div>
 
-          {/* Pillar 3: Sleep Schedule */}
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-indigo-500/20 flex flex-col justify-between gap-3 hover:border-indigo-500/40 transition-all">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 flex-shrink-0">
-                  <Moon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white leading-tight">Sleep &amp; Recovery</h4>
-                  <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                    Consistent sleep schedule
-                  </p>
-                </div>
+          {/* Pillar 3: Sleep & Rest */}
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-500/[0.05] via-zinc-950/80 to-black border border-indigo-500/20 hover:border-indigo-500/40 p-5 flex flex-col justify-between gap-5 transition-all shadow-lg hover:shadow-[0_0_25px_rgba(99,102,241,0.15)]">
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
+                <Moon className="w-5 h-5" />
               </div>
-              <Badge variant="glass" size="sm" className="border-indigo-500/30 text-indigo-300">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                 Sleep
-              </Badge>
-            </div>
-
-            <div className="my-2 flex items-baseline gap-2">
-              <span className="text-3xl font-black font-mono text-white tracking-tight">
-                {streaks.sleep?.currentStreak || 0}
-              </span>
-              <span className="text-xs font-mono text-zinc-400 uppercase">Days Clean</span>
-              <span className="text-xs font-mono text-zinc-500 ml-auto">
-                Record: <strong className="text-white">{streaks.sleep?.bestStreak || 0}d</strong>
               </span>
             </div>
 
-            <Button
-              variant="glass"
-              size="sm"
+            <div>
+              <h4 className="text-sm font-bold text-white tracking-tight">Sleep &amp; Recovery</h4>
+              <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                Strict bedtime &amp; wake-up consistency
+              </p>
+
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-black font-mono text-white tracking-tight">
+                  {streaks.sleep?.currentStreak || 0}
+                </span>
+                <span className="text-xs font-mono text-zinc-500 uppercase">Days Clean</span>
+                <span className="text-xs font-mono text-zinc-400 ml-auto">
+                  Best: <strong className="text-white">{streaks.sleep?.bestStreak || 0}d</strong>
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
               onClick={() => handleQuickDeduct("SLEEP")}
-              className="w-full text-xs text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10 gap-1.5 py-2"
+              className="w-full py-2.5 px-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-95 border border-indigo-500/30 text-xs font-mono font-bold text-indigo-300 flex items-center justify-center gap-2 transition-all shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Broke Sleep &amp; Reset (-100 XP)</span>
-            </Button>
+              <span>Broke Sleep (-100 XP)</span>
+            </button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Guilt-Free Store (3 Items Only: Eat Junk, Relapse & Sleep) */}
-      <Card>
-        <CardHeader>
+      {/* Guilt-Free Store (3 Passes Only) */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
-            <Gift className="w-4 h-4 text-brand-red" />
-            <CardTitle>Guilt-Free Rewards Store (3 Passes)</CardTitle>
+            <Coins className="w-4 h-4 text-brand-red" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest font-mono">
+              Guilt-Free Privilege Store
+            </h3>
           </div>
-          <Badge variant="red" size="sm">
-            Discipline Passes ({rewardItems.length})
-          </Badge>
-        </CardHeader>
+          <span className="text-[11px] font-mono text-zinc-500">
+            Redeem XP for planned passes
+          </span>
+        </div>
 
-        <p className="text-xs text-zinc-400 -mt-2 mb-4">
-          Redeem discipline karma to take planned, guilt-free breaks for Eat Junk, Relapse, or Sleep.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {rewardItems.map((item: any) => {
             const canAfford = totalXP >= item.cost;
             const t = item.title.toLowerCase();
 
-            let IconComponent = Gift;
+            let IconComponent = Sparkles;
             let iconColor = "text-brand-red";
-            let borderStyle = "hover:border-brand-red/30";
+            let accentBorder = "border-white/10 hover:border-brand-red/40";
+            let badgeBg = "bg-white/[0.04] text-zinc-300";
+
             if (t.includes("junk") || item.icon === "Pizza") {
               IconComponent = Pizza;
               iconColor = "text-amber-400";
-              borderStyle = "hover:border-amber-500/40";
+              accentBorder = "border-amber-500/20 hover:border-amber-500/40";
+              badgeBg = "bg-amber-500/10 text-amber-300 border-amber-500/30";
             } else if (t.includes("relapse") || item.icon === "Zap") {
               IconComponent = Zap;
               iconColor = "text-red-400";
-              borderStyle = "hover:border-red-500/40";
+              accentBorder = "border-red-500/30 hover:border-red-500/50";
+              badgeBg = "bg-red-500/10 text-red-300 border-red-500/30";
             } else if (t.includes("sleep") || item.icon === "Moon") {
               IconComponent = Moon;
               iconColor = "text-indigo-400";
-              borderStyle = "hover:border-indigo-500/40";
+              accentBorder = "border-indigo-500/20 hover:border-indigo-500/40";
+              badgeBg = "bg-indigo-500/10 text-indigo-300 border-indigo-500/30";
             }
 
             return (
               <div
                 key={item.id}
-                className={`p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-4 transition-all shadow-glass-card ${borderStyle}`}
+                className={`relative overflow-hidden rounded-3xl bg-black/80 backdrop-blur-xl border p-5 flex flex-col justify-between gap-4 transition-all shadow-md ${accentBorder}`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center">
                       <IconComponent className={`w-5 h-5 ${iconColor}`} />
                     </div>
-                    <span className="font-bold text-base font-mono text-brand-red">
-                      {item.cost} XP
-                    </span>
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-xs font-mono font-bold text-white">
+                      <Coins className="w-3 h-3 text-amber-400" />
+                      <span>{item.cost} XP</span>
+                    </div>
                   </div>
+
                   <h5 className="text-sm font-bold text-white leading-snug">{item.title}</h5>
                   <p className="text-xs text-zinc-400 font-mono mt-1 leading-relaxed">
                     {t.includes("junk")
-                      ? "One planned, guilt-free cheat meal or junk food treat."
+                      ? "One planned, guilt-free cheat meal or junk treat."
                       : t.includes("relapse")
-                      ? "Controlled forgiveness release protocol without long-term streak demotion."
+                      ? "Controlled forgiveness protocol without long-term streak demotion."
                       : t.includes("sleep")
-                      ? "Guilt-free +1.5 hour extra sleep-in or deep restorative rest day."
+                      ? "Guilt-free +1.5 hour extra sleep-in or restorative recovery day."
                       : "Controlled release protocol without streak penalty."}
                   </p>
+
                   {item.timesRedeemed > 0 && (
                     <span className="text-[10px] text-zinc-500 font-mono block mt-2">
                       Redeemed {item.timesRedeemed}x
@@ -682,116 +638,112 @@ export default function RewardsPage() {
                   )}
                 </div>
 
-                <Button
-                  variant={canAfford ? "red" : "glass"}
-                  size="sm"
+                <button
+                  type="button"
                   disabled={!canAfford}
                   onClick={() => handleRedeemPerk(item.id, item.cost, item.title)}
-                  className="w-full text-xs font-semibold py-2.5"
+                  className={`w-full py-2.5 px-3 rounded-2xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                    canAfford
+                      ? "bg-brand-red hover:bg-brand-redDark text-white shadow-glow-red"
+                      : "bg-white/[0.03] text-zinc-500 border border-white/5 cursor-not-allowed"
+                  }`}
                 >
-                  {canAfford ? `Redeem ${item.title}` : `Need ${item.cost - totalXP} More XP`}
-                </Button>
+                  <span>{canAfford ? `Unlock ${item.title}` : `Need ${item.cost - totalXP} More XP`}</span>
+                </button>
               </div>
             );
           })}
         </div>
-      </Card>
+      </div>
 
-      {/* Activity Ledger / Audit Log */}
-      <Card>
-        <CardHeader>
+      {/* Activity History Ledger */}
+      <div className="rounded-3xl bg-black/80 backdrop-blur-xl border border-white/10 p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-brand-red" />
-            <CardTitle>Discipline Karma Ledger</CardTitle>
+            <Trophy className="w-4 h-4 text-brand-red" />
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              Discipline Karma Ledger
+            </h4>
           </div>
 
-          <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10">
+          <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/5">
             {(["ALL", "REWARDS", "PENALTIES"] as const).map((filter) => (
               <button
                 key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-medium transition-colors ${
+                onClick={() => {
+                  haptics.selection();
+                  setActiveFilter(filter);
+                }}
+                className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold transition-colors ${
                   activeFilter === filter
-                    ? "bg-brand-red text-white font-bold"
+                    ? "bg-brand-red text-white shadow-glow-red"
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
-                {filter}
+                {filter === "ALL" ? "All" : filter === "REWARDS" ? "+ Gains" : "- Penalties"}
               </button>
             ))}
           </div>
-        </CardHeader>
+        </div>
 
-        <div className="divide-y divide-white/5 max-h-96 overflow-y-auto">
+        <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
           {filteredLogs.length === 0 ? (
             <div className="p-8 text-center text-xs text-zinc-500 font-mono">
-              No discipline logs found for the selected filter.
+              No entries logged in this view.
             </div>
           ) : (
             filteredLogs.map((log: any) => {
-              const isReward = log.points > 0;
+              const isGain = log.points > 0;
               return (
                 <div
                   key={log.id}
-                  className="p-3.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors"
+                  className="py-3 px-1 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors rounded-xl"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        log.type === "REWARD_WATER"
-                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
-                          : isReward
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-red-500/10 text-brand-red border border-red-500/20"
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+                        isGain
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                          : "bg-red-500/10 text-brand-red border-red-500/30"
                       }`}
                     >
-                      {log.type === "REWARD_WATER" ? (
-                        <Droplets className="w-4 h-4 fill-cyan-400/20" />
-                      ) : isReward ? (
-                        <Plus className="w-4 h-4" />
-                      ) : (
-                        <Minus className="w-4 h-4" />
-                      )}
+                      {isGain ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                     </div>
-                    <div>
-                      <h5 className="text-xs font-semibold text-white">{log.title}</h5>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          {format(new Date(log.createdAt), "MMM d, h:mm a")}
-                        </span>
-                        {log.reason && (
-                          <span className="text-[10px] text-zinc-400">• {log.reason}</span>
-                        )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{log.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] font-mono text-zinc-500">
+                        <span>{format(new Date(log.createdAt), "MMM d, h:mm a")}</span>
+                        {log.reason && <span className="text-zinc-400 truncate">• {log.reason}</span>}
                       </div>
                     </div>
                   </div>
 
                   <span
-                    className={`text-xs font-mono font-bold px-2 py-1 rounded-lg border ${
-                      isReward
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : "bg-red-500/10 text-brand-red border-red-500/20"
+                    className={`text-xs font-mono font-bold px-2.5 py-1 rounded-xl border flex-shrink-0 ${
+                      isGain
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        : "bg-red-500/10 text-brand-red border-red-500/30"
                     }`}
                   >
-                    {isReward ? `+${log.points}` : `${log.points}`} XP
+                    {isGain ? `+${log.points}` : `${log.points}`} XP
                   </span>
                 </div>
               );
             })
           )}
         </div>
-      </Card>
+      </div>
 
       {/* Modal: Custom Discipline Deduction */}
       <Modal
         isOpen={isDeductModalOpen}
         onClose={() => setIsDeductModalOpen(false)}
-        title="Log Discipline Infraction"
+        title="Log Custom Discipline Infraction"
       >
         <form onSubmit={handleSubmitDeduct} className="space-y-4 text-xs font-sans">
           <div>
             <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-              Infraction Type
+              Infraction Category
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -800,9 +752,9 @@ export default function RewardsPage() {
                   setDeductType("UNHEALTHY_FOOD");
                   setDeductPoints("150");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
+                className={`p-2.5 rounded-2xl border text-center font-mono ${
                   deductType === "UNHEALTHY_FOOD"
-                    ? "bg-brand-red text-white border-brand-red font-bold"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500 font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                 }`}
               >
@@ -814,7 +766,7 @@ export default function RewardsPage() {
                   setDeductType("RELAPSE");
                   setDeductPoints("300");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
+                className={`p-2.5 rounded-2xl border text-center font-mono ${
                   deductType === "RELAPSE"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
@@ -828,13 +780,13 @@ export default function RewardsPage() {
                   setDeductType("SLEEP");
                   setDeductPoints("100");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
+                className={`p-2.5 rounded-2xl border text-center font-mono ${
                   deductType === "SLEEP"
-                    ? "bg-brand-red text-white border-brand-red font-bold"
+                    ? "bg-indigo-500/20 text-indigo-300 border-indigo-500 font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                 }`}
               >
-                🌙 Sleep (-100)
+                🌙 Broke Sleep (-100)
               </button>
               <button
                 type="button"
@@ -842,13 +794,13 @@ export default function RewardsPage() {
                   setDeductType("CUSTOM");
                   setDeductPoints("50");
                 }}
-                className={`p-2.5 rounded-xl border text-center font-mono ${
+                className={`p-2.5 rounded-2xl border text-center font-mono ${
                   deductType === "CUSTOM"
-                    ? "bg-brand-red text-white border-brand-red font-bold"
+                    ? "bg-white/[0.1] text-white border-white font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                 }`}
               >
-                ⚠️ Custom
+                ⚠️ Other Custom
               </button>
             </div>
           </div>
@@ -862,8 +814,8 @@ export default function RewardsPage() {
                 type="text"
                 value={deductTitle}
                 onChange={(e) => setDeductTitle(e.target.value)}
-                placeholder="e.g. Skipped Workout"
-                className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+                placeholder="e.g. Skipped Workout / Late Night Screen Time"
+                className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-2xl text-white focus:outline-none focus:border-brand-red font-mono"
                 required
               />
             </div>
@@ -877,21 +829,21 @@ export default function RewardsPage() {
               type="number"
               value={deductPoints}
               onChange={(e) => setDeductPoints(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-2xl text-white font-mono focus:outline-none focus:border-brand-red"
               required
             />
           </div>
 
           <div>
             <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-              Notes / Triggers (Optional)
+              Reflection Notes (Optional)
             </label>
             <textarea
               value={deductReason}
               onChange={(e) => setDeductReason(e.target.value)}
               placeholder="What triggered this? What will you do differently next time?"
               rows={2}
-              className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+              className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-2xl text-white focus:outline-none focus:border-brand-red font-mono"
             />
           </div>
 
@@ -910,19 +862,19 @@ export default function RewardsPage() {
       <Modal
         isOpen={isRewardModalOpen}
         onClose={() => setIsRewardModalOpen(false)}
-        title="Award Custom XP"
+        title="Award Custom Karma XP"
       >
         <form onSubmit={handleSubmitReward} className="space-y-4 text-xs font-sans">
           <div>
             <label className="block text-zinc-400 mb-1 font-mono uppercase text-[10px]">
-              Achievement / Deed Title
+              Achievement / Good Deed
             </label>
             <input
               type="text"
               value={rewardTitle}
               onChange={(e) => setRewardTitle(e.target.value)}
-              placeholder="e.g. Cold Shower / 30m Exercise"
-              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+              placeholder="e.g. Cold Shower / 30m Intense Exercise / 100 Pushups"
+              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-2xl text-white focus:outline-none focus:border-brand-red font-mono"
               required
             />
           </div>
@@ -935,7 +887,7 @@ export default function RewardsPage() {
               type="number"
               value={rewardPoints}
               onChange={(e) => setRewardPoints(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-brand-red"
+              className="w-full px-3.5 py-2.5 bg-black/60 border border-white/10 rounded-2xl text-white font-mono focus:outline-none focus:border-brand-red"
               required
             />
           </div>
@@ -949,7 +901,7 @@ export default function RewardsPage() {
               onChange={(e) => setRewardReason(e.target.value)}
               placeholder="Reflections or details..."
               rows={2}
-              className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-white focus:outline-none focus:border-brand-red"
+              className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-2xl text-white focus:outline-none focus:border-brand-red font-mono"
             />
           </div>
 
