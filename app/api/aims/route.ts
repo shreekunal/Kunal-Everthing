@@ -29,7 +29,6 @@ export async function GET(request: Request) {
                   select: {
                     id: true,
                     durationMinutes: true,
-                    focusScore: true,
                     date: true,
                   },
                 },
@@ -42,7 +41,7 @@ export async function GET(request: Request) {
     });
 
     // Compute progress stats for each aim
-    const enrichedAims = aims.map((aim) => {
+    const enrichedAims = aims.map((aim: any) => {
       let totalTopics = 0;
       let masteredTopics = 0;
       let confidentTopics = 0;
@@ -50,12 +49,13 @@ export async function GET(request: Request) {
       let notStartedTopics = 0;
       let totalStudyMinutes = 0;
 
-      const enrichedMilestones = aim.milestones.map((m) => {
-        let mTotal = m.topics.length;
+      const enrichedMilestones = (aim.milestones || []).map((m: any) => {
+        const mTopics = m.topics || [];
+        let mTotal = mTopics.length;
         let mMastered = 0;
         let mStudyMins = 0;
 
-        const enrichedTopics = m.topics.map((t) => {
+        const enrichedTopics = mTopics.map((t: any) => {
           totalTopics++;
           if (t.mastery === "MASTERED") {
             masteredTopics++;
@@ -68,14 +68,15 @@ export async function GET(request: Request) {
             notStartedTopics++;
           }
 
-          const topicMins = t.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+          const sessions = t.sessions || [];
+          const topicMins = sessions.reduce((acc: number, s: any) => acc + (s.durationMinutes || 0), 0);
           totalStudyMinutes += topicMins;
           mStudyMins += topicMins;
 
           return {
             ...t,
             totalStudyMinutes: topicMins,
-            sessionCount: t.sessions.length,
+            sessionCount: sessions.length,
           };
         });
 
