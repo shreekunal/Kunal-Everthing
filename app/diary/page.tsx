@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { format } from "date-fns";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { format, parseISO, differenceInDays } from "date-fns";
 import {
   BookOpen,
   Heart,
@@ -15,6 +15,11 @@ import {
   PenTool,
   History,
   RotateCcw,
+  Copy,
+  Search,
+  Flame,
+  Palette,
+  Check,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { toPng } from "html-to-image";
@@ -23,7 +28,20 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 import clsx from "clsx";
 
-const MAX_WORD_LIMIT = 250;
+const MAX_WORD_LIMIT = 35;
+const DRAFT_STORAGE_KEY = "everything_diary_draft";
+
+const REFLECTION_PROMPTS = [
+  "What was the highlight of your day?",
+  "One small victory or lesson today?",
+  "Something unexpected that made you smile?",
+  "A peaceful moment I appreciated today...",
+  "What gave you the most energy today?",
+  "A challenge I faced and overcame today...",
+  "A kind word or moment shared with someone...",
+];
+
+type DiaryTheme = "parchment" | "midnight" | "minimal";
 
 export default function DailyDiaryPage() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -37,9 +55,15 @@ export default function DailyDiaryPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
 
-  // Export / Share Modal
+  // Search & Prompt State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [promptIndex, setPromptIndex] = useState(0);
+
+  // Export / Share Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [diaryTheme, setDiaryTheme] = useState<DiaryTheme>("parchment");
   const [isExporting, setIsExporting] = useState(false);
   const [shareStatus, setShareStatus] = useState<{ text: string; error?: boolean } | null>(null);
   const diaryCardRef = useRef<HTMLDivElement>(null);
@@ -53,13 +77,22 @@ export default function DailyDiaryPage() {
 
       if (diaryRes.ok) {
         const dJson = await diaryRes.json();
-        setPastEntries(dJson.entries || []);
+        const entries = dJson.entries || [];
+        setPastEntries(entries);
 
-        const match = (dJson.entries || []).find((e: any) => e.date === dateToFetch);
+        const match = entries.find((e: any) => e.date === dateToFetch);
         if (match) {
           const existingText = match.content || match.highlights || match.partnerNote || "";
           const words = existingText.trim().split(/\s+/).filter(Boolean);
           setContent(words.slice(0, MAX_WORD_LIMIT).join(" "));
+        } else if (dateToFetch === todayStr) {
+          // Restore auto-draft if available
+          const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+          if (savedDraft) {
+            setContent(savedDraft);
+          } else {
+            setContent("");
+          }
         } else {
           setContent("");
         }
@@ -76,11 +109,18 @@ export default function DailyDiaryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [todayStr]);
 
   useEffect(() => {
     fetchDiaryData(selectedDate);
   }, [fetchDiaryData, selectedDate]);
+
+  // Auto-Draft saving for today
+  useEffect(() => {
+    if (selectedDate === todayStr && content) {
+      localStorage.setItem(DRAFT_STORAGE_KEY, content);
+    }
+  }, [content, selectedDate, todayStr]);
 
   const handleSelectDateForEdit = (dateStr: string) => {
     haptics.selection();
@@ -95,21 +135,19 @@ export default function DailyDiaryPage() {
     fetchDiaryData(todayStr);
   };
 
-  // Word count computation and input handling
+  // Word count computation and input handling (35-word limit)
   const wordsArray = content.trim() ? content.trim().split(/\s+/).filter(Boolean) : [];
   const wordCount = wordsArray.length;
-  const isNearLimit = wordCount >= MAX_WORD_LIMIT * 0.88;
+  const isNearLimit = wordCount >= MAX_WORD_LIMIT * 0.85;
   const isAtLimit = wordCount >= MAX_WORD_LIMIT;
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const newWords = val.trim() ? val.trim().split(/\s+/).filter(Boolean) : [];
 
-    // Allow typing if under limit, or if user is deleting characters
     if (newWords.length <= MAX_WORD_LIMIT || val.length < content.length) {
       setContent(val);
     } else {
-      // Trim to 250 words on paste
       const trimmedVal = newWords.slice(0, MAX_WORD_LIMIT).join(" ");
       setContent(trimmedVal);
       haptics.warning();
@@ -118,6 +156,8 @@ export default function DailyDiaryPage() {
 
   const handleSaveOnly = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (saving) return; // Prevent double submission
+
     setSaving(true);
     haptics.selection();
 
@@ -137,6 +177,9 @@ export default function DailyDiaryPage() {
       if (res.ok) {
         haptics.success();
         setSavedSuccess(true);
+        if (selectedDate === todayStr) {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
         setTimeout(() => setSavedSuccess(false), 3000);
         fetchDiaryData(selectedDate);
       }
@@ -148,12 +191,25 @@ export default function DailyDiaryPage() {
     }
   };
 
+  const handleCopyText = async () => {
+    if (!content.trim()) return;
+    try {
+      await navigator.clipboard.writeText(content.trim());
+      haptics.success();
+      setCopiedText(true);
+      setTimeout(() => setCopiedText(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   const handleOpenShareModal = () => {
     haptics.selection();
     setIsShareModalOpen(true);
   };
 
   const handleDeleteDiary = async (id: string) => {
+    if (saving) return;
     haptics.warning();
     try {
       const res = await fetch(`/api/diary?id=${id}`, {
@@ -177,18 +233,69 @@ export default function DailyDiaryPage() {
     setIsShareModalOpen(true);
   };
 
+  const handleCyclePrompt = () => {
+    haptics.selection();
+    setPromptIndex((prev) => (prev + 1) % REFLECTION_PROMPTS.length);
+  };
+
+  // Streak calculation
+  const streakCount = useMemo(() => {
+    if (!pastEntries.length) return 0;
+    const sortedDates = [...pastEntries]
+      .map((e) => e.date)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+    let streak = 0;
+    let checkDate = new Date();
+
+    // If today has no entry yet, start checking from yesterday
+    const todayHasEntry = sortedDates.includes(todayStr);
+    if (!todayHasEntry) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    for (let i = 0; i < sortedDates.length; i++) {
+      const targetStr = format(checkDate, "yyyy-MM-dd");
+      if (sortedDates.includes(targetStr)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [pastEntries, todayStr]);
+
+  // Filtered entries for search
+  const filteredEntries = useMemo(() => {
+    if (!searchQuery.trim()) return pastEntries;
+    const q = searchQuery.toLowerCase().trim();
+    return pastEntries.filter((e) => {
+      const text = (e.content || e.highlights || e.partnerNote || "").toLowerCase();
+      const date = (e.date || "").toLowerCase();
+      return text.includes(q) || date.includes(q);
+    });
+  }, [pastEntries, searchQuery]);
+
   // Direct PNG Image Export
   const handleExportPng = async () => {
-    if (!diaryCardRef.current) return;
+    if (!diaryCardRef.current || isExporting) return;
     setIsExporting(true);
     setShareStatus(null);
     haptics.selection();
 
     try {
+      const bgColor =
+        diaryTheme === "midnight"
+          ? "#09090b"
+          : diaryTheme === "minimal"
+          ? "#ffffff"
+          : "#fffdf7";
+
       const dataUrl = await toPng(diaryCardRef.current, {
         pixelRatio: 3,
         cacheBust: true,
-        backgroundColor: "#fffdf7",
+        backgroundColor: bgColor,
       });
 
       const fileName = `Everything-Diary-${selectedDate}.png`;
@@ -250,6 +357,7 @@ export default function DailyDiaryPage() {
   };
 
   const partnerNickname = partner?.nickname || partner?.name || "Partner";
+  const currentPrompt = REFLECTION_PROMPTS[promptIndex];
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-4 pb-28 px-1 animate-in fade-in duration-300">
@@ -269,10 +377,18 @@ export default function DailyDiaryPage() {
           </div>
         </div>
 
-        <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-emerald-400" />
-          <span>+25 XP</span>
-        </span>
+        <div className="flex items-center gap-2">
+          {streakCount > 0 && (
+            <span className="text-[10px] font-mono font-medium px-2 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1">
+              <Flame className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>{streakCount}d Streak</span>
+            </span>
+          )}
+          <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-emerald-400" />
+            <span>+25 XP</span>
+          </span>
+        </div>
       </div>
 
       {/* 2-Segment Tab Switcher: Write & History */}
@@ -314,7 +430,7 @@ export default function DailyDiaryPage() {
 
       {/* WRITE TAB VIEW */}
       {activeTab === "write" && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] backdrop-blur-2xl shadow-glass-panel space-y-4 animate-in fade-in duration-200">
+        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] backdrop-blur-2xl shadow-glass-panel space-y-3.5 animate-in fade-in duration-200">
           {/* Header Bar with Date & Past-Edit Badge */}
           <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
             <div className="flex items-center gap-2">
@@ -340,7 +456,26 @@ export default function DailyDiaryPage() {
             )}
           </div>
 
-          {/* 250 Words Writing Canvas Form */}
+          {/* Optional Spark / Prompt Inspiration Chip */}
+          {!content.trim() && (
+            <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <p className="text-[11px] text-zinc-300 font-sans italic truncate">
+                  &ldquo;{currentPrompt}&rdquo;
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCyclePrompt}
+                className="shrink-0 text-[10px] font-mono text-rose-400 hover:text-rose-300 px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 active:scale-95"
+              >
+                Next Spark
+              </button>
+            </div>
+          )}
+
+          {/* 35 Words Writing Canvas Form */}
           <form onSubmit={handleSaveOnly} className="space-y-3.5">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -349,7 +484,7 @@ export default function DailyDiaryPage() {
                   <span>{selectedDate !== todayStr ? "Past Entry Content" : "Today's Reflection"}</span>
                 </label>
 
-                {/* 250 Words Counter */}
+                {/* 35 Words Counter */}
                 <span
                   className={clsx(
                     "text-[10px] font-mono px-2.5 py-0.5 rounded-full border transition-colors",
@@ -365,21 +500,52 @@ export default function DailyDiaryPage() {
               </div>
 
               <textarea
-                rows={10}
-                placeholder={`Write freely about your day, lessons, thoughts, or reflections for ${partnerNickname}... (Max 250 words)`}
+                rows={6}
+                placeholder={`Write freely about your day or reflections for ${partnerNickname}... (Max 35 words)`}
                 value={content}
                 onChange={handleContentChange}
-                className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500/50 font-sans leading-relaxed resize-y transition-all min-h-[220px]"
+                className="w-full px-4 py-3 rounded-2xl bg-white/[0.02] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500/50 font-sans leading-relaxed resize-y transition-all min-h-[140px]"
               />
             </div>
 
-            {/* Action Buttons: Save / Update + Share as PNG */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-              {/* Primary Save / Update Button */}
+            {/* Quick Actions & Save Protection Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCopyText}
+                disabled={!content.trim()}
+                className="py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-40 text-zinc-300 text-[11px] font-mono flex items-center gap-1.5 border border-white/5 active:scale-95 transition-all"
+              >
+                {copiedText ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Copy Text</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenShareModal}
+                disabled={!content.trim()}
+                className="py-2 px-3 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 disabled:opacity-40 active:scale-95 text-purple-300 border border-purple-500/30 font-mono text-[11px] flex items-center gap-1.5 transition-all"
+              >
+                <Share2 className="w-3.5 h-3.5 text-purple-300" />
+                <span>Share PNG</span>
+              </button>
+            </div>
+
+            {/* Primary Save / Update Button with Free-Tier Lock & Loading state */}
+            <div className="pt-1">
               <button
                 type="submit"
-                disabled={saving}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-pink-600 hover:opacity-95 active:scale-98 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all min-h-[46px]"
+                disabled={saving || loading}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-pink-600 hover:opacity-95 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all min-h-[46px]"
               >
                 {saving ? (
                   <>
@@ -398,16 +564,6 @@ export default function DailyDiaryPage() {
                   </>
                 )}
               </button>
-
-              {/* Secondary Share PNG Button */}
-              <button
-                type="button"
-                onClick={handleOpenShareModal}
-                className="w-full py-3.5 px-4 rounded-2xl bg-purple-500/15 hover:bg-purple-500/25 active:scale-98 text-purple-300 border border-purple-500/30 font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all min-h-[46px]"
-              >
-                <Share2 className="w-4 h-4 text-purple-300" />
-                <span>Share as PNG</span>
-              </button>
             </div>
           </form>
         </div>
@@ -415,8 +571,8 @@ export default function DailyDiaryPage() {
 
       {/* HISTORY TAB VIEW */}
       {activeTab === "history" && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] space-y-3.5 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-zinc-400" />
               <h2 className="text-xs uppercase font-mono tracking-wider text-zinc-300 font-bold">
@@ -428,25 +584,48 @@ export default function DailyDiaryPage() {
             </span>
           </div>
 
+          {/* Instant Search Bar */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search past reflections or dates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500/50 font-mono"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <div className="divide-y divide-white/[0.04] max-h-96 overflow-y-auto">
-            {pastEntries.length === 0 ? (
+            {filteredEntries.length === 0 ? (
               <div className="text-center py-10 space-y-2">
                 <p className="text-xs text-zinc-500 font-mono">
-                  No diary entries found.
+                  {searchQuery ? "No matching diary entries found." : "No diary entries found."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.selection();
-                    setActiveTab("write");
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-mono font-semibold active:scale-95"
-                >
-                  Write Today&apos;s Entry →
-                </button>
+                {!searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setActiveTab("write");
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-mono font-semibold active:scale-95"
+                  >
+                    Write Today&apos;s Entry →
+                  </button>
+                )}
               </div>
             ) : (
-              pastEntries.map((item) => {
+              filteredEntries.map((item) => {
                 const entryText = item.content || item.highlights || item.partnerNote || "";
                 const words = entryText.trim() ? entryText.trim().split(/\s+/).filter(Boolean) : [];
 
@@ -465,7 +644,7 @@ export default function DailyDiaryPage() {
                           {format(new Date(item.date), "EEEE, d MMM yyyy")}
                         </span>
                         <span className="text-[9px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/5">
-                          {words.length} words
+                          {words.length} / {MAX_WORD_LIMIT}w
                         </span>
                       </div>
 
@@ -509,11 +688,11 @@ export default function DailyDiaryPage() {
         </div>
       )}
 
-      {/* Aesthetic Real Diary Page PNG Share Modal */}
+      {/* Aesthetic Real Diary Page PNG Share Modal with Themes */}
       {isShareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-sm bg-zinc-950 border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl my-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="relative w-full max-w-sm bg-zinc-950 border border-white/10 rounded-3xl p-4 sm:p-5 shadow-2xl my-auto space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-rose-400" />
                 <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
@@ -529,39 +708,130 @@ export default function DailyDiaryPage() {
               </button>
             </div>
 
-            {/* Authentic Aesthetic Ruled Diary Page Component */}
-            <div className="my-3 flex justify-center">
+            {/* Theme Selector Pills */}
+            <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/5">
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setDiaryTheme("parchment");
+                }}
+                className={clsx(
+                  "flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all",
+                  diaryTheme === "parchment"
+                    ? "bg-amber-100 text-amber-950 shadow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Parchment
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setDiaryTheme("midnight");
+                }}
+                className={clsx(
+                  "flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all",
+                  diaryTheme === "midnight"
+                    ? "bg-zinc-800 text-amber-300 border border-amber-500/30 shadow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Midnight
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setDiaryTheme("minimal");
+                }}
+                className={clsx(
+                  "flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all",
+                  diaryTheme === "minimal"
+                    ? "bg-white text-zinc-900 shadow"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Minimal
+              </button>
+            </div>
+
+            {/* Rendered Diary Card */}
+            <div className="my-2 flex justify-center">
               <div
                 ref={diaryCardRef}
-                className="w-full rounded-2xl bg-[#fffdf7] text-zinc-900 p-5 shadow-2xl relative overflow-hidden font-serif border border-[#e5dfd3]"
+                className={clsx(
+                  "w-full rounded-2xl p-5 shadow-2xl relative overflow-hidden font-serif transition-all",
+                  diaryTheme === "parchment" && "bg-[#fffdf7] text-zinc-900 border border-[#e5dfd3]",
+                  diaryTheme === "midnight" && "bg-[#09090b] text-zinc-100 border border-zinc-800 shadow-[0_0_20px_rgba(0,0,0,0.8)]",
+                  diaryTheme === "minimal" && "bg-white text-zinc-900 border border-zinc-200"
+                )}
                 style={{
-                  backgroundImage: "radial-gradient(#d8d0c2 0.75px, transparent 0.75px)",
+                  backgroundImage:
+                    diaryTheme === "parchment"
+                      ? "radial-gradient(#d8d0c2 0.75px, transparent 0.75px)"
+                      : diaryTheme === "midnight"
+                      ? "radial-gradient(#27272a 0.75px, transparent 0.75px)"
+                      : "none",
                   backgroundSize: "14px 14px",
                 }}
               >
-                {/* Vertical Red Notebook Margin Line */}
-                <div className="absolute top-0 bottom-0 left-7 w-[1.5px] bg-rose-400/60 pointer-events-none" />
+                {/* Vertical Margin Line */}
+                <div
+                  className={clsx(
+                    "absolute top-0 bottom-0 left-7 w-[1.5px] pointer-events-none",
+                    diaryTheme === "parchment" && "bg-rose-400/60",
+                    diaryTheme === "midnight" && "bg-amber-500/50",
+                    diaryTheme === "minimal" && "bg-zinc-300"
+                  )}
+                />
 
-                {/* Top Header of Diary Page */}
-                <div className="pl-5 pb-2.5 border-b-2 border-zinc-300/80 flex items-center justify-between gap-2">
+                {/* Header */}
+                <div
+                  className={clsx(
+                    "pl-5 pb-2.5 border-b-2 flex items-center justify-between gap-2",
+                    diaryTheme === "midnight" ? "border-zinc-800" : "border-zinc-300/80"
+                  )}
+                >
                   <div>
-                    <span className="text-[9px] font-mono tracking-widest text-zinc-500 uppercase block font-semibold">
+                    <span
+                      className={clsx(
+                        "text-[9px] font-mono tracking-widest uppercase block font-semibold",
+                        diaryTheme === "midnight" ? "text-amber-400" : "text-zinc-500"
+                      )}
+                    >
                       Daily Journal • Everything
                     </span>
-                    <h4 className="text-xs font-bold text-zinc-900 font-serif mt-0.5">
+                    <h4
+                      className={clsx(
+                        "text-xs font-bold font-serif mt-0.5",
+                        diaryTheme === "midnight" ? "text-white" : "text-zinc-900"
+                      )}
+                    >
                       {format(new Date(selectedDate), "EEEE, d MMMM yyyy")}
                     </h4>
                   </div>
-                  <BookOpen className="w-4 h-4 text-zinc-700" />
+                  <BookOpen
+                    className={clsx(
+                      "w-4 h-4",
+                      diaryTheme === "midnight" ? "text-amber-400" : "text-zinc-700"
+                    )}
+                  />
                 </div>
 
-                {/* Ruled Lines Writing Body (without study / water metrics) */}
-                <div className="pl-5 pt-3 pb-3 min-h-[140px] relative">
+                {/* Ruled Lines Writing Body (Max 35 words) */}
+                <div className="pl-5 pt-3 pb-3 min-h-[110px] relative">
                   <div
-                    className="text-xs text-zinc-800 font-serif italic whitespace-pre-line leading-[26px]"
+                    className={clsx(
+                      "text-xs font-serif italic whitespace-pre-line leading-[26px]",
+                      diaryTheme === "midnight" ? "text-zinc-200" : "text-zinc-800"
+                    )}
                     style={{
                       backgroundImage:
-                        "repeating-linear-gradient(transparent, transparent 25px, #e8e2d4 25px, #e8e2d4 26px)",
+                        diaryTheme === "midnight"
+                          ? "repeating-linear-gradient(transparent, transparent 25px, #27272a 25px, #27272a 26px)"
+                          : "repeating-linear-gradient(transparent, transparent 25px, #e8e2d4 25px, #e8e2d4 26px)",
                       lineHeight: "26px",
                     }}
                   >
@@ -569,10 +839,17 @@ export default function DailyDiaryPage() {
                   </div>
                 </div>
 
-                {/* Bottom Diary Signoff */}
-                <div className="pl-5 pt-2.5 border-t border-zinc-300/80 flex items-center justify-between text-[10px] font-serif text-zinc-600 italic">
+                {/* Bottom Signoff */}
+                <div
+                  className={clsx(
+                    "pl-5 pt-2.5 border-t flex items-center justify-between text-[10px] font-serif italic",
+                    diaryTheme === "midnight"
+                      ? "border-zinc-800 text-zinc-400"
+                      : "border-zinc-300/80 text-zinc-600"
+                  )}
+                >
                   <span>With all my love ❤️</span>
-                  <span className="font-mono text-[9px] text-zinc-400 font-medium">Everything</span>
+                  <span className="font-mono text-[9px] opacity-70">Everything</span>
                 </div>
               </div>
             </div>
@@ -581,7 +858,7 @@ export default function DailyDiaryPage() {
             {shareStatus && (
               <div
                 className={clsx(
-                  "mb-3 p-2 rounded-xl text-xs font-mono text-center flex items-center justify-center gap-1.5",
+                  "p-2 rounded-xl text-xs font-mono text-center flex items-center justify-center gap-1.5",
                   shareStatus.error
                     ? "bg-red-500/10 border border-red-500/20 text-red-400"
                     : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
@@ -592,23 +869,32 @@ export default function DailyDiaryPage() {
               </div>
             )}
 
-            {/* Direct PNG Export Action Button */}
-            <div className="pt-1">
+            {/* Export Actions */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCopyText}
+                className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:scale-95 text-white text-xs font-mono font-semibold flex items-center justify-center gap-1.5 border border-white/10"
+              >
+                {copiedText ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedText ? "Copied!" : "Copy Text"}</span>
+              </button>
+
               <button
                 type="button"
                 disabled={isExporting}
                 onClick={handleExportPng}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-rose-600 hover:opacity-95 text-white text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all active:scale-98 shadow-[0_0_15px_rgba(168,85,247,0.3)] min-h-[44px]"
+                className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-rose-600 hover:opacity-95 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all active:scale-98 shadow-[0_0_15px_rgba(168,85,247,0.3)] disabled:opacity-50"
               >
                 {isExporting ? (
                   <>
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Exporting PNG...</span>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Exporting...</span>
                   </>
                 ) : (
                   <>
-                    <Share2 className="w-4 h-4" />
-                    <span>Share PNG Image</span>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share PNG</span>
                   </>
                 )}
               </button>

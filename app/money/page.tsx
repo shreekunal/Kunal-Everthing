@@ -59,11 +59,14 @@ export default function MoneyPage() {
   const [accountToDelete, setAccountToDelete] = useState<any | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Form states - Create Account
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("ASSET");
   const [accountCategory, setAccountCategory] = useState("BANK");
   const [accountBalance, setAccountBalance] = useState("");
+  const [isSubmittingAccount, setIsSubmittingAccount] = useState(false);
+  const [isSubmittingCard, setIsSubmittingCard] = useState(false);
+  const [isSubmittingDebitCard, setIsSubmittingDebitCard] = useState(false);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Modals & Form states - Credit Card
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
@@ -146,8 +149,9 @@ export default function MoneyPage() {
   // --- ACCOUNT HANDLERS ---
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountName) return;
+    if (!accountName || isSubmittingAccount) return;
 
+    setIsSubmittingAccount(true);
     try {
       await fetch("/api/money", {
         method: "POST",
@@ -166,6 +170,8 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Create account error:", err);
+    } finally {
+      setIsSubmittingAccount(false);
     }
   };
 
@@ -189,8 +195,9 @@ export default function MoneyPage() {
 
   const handleUpdateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAccountForEdit || !editAccountName) return;
+    if (!selectedAccountForEdit || !editAccountName || isSubmittingAccount) return;
 
+    setIsSubmittingAccount(true);
     try {
       let body: any = {
         name: editAccountName.trim(),
@@ -218,6 +225,8 @@ export default function MoneyPage() {
       }
     } catch (err) {
       console.error("Update account error:", err);
+    } finally {
+      setIsSubmittingAccount(false);
     }
   };
 
@@ -242,8 +251,9 @@ export default function MoneyPage() {
   // --- CREDIT CARD HANDLERS ---
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cardName) return;
+    if (!cardName || isSubmittingCard) return;
 
+    setIsSubmittingCard(true);
     try {
       await fetch("/api/cards", {
         method: "POST",
@@ -271,6 +281,8 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Create card error:", err);
+    } finally {
+      setIsSubmittingCard(false);
     }
   };
 
@@ -291,8 +303,9 @@ export default function MoneyPage() {
 
   const handleUpdateCard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCardForEdit || !selectedCardForEdit.name) return;
+    if (!selectedCardForEdit || !selectedCardForEdit.name || isSubmittingCard) return;
 
+    setIsSubmittingCard(true);
     try {
       await fetch(`/api/cards/${selectedCardForEdit.id}`, {
         method: "PATCH",
@@ -318,6 +331,8 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Update card error:", err);
+    } finally {
+      setIsSubmittingCard(false);
     }
   };
 
@@ -339,8 +354,9 @@ export default function MoneyPage() {
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCardForPayment || !paymentAmount) return;
+    if (!selectedCardForPayment || !paymentAmount || isSubmittingPayment) return;
 
+    setIsSubmittingPayment(true);
     try {
       await fetch(`/api/cards/${selectedCardForPayment.id}/payment`, {
         method: "POST",
@@ -356,14 +372,17 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Payment error:", err);
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
   // --- DEBIT CARD HANDLERS ---
   const handleCreateDebitCard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!debitCardName) return;
+    if (!debitCardName || isSubmittingDebitCard) return;
 
+    setIsSubmittingDebitCard(true);
     try {
       await fetch("/api/cards/debit", {
         method: "POST",
@@ -388,6 +407,8 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Create debit card error:", err);
+    } finally {
+      setIsSubmittingDebitCard(false);
     }
   };
 
@@ -406,8 +427,9 @@ export default function MoneyPage() {
 
   const handleUpdateDebitCard = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDebitCardForEdit || !selectedDebitCardForEdit.name) return;
+    if (!selectedDebitCardForEdit || !selectedDebitCardForEdit.name || isSubmittingDebitCard) return;
 
+    setIsSubmittingDebitCard(true);
     try {
       await fetch(`/api/cards/debit/${selectedDebitCardForEdit.id}`, {
         method: "PATCH",
@@ -430,6 +452,8 @@ export default function MoneyPage() {
       fetchFinancials();
     } catch (err) {
       console.error("Update debit card error:", err);
+    } finally {
+      setIsSubmittingDebitCard(false);
     }
   };
 
@@ -1193,7 +1217,7 @@ export default function MoneyPage() {
             >
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit">
+            <Button variant="primary" size="sm" type="submit" isLoading={isSubmittingAccount}>
               Save Account
             </Button>
           </div>
@@ -1476,7 +1500,7 @@ export default function MoneyPage() {
                 >
                   Cancel
                 </Button>
-                <Button variant="red" size="sm" type="submit">
+                <Button variant="red" size="sm" type="submit" isLoading={isSubmittingAccount}>
                   Save Changes
                 </Button>
               </div>
@@ -1623,7 +1647,7 @@ export default function MoneyPage() {
             >
               Cancel
             </Button>
-            <Button variant="red" size="sm" type="submit">
+            <Button variant="red" size="sm" type="submit" isLoading={isSubmittingCard}>
               Add Card
             </Button>
           </div>
@@ -1805,7 +1829,7 @@ export default function MoneyPage() {
               >
                 Cancel
               </Button>
-              <Button variant="red" size="sm" type="submit">
+              <Button variant="red" size="sm" type="submit" isLoading={isSubmittingCard}>
                 Save Changes
               </Button>
             </div>
@@ -1922,6 +1946,7 @@ export default function MoneyPage() {
               variant="secondary"
               size="sm"
               type="submit"
+              isLoading={isSubmittingDebitCard}
               className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40"
             >
               Save Debit Card
@@ -2067,6 +2092,7 @@ export default function MoneyPage() {
                 variant="secondary"
                 size="sm"
                 type="submit"
+                isLoading={isSubmittingDebitCard}
                 className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/40"
               >
                 Save Changes
@@ -2128,7 +2154,7 @@ export default function MoneyPage() {
             >
               Cancel
             </Button>
-            <Button variant="primary" size="sm" type="submit">
+            <Button variant="primary" size="sm" type="submit" isLoading={isSubmittingPayment}>
               Confirm Payment
             </Button>
           </div>

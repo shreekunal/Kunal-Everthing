@@ -64,6 +64,7 @@ export default function ProgressPage() {
   const [manualDate, setManualDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isLoggingStudy, setIsLoggingStudy] = useState(false);
 
   // Study Goal State (Daily & Weekly)
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
@@ -162,8 +163,9 @@ export default function ProgressPage() {
 
   const handleManualLog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualProject.trim()) return;
+    if (!manualProject.trim() || isLoggingStudy) return;
 
+    setIsLoggingStudy(true);
     try {
       await fetch("/api/progress", {
         method: "POST",
@@ -182,6 +184,8 @@ export default function ProgressPage() {
     } catch (err) {
       console.error("Manual study log error:", err);
       haptics.error();
+    } finally {
+      setIsLoggingStudy(false);
     }
   };
 
@@ -934,7 +938,7 @@ export default function ProgressPage() {
               </div>
 
               <div className="pt-2">
-                <Button variant="red" size="sm" type="submit" className="w-full py-2.5 font-semibold">
+                <Button variant="red" size="sm" type="submit" isLoading={isLoggingStudy} className="w-full py-2.5 font-semibold">
                   <Plus className="w-3.5 h-3.5" />
                   <span>Record Study Session (+{Math.max(5, Number(manualDuration) || 0)} XP)</span>
                 </Button>

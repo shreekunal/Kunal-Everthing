@@ -45,6 +45,7 @@ export default function DatesPage() {
   const [repeatPattern, setRepeatPattern] = useState("YEARLY");
   const [reminderDays, setReminderDays] = useState("14,7,1,0");
   const [notes, setNotes] = useState("");
+  const [isCreatingDate, setIsCreatingDate] = useState(false);
 
   // Delete state
   const [dateToDelete, setDateToDelete] = useState<any | null>(null);
@@ -72,8 +73,9 @@ export default function DatesPage() {
 
   const handleCreateDate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !dateVal) return;
+    if (!name || !dateVal || isCreatingDate) return;
 
+    setIsCreatingDate(true);
     try {
       await fetch("/api/dates", {
         method: "POST",
@@ -95,6 +97,8 @@ export default function DatesPage() {
       fetchDates();
     } catch (err) {
       console.error("Create date error:", err);
+    } finally {
+      setIsCreatingDate(false);
     }
   };
 
@@ -473,7 +477,7 @@ export default function DatesPage() {
             >
               Cancel
             </Button>
-            <Button variant="red" size="sm" type="submit">
+            <Button variant="red" size="sm" type="submit" isLoading={isCreatingDate}>
               Save Event
             </Button>
           </div>

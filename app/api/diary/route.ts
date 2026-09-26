@@ -115,7 +115,7 @@ export async function POST(request: Request) {
 
     const rawContent = (content || "").trim();
     const words = rawContent ? rawContent.split(/\s+/).filter(Boolean) : [];
-    const cleanContent = words.slice(0, 250).join(" ");
+    const cleanContent = words.slice(0, 35).join(" ");
 
     const entry = await prisma.dailyDiary.upsert({
       where: {

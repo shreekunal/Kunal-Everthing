@@ -52,6 +52,7 @@ export default function TasksPage() {
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "HIGH" | "COMPLETED">("ACTIVE");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -294,8 +295,9 @@ export default function TasksPage() {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) return;
+    if (!title || isCreatingTask) return;
 
+    setIsCreatingTask(true);
     const remindAt = calculateRemindAt(reminderPreset, customRemindAt);
 
     try {
@@ -339,6 +341,8 @@ export default function TasksPage() {
       }
     } catch (err) {
       console.error("Create task error:", err);
+    } finally {
+      setIsCreatingTask(false);
     }
   };
 
@@ -827,7 +831,7 @@ export default function TasksPage() {
             >
               Cancel
             </Button>
-            <Button variant="red" size="sm" type="submit">
+            <Button variant="red" size="sm" type="submit" isLoading={isCreatingTask}>
               Save Task
             </Button>
           </div>

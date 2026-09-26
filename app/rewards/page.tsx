@@ -62,6 +62,10 @@ export default function RewardsPage() {
   const [newPerkCost, setNewPerkCost] = useState("250");
   const [newPerkCategory, setNewPerkCategory] = useState("LEISURE");
 
+  const [isSubmittingDeduct, setIsSubmittingDeduct] = useState(false);
+  const [isSubmittingReward, setIsSubmittingReward] = useState(false);
+  const [isSubmittingPerk, setIsSubmittingPerk] = useState(false);
+
   const [activeFilter, setActiveFilter] = useState<"ALL" | "REWARDS" | "PENALTIES">("ALL");
   const [actionMessage, setActionMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -129,6 +133,9 @@ export default function RewardsPage() {
 
   const handleSubmitDeduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingDeduct) return;
+
+    setIsSubmittingDeduct(true);
     try {
       let payload: any = {};
       if (deductType === "UNHEALTHY_FOOD") {
@@ -168,11 +175,16 @@ export default function RewardsPage() {
       }
     } catch {
       alert("Failed to record deduction");
+    } finally {
+      setIsSubmittingDeduct(false);
     }
   };
 
   const handleSubmitReward = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingReward) return;
+
+    setIsSubmittingReward(true);
     try {
       const res = await fetch("/api/rewards", {
         method: "POST",
@@ -195,6 +207,8 @@ export default function RewardsPage() {
       }
     } catch {
       alert("Failed to award custom points");
+    } finally {
+      setIsSubmittingReward(false);
     }
   };
 
@@ -203,7 +217,7 @@ export default function RewardsPage() {
   };
 
   const handleExecuteRedeemPerk = async () => {
-    if (!perkToRedeem) return;
+    if (!perkToRedeem || isRedeeming) return;
     setIsRedeeming(true);
     haptics.success();
     try {
@@ -234,6 +248,9 @@ export default function RewardsPage() {
 
   const handleAddCustomPerk = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingPerk) return;
+
+    setIsSubmittingPerk(true);
     try {
       const res = await fetch("/api/rewards/items", {
         method: "POST",
@@ -253,6 +270,8 @@ export default function RewardsPage() {
       }
     } catch {
       alert("Failed to add reward perk");
+    } finally {
+      setIsSubmittingPerk(false);
     }
   };
 
@@ -784,7 +803,7 @@ export default function RewardsPage() {
             <Button type="button" variant="glass" onClick={() => setIsDeductModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="red">
+            <Button type="submit" variant="red" isLoading={isSubmittingDeduct}>
               Apply Penalty
             </Button>
           </div>
@@ -842,7 +861,7 @@ export default function RewardsPage() {
             <Button type="button" variant="glass" onClick={() => setIsRewardModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="red">
+            <Button type="submit" variant="red" isLoading={isSubmittingReward}>
               Award XP
             </Button>
           </div>
@@ -904,7 +923,7 @@ export default function RewardsPage() {
             <Button type="button" variant="glass" onClick={() => setIsAddPerkModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="red">
+            <Button type="submit" variant="red" isLoading={isSubmittingPerk}>
               Add to Store
             </Button>
           </div>

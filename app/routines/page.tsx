@@ -37,6 +37,7 @@ export default function RoutinesPage() {
   const [category, setCategory] = useState("Morning");
   const [targetDays, setTargetDays] = useState("DAILY");
   const [targetDurationMinutes, setTargetDurationMinutes] = useState(30);
+  const [isCreatingRoutine, setIsCreatingRoutine] = useState(false);
 
   // Delete state
   const [routineToDelete, setRoutineToDelete] = useState<any | null>(null);
@@ -208,8 +209,9 @@ export default function RoutinesPage() {
 
   const handleCreateRoutine = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    if (!name || isCreatingRoutine) return;
 
+    setIsCreatingRoutine(true);
     try {
       const res = await fetch("/api/routines", {
         method: "POST",
@@ -230,6 +232,8 @@ export default function RoutinesPage() {
       }
     } catch (err) {
       console.error("Create routine error:", err);
+    } finally {
+      setIsCreatingRoutine(false);
     }
   };
 
@@ -649,7 +653,7 @@ export default function RoutinesPage() {
             >
               Cancel
             </Button>
-            <Button variant="red" size="sm" type="submit">
+            <Button variant="red" size="sm" type="submit" isLoading={isCreatingRoutine}>
               Save Routine
             </Button>
           </div>
