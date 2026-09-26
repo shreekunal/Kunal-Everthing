@@ -20,21 +20,21 @@ export async function authenticateMcpRequest(request: Request) {
     ? authHeader.slice(7).trim()
     : apiKeyHeader || queryApiKey;
 
-  const configuredApiKey = process.env.EVERYTHING_MCP_API_KEY || process.env.MCP_API_KEY;
+  // 1. Check if authenticated browser session cookie exists
+  const sessionUser = await getCurrentUser().catch(() => null);
+  if (sessionUser) {
+    return { authenticated: true, user: sessionUser, error: null };
+  }
 
+  // 2. For external API / Claude calls, enforce configured API key
+  const configuredApiKey = process.env.EVERYTHING_MCP_API_KEY || process.env.MCP_API_KEY;
   if (configuredApiKey) {
     if (!token || token !== configuredApiKey) {
       return { authenticated: false, error: "Invalid or missing MCP API key", user: null };
     }
   }
 
-  // Check if session cookie exists
-  const sessionUser = await getCurrentUser().catch(() => null);
-  if (sessionUser) {
-    return { authenticated: true, user: sessionUser, error: null };
-  }
-
-  // Default to primary user (Kunal)
+  // 3. Resolve default primary user (Kunal)
   const defaultUser = await getOrCreateDefaultUser();
   return { authenticated: true, user: defaultUser, error: null };
 }
