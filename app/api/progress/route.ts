@@ -5,6 +5,38 @@ import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { awardPoints } from "@/lib/rewards";
 
+function calculateElapsedMinutes(startStr?: string | null, endStr?: string | null): number | null {
+  if (!startStr || !endStr) return null;
+  const [startH, startM] = startStr.split(":").map(Number);
+  const [endH, endM] = endStr.split(":").map(Number);
+  if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return null;
+  let startTotal = startH * 60 + startM;
+  let endTotal = endH * 60 + endM;
+  if (endTotal < startTotal) {
+    // Crosses midnight, add 24 hours
+    endTotal += 24 * 60;
+  }
+  return Math.max(1, endTotal - startTotal);
+}
+
+function getWindowFromTime(timeStr?: string | null, fallbackDate?: Date): string {
+  let hour = 10;
+  if (timeStr && timeStr.includes(":")) {
+    const parsedH = parseInt(timeStr.split(":")[0], 10);
+    if (!isNaN(parsedH)) hour = parsedH;
+  } else if (fallbackDate) {
+    // Offset for Asia/Kolkata +5:30 if needed or local hour
+    hour = new Date(fallbackDate).getHours();
+  }
+
+  if (hour >= 5 && hour < 9) return "EARLY_MORNING";
+  if (hour >= 9 && hour < 12) return "MORNING";
+  if (hour >= 12 && hour < 17) return "AFTERNOON";
+  if (hour >= 17 && hour < 21) return "EVENING";
+  if (hour >= 21 || hour < 1) return "NIGHT";
+  return "LATE_NIGHT";
+}
+
 export async function GET(request: Request) {
   try {
     let user = await getCurrentUser();
@@ -26,15 +58,30 @@ export async function GET(request: Request) {
     const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
 
-    // All sessions this month
-    const monthSessions = await prisma.workSession.findMany({
+    // All sessions this month + last 30 days for cognitive window intelligence
+    const past30DaysStart = format(subDays(today, 30), "yyyy-MM-dd");
+    const allRecentSessions = await prisma.workSession.findMany({
       where: {
         userId: user.id,
-        date: { gte: monthStart, lte: monthEnd },
+        date: { gte: past30DaysStart },
+      },
+      include: {
+        topic: {
+          include: {
+            milestone: {
+              include: {
+                aim: {
+                  select: { id: true, title: true },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
+    const monthSessions = allRecentSessions.filter((s) => s.date >= monthStart && s.date <= monthEnd);
     const todaySessions = monthSessions.filter((s) => s.date === todayStr);
     const weekSessions = monthSessions.filter((s) => s.date >= weekStart && s.date <= weekEnd);
 
@@ -64,7 +111,7 @@ export async function GET(request: Request) {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const dStr = format(subDays(today, 6 - i), "yyyy-MM-dd");
       const dayLabel = format(subDays(today, 6 - i), "EEE");
-      const dSessions = monthSessions.filter((s) => s.date === dStr);
+      const dSessions = allRecentSessions.filter((s) => s.date === dStr);
       const work = dSessions
         .filter((s) => s.type === "WORK")
         .reduce((a, b) => a + b.durationMinutes, 0);
@@ -85,6 +132,55 @@ export async function GET(request: Request) {
       };
     });
 
+    // Peak Cognitive Window Discovery Calculation
+    const studySessionsForCognitive = allRecentSessions.filter((s) => s.type === "STUDY");
+    const windowDefinitions = [
+      { id: "EARLY_MORNING", label: "Early Morning", range: "05:00 - 09:00", icon: "Sunrise", peakTag: "Deep Focus Flow" },
+      { id: "MORNING", label: "Morning", range: "09:00 - 12:00", icon: "Sun", peakTag: "High Energy Zone" },
+      { id: "AFTERNOON", label: "Afternoon", range: "12:00 - 17:00", icon: "Coffee", peakTag: "Analytical Focus" },
+      { id: "EVENING", label: "Evening", range: "17:00 - 21:00", icon: "Sunset", peakTag: "Sprint / Problem Solving" },
+      { id: "NIGHT", label: "Night", range: "21:00 - 01:00", icon: "Moon", peakTag: "Quiet Consolidation" },
+      { id: "LATE_NIGHT", label: "Late Night", range: "01:00 - 05:00", icon: "Sparkles", peakTag: "Silent Grinding" },
+    ];
+
+    const windowStats = windowDefinitions.map((win) => {
+      const matching = studySessionsForCognitive.filter((s) => {
+        const wId = getWindowFromTime(s.startTime, s.createdAt);
+        return wId === win.id;
+      });
+
+      const totalMins = matching.reduce((acc, s) => acc + s.durationMinutes, 0);
+      const scoredSessions = matching.filter((s) => s.focusScore && s.focusScore > 0);
+      const avgFocus = scoredSessions.length > 0
+        ? Number((scoredSessions.reduce((acc, s) => acc + (s.focusScore || 0), 0) / scoredSessions.length).toFixed(1))
+        : null;
+
+      const efficiencySessions = matching.filter((s) => s.efficiencyPercent && s.efficiencyPercent > 0);
+      const avgEfficiency = efficiencySessions.length > 0
+        ? Math.round(efficiencySessions.reduce((acc, s) => acc + (s.efficiencyPercent || 0), 0) / efficiencySessions.length)
+        : null;
+
+      // Composite score for ranking prime time
+      const compositeRank = matching.length > 0
+        ? (avgFocus ? avgFocus / 5 : 0.6) * 60 + (avgEfficiency ? avgEfficiency / 100 : 0.7) * 40 + Math.min(20, totalMins / 30)
+        : 0;
+
+      return {
+        ...win,
+        sessionCount: matching.length,
+        totalStudyMins: totalMins,
+        studyHours: Number((totalMins / 60).toFixed(1)),
+        avgFocusScore: avgFocus,
+        avgEfficiencyPercent: avgEfficiency,
+        compositeRank,
+      };
+    });
+
+    // Identify Biological Prime Time window
+    const activeWindows = windowStats.filter((w) => w.sessionCount > 0);
+    activeWindows.sort((a, b) => b.compositeRank - a.compositeRank);
+    const primeWindow = activeWindows.length > 0 ? activeWindows[0] : null;
+
     return NextResponse.json({
       today: {
         workMinutes: todayWorkMins,
@@ -99,7 +195,12 @@ export async function GET(request: Request) {
         totalMinutes: weekWorkMins + weekStudyMins + weekPersonalMins,
       },
       last7Days,
-      recentSessions: monthSessions.filter((s) => s.type === "STUDY").slice(0, 20),
+      cognitiveWindows: {
+        windows: windowStats,
+        primeWindow,
+        totalSessionsAnalyzed: studySessionsForCognitive.length,
+      },
+      recentSessions: allRecentSessions.filter((s) => s.type === "STUDY").slice(0, 25),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -119,7 +220,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await request.json();
-    const { project, durationMinutes, type, date, notes } = body;
+    const {
+      project,
+      durationMinutes,
+      startTime,
+      endTime,
+      focusScore,
+      intention,
+      reflection,
+      topicId,
+      type,
+      date,
+      notes,
+    } = body;
 
     if (!project || !durationMinutes) {
       return NextResponse.json(
@@ -129,30 +242,60 @@ export async function POST(request: Request) {
     }
 
     const mins = parseInt(durationMinutes, 10);
+    const elapsedMins = calculateElapsedMinutes(startTime, endTime);
+    let efficiencyPct: number | null = null;
+    if (elapsedMins && elapsedMins > 0) {
+      efficiencyPct = Number(Math.min(100, Math.max(10, (mins / elapsedMins) * 100)).toFixed(1));
+    }
+
     const session = await prisma.workSession.create({
       data: {
         userId: user.id,
-        project,
+        project: project.trim(),
         durationMinutes: mins,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        elapsedMinutes: elapsedMins || null,
+        efficiencyPercent: efficiencyPct || null,
+        focusScore: focusScore ? Number(focusScore) : null,
+        intention: intention?.trim() || null,
+        reflection: reflection?.trim() || null,
+        topicId: topicId || null,
         type: type || "STUDY",
         date: date || format(new Date(), "yyyy-MM-dd"),
         notes: notes || null,
       },
+      include: {
+        topic: {
+          include: {
+            milestone: {
+              include: {
+                aim: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
-    // Award 1 XP per 5 minutes of focused study (minimum 2 XP)
-    const earnedXP = Math.max(2, Math.floor(mins / 5));
+    // Base XP: 1 XP per 5 minutes
+    let earnedXP = Math.max(2, Math.floor(mins / 5));
+    // Focus Bonus XP if user achieved high flow rating
+    if (focusScore && focusScore >= 4) {
+      earnedXP += focusScore === 5 ? 10 : 5;
+    }
+
     await awardPoints({
       userId: user.id,
       points: earnedXP,
       type: "WORK_SESSION_LOGGED",
       title: `Study Session: ${project} (${mins}m)`,
-      reason: `Completed ${mins} minutes of ${type || "STUDY"} focus session`,
+      reason: `Completed ${mins} minutes of ${type || "STUDY"} focus session${focusScore ? ` [⭐ Flow: ${focusScore}/5]` : ""}`,
       category: "PRODUCTIVITY",
       referenceId: session.id,
     });
 
-    return NextResponse.json({ session, earnedXP }, { status: 201 });
+    return NextResponse.json({ session, earnedXP, elapsedMinutes: elapsedMins, efficiencyPercent: efficiencyPct }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

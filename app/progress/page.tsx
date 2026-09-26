@@ -10,10 +10,8 @@ import {
   Plus,
   TrendingUp,
   Target,
-  Share2,
   Download,
   BookOpen,
-  Award,
   Zap,
   X,
   Sparkles,
@@ -24,8 +22,19 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
-  Calendar,
-  History,
+  Sun,
+  Sunrise,
+  Sunset,
+  Moon,
+  Coffee,
+  Star,
+  ChevronDown,
+  ChevronRight,
+  Flame,
+  Check,
+  Compass,
+  Layers,
+  Activity,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import {
@@ -42,37 +51,68 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { toPng } from "html-to-image";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import clsx from "clsx";
+
+// Helper for elapsed minutes calculation
+function computeElapsed(start?: string, end?: string): number | null {
+  if (!start || !end || !start.includes(":") || !end.includes(":")) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null;
+  let startTotal = sh * 60 + sm;
+  let endTotal = eh * 60 + em;
+  if (endTotal < startTotal) endTotal += 24 * 60;
+  return Math.max(1, endTotal - startTotal);
+}
 
 export default function ProgressPage() {
   const [data, setData] = useState<any>(null);
+  const [aimsData, setAimsData] = useState<any[]>([]);
   const [partner, setPartner] = useState<{ name: string; nickname: string; phone: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-  // Manual study session entry
+  // Active View Tab on Mobile for Sleek Navigation
+  const [activeTab, setActiveTab] = useState<"LOG" | "AIMS" | "ANALYTICS">("LOG");
+
+  // Study session entry (always logs for today)
   const [manualProject, setManualProject] = useState("");
-  const [manualDuration, setManualDuration] = useState("45");
+  const [manualDuration, setManualDuration] = useState("60");
   const [manualCategory, setManualCategory] = useState("Deep Study");
-  const [manualDate, setManualDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [showCustomDate, setShowCustomDate] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isLoggingStudy, setIsLoggingStudy] = useState(false);
 
-  // Study Goal State (Daily & Weekly)
+  // From/To Time, Focus Score, Intention, Reflection, Topic Linking
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
+  const [focusScore, setFocusScore] = useState<number>(5);
+  const [intention, setIntention] = useState<string>("");
+  const [reflection, setReflection] = useState<string>("");
+  const [selectedTopicId, setSelectedTopicId] = useState<string>("");
+  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
+
+  // Study Goal State
   const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
   const [weeklyTargetHours, setWeeklyTargetHours] = useState<number>(21);
   const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
-  const [goalModeTab, setGoalModeTab] = useState<"DAILY" | "WEEKLY">("DAILY");
   const [tempDailyInput, setTempDailyInput] = useState<string>("3");
-  const [tempWeeklyInput, setTempWeeklyInput] = useState<string>("21");
+
+  // Aim Manager State
+  const [isAddingAim, setIsAddingAim] = useState(false);
+  const [newAimTitle, setNewAimTitle] = useState("");
+  const [newAimTargetDate, setNewAimTargetDate] = useState("");
+  const [newAimMilestonesInput, setNewAimMilestonesInput] = useState("");
+  const [isSavingAim, setIsSavingAim] = useState(false);
+  const [expandedAims, setExpandedAims] = useState<Record<string, boolean>>({});
+  const [addingTopicMilestoneId, setAddingTopicMilestoneId] = useState<string | null>(null);
+  const [newTopicTitle, setNewTopicTitle] = useState("");
+  const [showAllCognitiveWindows, setShowAllCognitiveWindows] = useState(false);
 
   // Share Modal & Image Export states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -82,13 +122,26 @@ export default function ProgressPage() {
 
   const fetchProgress = async () => {
     try {
-      const [progressRes, relRes] = await Promise.all([
+      const [progressRes, aimsRes, relRes] = await Promise.all([
         fetch("/api/progress"),
+        fetch("/api/aims"),
         fetch("/api/relationship"),
       ]);
       if (progressRes.ok) {
         const json = await progressRes.json();
         setData(json);
+      }
+      if (aimsRes.ok) {
+        const aimsJson = await aimsRes.json();
+        setAimsData(aimsJson.aims || []);
+        if (aimsJson.aims?.length > 0) {
+          setExpandedAims((prev) => {
+            if (Object.keys(prev).length === 0) {
+              return { [aimsJson.aims[0].id]: true };
+            }
+            return prev;
+          });
+        }
       }
       if (relRes.ok) {
         const relJson = await relRes.json();
@@ -114,7 +167,6 @@ export default function ProgressPage() {
       if (!isNaN(val) && val > 0) weekly = val;
     }
     setWeeklyTargetHours(weekly);
-    setTempWeeklyInput(weekly.toString());
 
     let daily = Math.max(1, Math.round(weekly / 7));
     if (storedDaily) {
@@ -137,18 +189,6 @@ export default function ProgressPage() {
     haptics.success();
   };
 
-  const handleSaveWeeklyGoal = (newHours: number) => {
-    const val = Math.max(1, Math.min(168, Math.round(newHours)));
-    setWeeklyTargetHours(val);
-    setTempWeeklyInput(val.toString());
-    if (typeof window !== "undefined") {
-      localStorage.setItem("everthing_weekly_study_goal_hours", val.toString());
-      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
-    }
-    setIsEditingGoal(false);
-    haptics.success();
-  };
-
   useEffect(() => {
     setMounted(true);
     fetchProgress();
@@ -160,6 +200,13 @@ export default function ProgressPage() {
       window.removeEventListener("storage", loadTargetHours);
     };
   }, []);
+
+  // Calculate live elapsed and efficiency in the form
+  const liveElapsedMinutes = computeElapsed(startTime, endTime);
+  const liveEfficiency =
+    liveElapsedMinutes && liveElapsedMinutes > 0
+      ? Math.min(100, Math.round((Number(manualDuration) / liveElapsedMinutes) * 100))
+      : null;
 
   const handleManualLog = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,13 +220,26 @@ export default function ProgressPage() {
         body: JSON.stringify({
           project: manualProject.trim(),
           durationMinutes: Number(manualDuration),
+          startTime: startTime || null,
+          endTime: endTime || null,
+          focusScore: focusScore || 5,
+          intention: intention.trim() || null,
+          reflection: reflection.trim() || null,
+          topicId: selectedTopicId || null,
           type: "STUDY",
           notes: manualCategory,
-          date: manualDate,
+          date: format(new Date(), "yyyy-MM-dd"),
         }),
       });
       haptics.success();
       setManualProject("");
+      setStartTime("");
+      setEndTime("");
+      setIntention("");
+      setReflection("");
+      setSelectedTopicId("");
+      setFocusScore(5);
+      setShowAdvancedInputs(false);
       fetchProgress();
     } catch (err) {
       console.error("Manual study log error:", err);
@@ -194,8 +254,11 @@ export default function ProgressPage() {
     setManualProject(session.project || "");
     if (session.notes) setManualCategory(session.notes);
     if (session.durationMinutes) setManualDuration(String(session.durationMinutes));
-    // Scroll form into view
-    window.scrollTo({ top: 400, behavior: "smooth" });
+    if (session.startTime) setStartTime(session.startTime);
+    if (session.endTime) setEndTime(session.endTime);
+    if (session.focusScore) setFocusScore(session.focusScore);
+    if (session.topicId) setSelectedTopicId(session.topicId);
+    setActiveTab("LOG");
   };
 
   const handleDeleteSession = async (id: string) => {
@@ -217,17 +280,125 @@ export default function ProgressPage() {
     }
   };
 
-  const { today, thisWeek, last7Days, recentSessions } = data || {};
+  // Aim Mastery Update Handler
+  const handleUpdateMastery = async (topicId: string, currentMastery: string) => {
+    const cycleMap: Record<string, string> = {
+      NOT_STARTED: "IN_PROGRESS",
+      IN_PROGRESS: "CONFIDENT",
+      CONFIDENT: "MASTERED",
+      MASTERED: "NOT_STARTED",
+    };
+    const nextMastery = cycleMap[currentMastery] || "IN_PROGRESS";
+    haptics.selection();
 
-  // Extract unique subjects from recent study sessions for 1-tap quick suggestions
+    // Optimistic update
+    setAimsData((prevAims) =>
+      prevAims.map((aim) => ({
+        ...aim,
+        milestones: aim.milestones.map((m: any) => ({
+          ...m,
+          topics: m.topics.map((t: any) =>
+            t.id === topicId ? { ...t, mastery: nextMastery } : t
+          ),
+        })),
+      }))
+    );
+
+    try {
+      await fetch("/api/aims", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_TOPIC_MASTERY",
+          topicId,
+          mastery: nextMastery,
+        }),
+      });
+      fetchProgress();
+    } catch (err) {
+      console.error("Failed to update topic mastery:", err);
+      fetchProgress();
+    }
+  };
+
+  // Create Aim Handler
+  const handleCreateAim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAimTitle.trim() || isSavingAim) return;
+
+    setIsSavingAim(true);
+    haptics.impactMedium();
+    try {
+      const milestones = newAimMilestonesInput
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((title) => ({
+          title,
+          topics: [{ title: `${title} Fundamentals` }],
+        }));
+
+      const res = await fetch("/api/aims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newAimTitle.trim(),
+          targetDate: newAimTargetDate || null,
+          milestones: milestones.length > 0 ? milestones : undefined,
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setNewAimTitle("");
+        setNewAimTargetDate("");
+        setNewAimMilestonesInput("");
+        setIsAddingAim(false);
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to create aim:", err);
+      haptics.error();
+    } finally {
+      setIsSavingAim(false);
+    }
+  };
+
+  // Create Topic Handler
+  const handleCreateTopic = async (milestoneId: string) => {
+    if (!newTopicTitle.trim()) return;
+    haptics.selection();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TOPIC",
+          milestoneId,
+          title: newTopicTitle.trim(),
+        }),
+      });
+      if (res.ok) {
+        setNewTopicTitle("");
+        setAddingTopicMilestoneId(null);
+        haptics.success();
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to create topic:", err);
+    }
+  };
+
+  const { today, thisWeek, last7Days, cognitiveWindows, recentSessions } = data || {};
+  const primeWindow = cognitiveWindows?.primeWindow;
+
+  // Quick subjects from recent study sessions
   const recentSubjectChips = Array.from(
     new Set(
       (recentSessions || [])
         .map((s: any) => s.project?.trim())
         .filter(Boolean)
     )
-  ).slice(0, 5) as string[];
-
+  ).slice(0, 4) as string[];
   const defaultSubjectChips = ["Algorithms", "System Design", "Core CS", "Development"];
   const displaySubjectChips = recentSubjectChips.length > 0 ? recentSubjectChips : defaultSubjectChips;
 
@@ -236,24 +407,15 @@ export default function ProgressPage() {
   const weekStudyMinutes = thisWeek?.studyMinutes || 0;
   const dailyTargetMinutes = dailyTargetHours * 60;
   const weeklyTargetMinutes = weeklyTargetHours * 60;
-  const dailyProgressPercent = Math.min(
-    100,
-    Math.round((todayStudyMinutes / dailyTargetMinutes) * 100)
-  );
-  const weekProgressPercent = Math.min(
-    100,
-    Math.round((weekStudyMinutes / weeklyTargetMinutes) * 100)
-  );
+  const dailyProgressPercent = Math.min(100, Math.round((todayStudyMinutes / dailyTargetMinutes) * 100));
+  const weekProgressPercent = Math.min(100, Math.round((weekStudyMinutes / weeklyTargetMinutes) * 100));
   const remainingDailyMinutes = Math.max(0, dailyTargetMinutes - todayStudyMinutes);
-  const remainingWeeklyMinutes = Math.max(0, weeklyTargetMinutes - weekStudyMinutes);
   const todayEarnedXP = Math.floor(todayStudyMinutes / 5);
 
   const partnerLabel =
-    (partner?.name && partner.name.toLowerCase() !== "kunal"
-      ? partner.name
-      : partner?.nickname) || "Partner";
+    (partner?.name && partner.name.toLowerCase() !== "kunal" ? partner.name : partner?.nickname) || "Partner";
 
-  // Send Today's Study to Partner Handler (Native Android Share / WhatsApp / Web Share API)
+  // Share Card Generation Handler
   const handleSendToPartner = async () => {
     if (!shareCardRef.current) return;
     setIsExporting(true);
@@ -294,7 +456,6 @@ export default function ProgressPage() {
           haptics.success();
         }
       } else {
-        // Web platform: Try Web Share API first
         let shared = false;
         try {
           const res = await fetch(dataUrl);
@@ -315,7 +476,6 @@ export default function ProgressPage() {
         }
 
         if (!shared) {
-          // Direct WhatsApp web fallback + image download
           const link = document.createElement("a");
           link.download = fileName;
           link.href = dataUrl;
@@ -343,766 +503,833 @@ export default function ProgressPage() {
     }
   };
 
-  // Direct Image Download Handler
-  const handleDownloadImage = async () => {
-    if (!shareCardRef.current) return;
-    setIsExporting(true);
-    setShareStatus(null);
-    haptics.selection();
-
-    try {
-      const dataUrl = await toPng(shareCardRef.current, {
-        pixelRatio: 2.5,
-        cacheBust: true,
-        backgroundColor: "#09090b",
-      });
-
-      const dateStr = format(new Date(), "yyyy-MM-dd");
-      const fileName = `Everthing-study-${dateStr}.png`;
-
-      if (Capacitor.isNativePlatform()) {
-        const base64Data = dataUrl.split(",")[1];
-        let fileResult;
-        try {
-          fileResult = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Documents,
-          });
-        } catch {
-          fileResult = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Cache,
-          });
-        }
-
-        // Open native share sheet so user can choose to Save to Photos / Drive
-        try {
-          const canShare = await Share.canShare();
-          if (canShare.value) {
-            await Share.share({
-              title: "Today's Study Report • Everthing",
-              url: fileResult.uri,
-              dialogTitle: "Save Study Summary Image",
-            });
-          }
-        } catch { }
-
-        haptics.success();
-        setShareStatus({ text: `Image saved to device: ${fileName}` });
-      } else {
-        const link = document.createElement("a");
-        link.download = fileName;
-        link.href = dataUrl;
-        link.click();
-        haptics.success();
-        setShareStatus({ text: "Study image downloaded!" });
-      }
-    } catch (err: any) {
-      console.error("Failed to download image:", err);
-      haptics.error();
-      setShareStatus({ text: "Failed to export image.", error: true });
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-brand-red" />
-            Study & Focus Analytics
-          </h2>
-          <p className="text-xs text-zinc-400 font-mono mt-1">
-            Daily & weekly study telemetry, subject rollups, and session logging
-          </p>
+    <div className="space-y-4 pb-12 max-w-2xl mx-auto">
+      {/* Sleek Mobile Header */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center">
+            <GraduationCap className="w-4 h-4 text-brand-red" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white tracking-tight leading-none">
+              Study &amp; Focus
+            </h2>
+            <span className="text-[10px] text-zinc-500 font-mono">
+              {format(new Date(), "EEE, dd MMM")}
+            </span>
+          </div>
         </div>
 
-        <Button
-          variant="red"
-          size="sm"
+        <button
+          type="button"
           onClick={() => {
             haptics.selection();
             setShareStatus(null);
             setIsShareModalOpen(true);
           }}
-          className="flex items-center gap-2 shadow-glow-red self-start sm:self-auto py-2.5 px-4 font-semibold"
+          className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-rose-300 flex items-center gap-1.5 active:scale-95 transition-all"
         >
-          <Heart className="w-4 h-4 text-rose-300 fill-rose-500/30" />
-          <span>Send to {partnerLabel}</span>
-        </Button>
+          <Heart className="w-3.5 h-3.5 fill-rose-500/20 text-rose-400" />
+          <span className="text-[11px] font-semibold">{partnerLabel}</span>
+        </button>
       </div>
 
-      {/* Hero Metric Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card glow="red">
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
-            Today&apos;s Study Time
-          </span>
-          <p className="text-xl sm:text-2xl font-bold text-brand-red font-mono mt-1">
-            {formatDuration(todayStudyMinutes)}
-          </p>
-          <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            {todayStudyMinutes >= dailyTargetMinutes
-              ? `🎯 Daily Goal Met (${dailyTargetHours}h)!`
-              : `${formatDuration(remainingDailyMinutes)} left to ${dailyTargetHours}h goal`}
-          </span>
-        </Card>
-
-        <Card>
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
-            This Week Total
-          </span>
-          <p className="text-xl sm:text-2xl font-bold text-white font-mono mt-1">
-            {formatDuration(weekStudyMinutes)}
-          </p>
-          <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            {weekProgressPercent}% of {weeklyTargetHours}h target
-          </span>
-        </Card>
-
-        <Card>
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
-            Today&apos;s Sessions
-          </span>
-          <p className="text-xl sm:text-2xl font-bold text-white font-mono mt-1">
-            {todayStudySessions.length}
-          </p>
-          <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            Avg: {todayStudySessions.length > 0 ? Math.round(todayStudyMinutes / todayStudySessions.length) : 0}m / session
-          </span>
-        </Card>
-
-        <Card glow="red">
-          <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider block">
-            Study XP Yield
-          </span>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-400 font-mono mt-1">
-            +{todayEarnedXP} XP
-          </p>
-          <span className="text-[10px] text-zinc-400 font-mono mt-1 block truncate">
-            Feeds Companion & Karma
-          </span>
-        </Card>
-      </div>
-
-      {/* Study Target Progress (Daily & Weekly Customizable Goals) */}
-      <Card glow="red" className="p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Target className="w-4 h-4 text-brand-red shrink-0" />
-            <span className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-              Study Targets & Progress
+      {/* Hero Stats Pill Banner */}
+      <div className="p-3.5 rounded-2xl bg-zinc-950 border border-white/10 shadow-lg relative overflow-hidden">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <span className="text-[9px] font-mono uppercase text-zinc-500 tracking-wider block">
+              Today&apos;s Focus Time
             </span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-2xl font-bold font-mono text-white tracking-tight">
+                {formatDuration(todayStudyMinutes)}
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400 font-semibold">
+                +{todayEarnedXP} XP
+              </span>
+            </div>
+          </div>
+
+          <div className="text-right">
             <button
               type="button"
               onClick={() => {
-                haptics.impactLight();
+                haptics.selection();
                 setIsEditingGoal(!isEditingGoal);
               }}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-brand-red/50 text-[10px] font-mono text-zinc-300 hover:text-white flex items-center gap-1 transition-all active:scale-95"
-              title="Configure Daily & Weekly Study Goals"
+              className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 justify-end"
             >
+              <span>Goal: {dailyTargetHours}h</span>
               <Pencil className="w-2.5 h-2.5 text-brand-red" />
-              <span>{isEditingGoal ? "Close Editor" : "Set Goals"}</span>
             </button>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] font-mono">
-            <span className={clsx("font-bold", todayStudyMinutes >= dailyTargetMinutes ? "text-emerald-400" : "text-brand-red")}>
-              Today: {dailyProgressPercent}%
-            </span>
-            <span className="text-zinc-600">|</span>
-            <span className={clsx("font-bold", weekStudyMinutes >= weeklyTargetMinutes ? "text-emerald-400" : "text-zinc-300")}>
-              Week: {weekProgressPercent}%
+            <span className="text-xs font-bold font-mono text-brand-red block mt-0.5">
+              {dailyProgressPercent}%
             </span>
           </div>
         </div>
 
-        {/* Inline Goal Customizer */}
-        {isEditingGoal && (
-          <div className="my-3 p-3.5 rounded-2xl bg-black/80 border border-brand-red/30 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
-            {/* Mode Switcher: Daily vs Weekly */}
-            <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
-              <div className="flex items-center gap-1.5 p-0.5 rounded-xl bg-white/[0.04] border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.selection();
-                    setGoalModeTab("DAILY");
-                  }}
-                  className={clsx(
-                    "px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all min-h-[36px]",
-                    goalModeTab === "DAILY"
-                      ? "bg-brand-red text-white shadow-glow-red"
-                      : "text-zinc-400 hover:text-white"
-                  )}
-                >
-                  Daily Goal ({dailyTargetHours}h/d)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.selection();
-                    setGoalModeTab("WEEKLY");
-                  }}
-                  className={clsx(
-                    "px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all min-h-[36px]",
-                    goalModeTab === "WEEKLY"
-                      ? "bg-brand-red text-white shadow-glow-red"
-                      : "text-zinc-400 hover:text-white"
-                  )}
-                >
-                  Weekly Goal ({weeklyTargetHours}h/w)
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsEditingGoal(false)}
-                className="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-white/10"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {goalModeTab === "DAILY" ? (
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-2">
-                  Select Daily Study Target Hours (shown on Home Tile):
-                </span>
-                {/* Presets Chips - touch friendly */}
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-3">
-                  {[1, 2, 3, 4, 5, 6, 8].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handleSaveDailyGoal(preset)}
-                      className={clsx(
-                        "h-11 rounded-xl text-xs font-mono font-bold border flex items-center justify-center transition-all active:scale-95",
-                        dailyTargetHours === preset
-                          ? "bg-brand-red text-white border-brand-red shadow-glow-red"
-                          : "bg-white/[0.04] text-zinc-300 border-white/10 hover:border-white/20 hover:text-white"
-                      )}
-                    >
-                      {preset}h/day
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom Daily Hours Input */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const num = Number(tempDailyInput);
-                    if (!isNaN(num) && num > 0) {
-                      handleSaveDailyGoal(num);
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      min="1"
-                      max="24"
-                      value={tempDailyInput}
-                      onChange={(e) => setTempDailyInput(e.target.value)}
-                      placeholder="Custom daily hours"
-                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono h-11"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
-                      Hours/day
-                    </span>
-                  </div>
-                  <Button variant="red" size="sm" type="submit" className="h-11 px-4 text-xs font-semibold">
-                    Save Daily Goal
-                  </Button>
-                </form>
-              </div>
-            ) : (
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-2">
-                  Select Weekly Study Target Hours:
-                </span>
-                {/* Presets Chips - touch friendly */}
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-3">
-                  {[10, 15, 20, 25, 30, 40].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handleSaveWeeklyGoal(preset)}
-                      className={clsx(
-                        "h-11 rounded-xl text-xs font-mono font-bold border flex items-center justify-center transition-all active:scale-95",
-                        weeklyTargetHours === preset
-                          ? "bg-brand-red text-white border-brand-red shadow-glow-red"
-                          : "bg-white/[0.04] text-zinc-300 border-white/10 hover:border-white/20 hover:text-white"
-                      )}
-                    >
-                      {preset}h/wk
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom Weekly Hours Input */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const num = Number(tempWeeklyInput);
-                    if (!isNaN(num) && num > 0) {
-                      handleSaveWeeklyGoal(num);
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <div className="relative flex-1">
-                    <input
-                      type="number"
-                      min="1"
-                      max="168"
-                      value={tempWeeklyInput}
-                      onChange={(e) => setTempWeeklyInput(e.target.value)}
-                      placeholder="Custom weekly hours"
-                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono h-11"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
-                      Hours/week
-                    </span>
-                  </div>
-                  <Button variant="red" size="sm" type="submit" className="h-11 px-4 text-xs font-semibold">
-                    Save Weekly Goal
-                  </Button>
-                </form>
-              </div>
+        {/* Minimal Progress Bar */}
+        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className={clsx(
+              "h-full rounded-full transition-all duration-500",
+              todayStudyMinutes >= dailyTargetMinutes
+                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                : "bg-brand-red shadow-glow-red"
             )}
+            style={{ width: `${Math.max(3, dailyProgressPercent)}%` }}
+          />
+        </div>
+
+        {/* Inline Goal Quick Selector */}
+        {isEditingGoal && (
+          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5 animate-in fade-in duration-150">
+            <span className="text-[9px] font-mono text-zinc-400 uppercase">Target:</span>
+            <div className="flex items-center gap-1">
+              {[2, 3, 4, 5, 6].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => handleSaveDailyGoal(h)}
+                  className={clsx(
+                    "px-2 py-0.5 rounded-lg text-[10px] font-mono border transition-all",
+                    dailyTargetHours === h
+                      ? "bg-brand-red text-white border-brand-red font-bold"
+                      : "bg-white/[0.03] text-zinc-400 border-white/10"
+                  )}
+                >
+                  {h}h
+                </button>
+              ))}
+            </div>
           </div>
         )}
+      </div>
 
-        {/* Dual Progress Bars: Daily & Weekly */}
-        <div className="space-y-3 pt-1">
-          {/* Daily Track */}
-          <div>
-            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
-              <span className="text-zinc-400">
-                Daily Goal: <strong className="text-white">{formatDuration(todayStudyMinutes)}</strong> / {dailyTargetHours}h
-              </span>
-              <span className={clsx("font-bold", todayStudyMinutes >= dailyTargetMinutes ? "text-emerald-400" : "text-brand-red")}>
-                {todayStudyMinutes >= dailyTargetMinutes ? "🎯 Done!" : `${formatDuration(remainingDailyMinutes)} left`}
-              </span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className={clsx(
-                  "h-full rounded-full transition-all duration-500",
-                  todayStudyMinutes >= dailyTargetMinutes ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-brand-red shadow-glow-red"
-                )}
-                style={{ width: `${Math.max(3, dailyProgressPercent)}%` }}
-              />
-            </div>
+      {/* Biological Prime Time Pill */}
+      {primeWindow && (
+        <div className="p-2.5 px-3 rounded-xl bg-gradient-to-r from-red-950/30 via-zinc-900/40 to-black border border-red-500/20 flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flame className="w-3.5 h-3.5 text-brand-red shrink-0 fill-rose-500/30" />
+            <span className="text-[11px] text-zinc-300 truncate">
+              Prime Zone: <strong className="text-white">{primeWindow.label}</strong> ({primeWindow.range})
+            </span>
           </div>
-
-          {/* Weekly Track */}
-          <div>
-            <div className="flex items-center justify-between text-[11px] font-mono mb-1">
-              <span className="text-zinc-400">
-                Weekly Goal: <strong className="text-white">{formatDuration(weekStudyMinutes)}</strong> / {weeklyTargetHours}h
-              </span>
-              <span className={clsx("font-bold", weekStudyMinutes >= weeklyTargetMinutes ? "text-emerald-400" : "text-zinc-400")}>
-                {weekStudyMinutes >= weeklyTargetMinutes ? "🎯 Smashed!" : `${formatDuration(remainingWeeklyMinutes)} left`}
-              </span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className={clsx(
-                  "h-full rounded-full transition-all duration-500",
-                  weekStudyMinutes >= weeklyTargetMinutes ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-gradient-to-r from-red-600 to-rose-500"
-                )}
-                style={{ width: `${Math.max(3, weekProgressPercent)}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 mt-2.5 pt-2 border-t border-white/5">
-          <span>
-            {todayStudyMinutes >= dailyTargetMinutes
-              ? "✨ Daily target achieved — keep crushing it!"
-              : `${formatDuration(remainingDailyMinutes)} needed today to reach ${dailyTargetHours}h`}
-          </span>
-          <span>
-            Pace: {Math.round(((weekStudyMinutes / (new Date().getDay() || 7)) / 60) * 10) / 10}h / day
+          <span className="text-[10px] text-amber-400 font-bold shrink-0 flex items-center gap-0.5">
+            <Star className="w-2.5 h-2.5 fill-amber-400" />
+            {primeWindow.avgFocusScore || 5.0} Flow
           </span>
         </div>
-      </Card>
+      )}
 
-      {/* Grid: Manual Log + 7-Day Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Manual Activity Entry */}
-        <Card className="lg:col-span-1 flex flex-col justify-between">
-          <div>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-brand-red" />
-                <CardTitle>Log Study Session</CardTitle>
+      {/* Mobile-First Segmented Tabs */}
+      <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-950 border border-white/10 text-xs font-mono">
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setActiveTab("LOG");
+          }}
+          className={clsx(
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            activeTab === "LOG"
+              ? "bg-brand-red text-white shadow-glow-red"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Log Focus</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setActiveTab("AIMS");
+          }}
+          className={clsx(
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            activeTab === "AIMS"
+              ? "bg-brand-red text-white shadow-glow-red"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Aims ({aimsData.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setActiveTab("ANALYTICS");
+          }}
+          className={clsx(
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            activeTab === "ANALYTICS"
+              ? "bg-brand-red text-white shadow-glow-red"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          <span>Analytics</span>
+        </button>
+      </div>
+
+      {/* TAB 1: Minimalist Study Logger */}
+      {activeTab === "LOG" && (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          <form onSubmit={handleManualLog} className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3 shadow-md">
+            {/* Subject Input with Quick Chips */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-mono text-zinc-400 uppercase font-bold">
+                  Subject / Focus Area
+                </label>
+                {selectedTopicId && (
+                  <span className="text-[9px] font-mono text-cyan-400">Linked to Aim Topic</span>
+                )}
               </div>
-            </CardHeader>
 
-            <form onSubmit={handleManualLog} className="space-y-3.5">
-              {/* Date Selection Options */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-mono text-zinc-400 uppercase">
-                    Session Date
-                  </label>
-                  <span className="text-[10px] font-mono text-zinc-500">
-                    {manualDate === format(new Date(), "yyyy-MM-dd")
-                      ? "Today"
-                      : manualDate === format(subDays(new Date(), 1), "yyyy-MM-dd")
-                      ? "Yesterday"
-                      : manualDate}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5 mb-2">
-                  {[
-                    { label: "Today", date: format(new Date(), "yyyy-MM-dd") },
-                    { label: "Yesterday", date: format(subDays(new Date(), 1), "yyyy-MM-dd") },
-                    { label: "2d Ago", date: format(subDays(new Date(), 2), "yyyy-MM-dd") },
-                  ].map((p) => {
-                    const isSelected = manualDate === p.date && !showCustomDate;
-                    return (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => {
-                          haptics.selection();
-                          setManualDate(p.date);
-                          setShowCustomDate(false);
-                        }}
-                        className={clsx(
-                          "py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center font-medium",
-                          isSelected
-                            ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                            : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
-                        )}
-                      >
-                        {p.label}
-                      </button>
-                    );
-                  })}
+              {/* Quick Chips */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {displaySubjectChips.map((subj) => (
                   <button
+                    key={subj}
                     type="button"
                     onClick={() => {
                       haptics.selection();
-                      setShowCustomDate(!showCustomDate);
+                      setManualProject(subj);
                     }}
                     className={clsx(
-                      "py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex items-center justify-center gap-1",
-                      showCustomDate || (manualDate !== format(new Date(), "yyyy-MM-dd") && manualDate !== format(subDays(new Date(), 1), "yyyy-MM-dd") && manualDate !== format(subDays(new Date(), 2), "yyyy-MM-dd"))
-                        ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                        : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                      "text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all active:scale-95",
+                      manualProject === subj
+                        ? "bg-brand-red/20 text-brand-red border-brand-red/40 font-bold"
+                        : "bg-white/[0.02] text-zinc-400 border-white/10 hover:border-white/20 hover:text-zinc-200"
                     )}
                   >
-                    <Calendar className="w-3 h-3" />
-                    <span>Pick</span>
+                    {subj}
                   </button>
-                </div>
-
-                {showCustomDate && (
-                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <input
-                      type="date"
-                      value={manualDate}
-                      max={format(new Date(), "yyyy-MM-dd")}
-                      onChange={(e) => setManualDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white/[0.05] border border-white/15 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
-                    />
-                  </div>
-                )}
+                ))}
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-mono text-zinc-400 uppercase">
-                    Subject / Focus Area *
-                  </label>
-                  {displaySubjectChips.length > 0 && (
-                    <span className="text-[9px] font-mono text-zinc-500">Quick Suggetions</span>
-                  )}
+              <input
+                type="text"
+                required
+                placeholder="e.g. Dynamic Programming, System Design, Physics"
+                value={manualProject}
+                onChange={(e) => setManualProject(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+              />
+            </div>
+
+            {/* From & To Time (Wall-Clock Inputs) */}
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase font-bold flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-brand-red" />
+                  Wall-Clock Time (From → To)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    const now = new Date();
+                    setEndTime(format(now, "HH:mm"));
+                    const prior = new Date(now.getTime() - Number(manualDuration) * 60000);
+                    setStartTime(format(prior, "HH:mm"));
+                  }}
+                  className="text-[9px] font-mono text-brand-red hover:underline"
+                >
+                  Fill Current
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Start (From)</span>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                  />
                 </div>
+                <div>
+                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">End (To)</span>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                  />
+                </div>
+              </div>
 
-                {/* Quick Subject Chips */}
-                {displaySubjectChips.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {displaySubjectChips.map((subj) => (
-                      <button
-                        key={subj}
-                        type="button"
-                        onClick={() => {
-                          haptics.selection();
-                          setManualProject(subj);
-                        }}
-                        className={clsx(
-                          "text-[10px] font-mono px-2 py-1 rounded-lg border transition-all active:scale-95",
-                          manualProject === subj
-                            ? "bg-brand-red/20 text-brand-red border-brand-red/40 font-bold"
-                            : "bg-white/[0.02] text-zinc-400 border-white/10 hover:border-white/25 hover:text-zinc-200"
-                        )}
-                      >
-                        {subj}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              {/* Real-time Efficiency Output */}
+              {liveElapsedMinutes && liveElapsedMinutes > 0 && (
+                <div className="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-white/5">
+                  <span className="text-zinc-400">
+                    Elapsed: <strong className="text-white">{formatDuration(liveElapsedMinutes)}</strong>
+                  </span>
+                  <span
+                    className={clsx(
+                      "font-bold",
+                      liveEfficiency && liveEfficiency >= 80
+                        ? "text-emerald-400"
+                        : liveEfficiency && liveEfficiency >= 60
+                        ? "text-amber-400"
+                        : "text-rose-400"
+                    )}
+                  >
+                    Efficiency: {liveEfficiency}%
+                  </span>
+                </div>
+              )}
+            </div>
 
+            {/* Pure Study Duration & Mode */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                  Pure Focus Mins *
+                </label>
                 <input
-                  type="text"
+                  type="number"
+                  min="1"
                   required
-                  placeholder="e.g. Algorithms, System Design, Physics"
-                  value={manualProject}
-                  onChange={(e) => setManualProject(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+                  value={manualDuration}
+                  onChange={(e) => setManualDuration(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
-                    Study Mode
-                  </label>
-                  <Select
-                    value={manualCategory}
-                    onValueChange={setManualCategory}
-                  >
-                    <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
-                      <SelectValue placeholder="Mode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Deep Study">Deep Study</SelectItem>
-                      <SelectItem value="Problem Practice">Problem Practice</SelectItem>
-                      <SelectItem value="Revision & Flashcards">Revision</SelectItem>
-                      <SelectItem value="Theory & Reading">Theory / Reading</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
-                    Duration (Mins)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={manualDuration}
-                    onChange={(e) => setManualDuration(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Pomodoro Chips */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="block text-[10px] font-mono text-zinc-500 uppercase">
-                    Quick Pomodoro Presets
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                    +{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP Yield
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[25, 45, 60, 90].map((mins) => {
-                    const isSelected = Number(manualDuration) === mins;
-                    const xpVal = Math.floor(mins / 5);
-                    return (
-                      <button
-                        key={mins}
-                        type="button"
-                        onClick={() => {
-                          haptics.selection();
-                          setManualDuration(String(mins));
-                        }}
-                        className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border text-center flex flex-col items-center justify-center ${isSelected
-                          ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                          : "bg-white/[0.03] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-                          }`}
-                      >
-                        <span>{mins}m</span>
-                        <span className={`text-[9px] ${isSelected ? "text-white/90" : "text-emerald-400"}`}>
-                          +{xpVal}XP
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                  Mode
+                </label>
+                <Select value={manualCategory} onValueChange={setManualCategory}>
+                  <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
+                    <SelectValue placeholder="Mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Deep Study">Deep Study</SelectItem>
+                    <SelectItem value="Problem Practice">Problem Practice</SelectItem>
+                    <SelectItem value="Revision & Flashcards">Revision</SelectItem>
+                    <SelectItem value="Theory & Reading">Theory / Reading</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="pt-2">
-                <Button variant="red" size="sm" type="submit" isLoading={isLoggingStudy} className="w-full py-2.5 font-semibold">
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Record Study Session (+{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP)</span>
-                </Button>
-              </div>
-            </form>
-          </div>
-        </Card>
-
-        {/* 7-Day Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-brand-red" />
-              <CardTitle>Last 7 Days Study Hours</CardTitle>
             </div>
-          </CardHeader>
 
-          <div className="h-64 min-h-[256px] w-full pt-4">
-            {mounted ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={last7Days || []}>
-                  <XAxis dataKey="day" stroke="#71717A" fontSize={11} fontStyle="monospace" />
-                  <YAxis stroke="#71717A" fontSize={11} unit="h" fontStyle="monospace" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(0,0,0,0.95)",
-                      borderColor: "rgba(255,255,255,0.15)",
-                      borderRadius: "1rem",
-                      fontSize: "12px",
+            {/* Quick Pomodoro Duration Chips */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {[25, 45, 60, 120].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    setManualDuration(String(mins));
+                  }}
+                  className={clsx(
+                    "py-1.5 rounded-lg text-xs font-mono transition-all border text-center font-medium",
+                    Number(manualDuration) === mins
+                      ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                      : "bg-white/[0.02] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                  )}
+                >
+                  {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                </button>
+              ))}
+            </div>
+
+            {/* Flow State Rating (1 to 5 Stars) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono text-zinc-400 uppercase">
+                  Focus Flow Rating
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-1 p-1.5 rounded-xl bg-white/[0.02] border border-white/5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setFocusScore(star);
                     }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px", fontFamily: "monospace" }} />
-                  <Bar dataKey="studyHours" name="Study Hours" fill="#EF4444" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                    className={clsx(
+                      "flex-1 py-1 rounded-lg flex items-center justify-center transition-all",
+                      star <= focusScore
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "text-zinc-600 hover:text-zinc-400"
+                    )}
+                  >
+                    <Star className={clsx("w-3.5 h-3.5", star <= focusScore ? "fill-amber-400" : "")} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toggle for Target & Bottleneck Prompts */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedInputs(!showAdvancedInputs)}
+                className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition-colors"
+              >
+                <span>{showAdvancedInputs ? "− Hide Prompts" : "+ Add Intention & Bottleneck"}</span>
+              </button>
+
+              {showAdvancedInputs && (
+                <div className="space-y-2.5 pt-2 animate-in fade-in duration-150">
+                  <div>
+                    <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
+                      <Target className="w-2.5 h-2.5 text-brand-red" />
+                      Target (What ONE problem must be solved?)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Solve 3 Medium DP problems"
+                      value={intention}
+                      onChange={(e) => setIntention(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                      Bottleneck (Hardest roadblock or concept?)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Graph topological sort cycle detection"
+                      value={reflection}
+                      onChange={(e) => setReflection(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              variant="red"
+              size="sm"
+              type="submit"
+              isLoading={isLoggingStudy}
+              className="w-full py-2.5 text-xs font-semibold shadow-glow-red mt-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Log Focus Session (+{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP)</span>
+            </Button>
+          </form>
+
+          {/* Recent Sessions List */}
+          <div className="p-3.5 rounded-2xl bg-zinc-950 border border-white/10 space-y-2">
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold">
+                Recent Sessions
+              </span>
+              <span className="text-[9px] font-mono text-zinc-500">
+                {recentSessions?.length || 0} logged
+              </span>
+            </div>
+
+            {!recentSessions || recentSessions.length === 0 ? (
+              <div className="py-4 text-center text-xs text-zinc-500 font-mono">
+                No study sessions logged yet today.
+              </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-mono">
-                Loading study analytics...
+              <div className="divide-y divide-white/5">
+                {recentSessions.slice(0, 10).map((s: any) => (
+                  <div key={s.id} className="py-2.5 flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-white truncate text-xs">{s.project}</span>
+                        {s.focusScore && (
+                          <span className="text-[9px] text-amber-400 font-mono font-bold flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5 fill-amber-400" />
+                            {s.focusScore}
+                          </span>
+                        )}
+                        {s.efficiencyPercent && (
+                          <span className="text-[9px] text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded">
+                            {s.efficiencyPercent}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
+                        {s.startTime && s.endTime && (
+                          <span>{s.startTime} → {s.endTime}</span>
+                        )}
+                        <span>•</span>
+                        <span>{formatDuration(s.durationMinutes)}</span>
+                      </div>
+                      {(s.intention || s.reflection) && (
+                        <div className="text-[10px] text-zinc-400 font-sans truncate pt-0.5">
+                          {s.intention ? `Target: ${s.intention}` : `Bottleneck: ${s.reflection}`}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleRepeatSession(s)}
+                        className="p-1 rounded-md text-zinc-400 hover:text-white bg-white/[0.04]"
+                      >
+                        <RotateCcw className="w-3 h-3 text-brand-red" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSession(s.id)}
+                        className="p-1 rounded-md text-zinc-600 hover:text-rose-400"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </Card>
-      </div>
+        </div>
+      )}
 
-      {/* Activity Log */}
-      <Card>
-        <CardHeader>
+      {/* TAB 2: Minimalist Aims & Syllabus Matrix */}
+      {activeTab === "AIMS" && (
+        <div className="space-y-3 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-brand-red" />
-              <CardTitle>Recent Study Sessions</CardTitle>
-            </div>
-            <span className="text-[10px] font-mono text-zinc-500">
-              {recentSessions?.length || 0} logged
+            <span className="text-xs font-mono font-bold text-zinc-300 uppercase">
+              High-Stakes Aims
             </span>
+            <Button
+              variant="red"
+              size="sm"
+              onClick={() => setIsAddingAim(!isAddingAim)}
+              className="text-[11px] py-1 px-2.5 h-7"
+            >
+              <Plus className="w-3 h-3" />
+              <span>{isAddingAim ? "Close" : "New Aim"}</span>
+            </Button>
           </div>
-        </CardHeader>
 
-        <div className="divide-y divide-white/5">
-          {!recentSessions || recentSessions.length === 0 ? (
-            <div className="p-6 text-center text-xs text-zinc-500 font-mono">
-              No study sessions logged yet. Record your first deep study session above!
+          {/* Add Aim Inline Form */}
+          {isAddingAim && (
+            <form onSubmit={handleCreateAim} className="p-3.5 rounded-2xl bg-zinc-950 border border-brand-red/30 space-y-2.5 animate-in fade-in duration-150">
+              <span className="text-xs font-bold text-white font-mono uppercase">
+                Create High-Stakes Aim
+              </span>
+              <input
+                type="text"
+                required
+                placeholder="Aim Title (e.g. FAANG System Design)"
+                value={newAimTitle}
+                onChange={(e) => setNewAimTitle(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+              />
+              <input
+                type="date"
+                value={newAimTargetDate}
+                onChange={(e) => setNewAimTargetDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+              />
+              <textarea
+                rows={2}
+                placeholder="Milestones (comma separated)"
+                value={newAimMilestonesInput}
+                onChange={(e) => setNewAimMilestonesInput(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+              />
+              <div className="flex justify-end">
+                <Button variant="red" size="sm" type="submit" isLoading={isSavingAim} className="text-xs py-1.5 px-3">
+                  Save Aim
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* Aim Cards */}
+          {aimsData.length === 0 ? (
+            <div className="p-6 text-center rounded-2xl bg-zinc-950 border border-white/10 text-xs text-zinc-500 font-mono">
+              No Aims configured. Tap &quot;New Aim&quot; to build your structured syllabus!
             </div>
           ) : (
-            recentSessions.map((s: any) => (
-              <div
-                key={s.id}
-                className="py-3 px-3 flex items-center justify-between text-xs hover:bg-white/[0.02] transition-colors rounded-lg group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Badge variant="red" size="sm">
-                    STUDY
-                  </Badge>
-                  <div className="min-w-0">
-                    <span className="font-bold text-white block truncate">{s.project}</span>
-                    <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
-                      {s.notes && <span>{s.notes}</span>}
-                      <span>•</span>
-                      <span>{formatDate(s.date)}</span>
+            <div className="space-y-3">
+              {aimsData.map((aim) => {
+                const isExpanded = !!expandedAims[aim.id];
+                const stats = aim.stats || {};
+                return (
+                  <div key={aim.id} className="rounded-2xl bg-zinc-950 border border-white/10 overflow-hidden">
+                    <div
+                      onClick={() => {
+                        haptics.selection();
+                        setExpandedAims((prev) => ({ ...prev, [aim.id]: !isExpanded }));
+                      }}
+                      className="p-3.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.02]"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <button type="button" className="text-zinc-500">
+                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        </button>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-white font-mono truncate">{aim.title}</h4>
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {stats.masteredTopics || 0}/{stats.totalTopics || 0} mastered • {formatDuration(stats.totalStudyMinutes || 0)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold font-mono text-emerald-400">
+                          {stats.masteryPercent || 0}%
+                        </span>
+                        <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-emerald-400 rounded-full"
+                            style={{ width: `${Math.max(4, stats.masteryPercent || 0)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Topics Checklist */}
+                    {isExpanded && (
+                      <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-white/5 bg-black/40">
+                        {aim.milestones.map((m: any) => (
+                          <div key={m.id} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
+                              <span>{m.title}</span>
+                              <span className="text-[9px] text-zinc-500 font-normal">
+                                {m.topics.length} topics
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              {m.topics.map((t: any) => {
+                                const badges: Record<string, { icon: string; style: string }> = {
+                                  NOT_STARTED: { icon: "⚪", style: "bg-zinc-800 text-zinc-400 border-zinc-700" },
+                                  IN_PROGRESS: { icon: "🟡", style: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+                                  CONFIDENT: { icon: "🟢", style: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+                                  MASTERED: { icon: "💎", style: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold" },
+                                };
+                                const b = badges[t.mastery] || badges.NOT_STARTED;
+
+                                return (
+                                  <div
+                                    key={t.id}
+                                    className="py-1 px-2 rounded-lg bg-white/[0.02] flex items-center justify-between text-xs font-mono"
+                                  >
+                                    <span className="text-white truncate text-[11px]">{t.title}</span>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateMastery(t.id, t.mastery)}
+                                        className={clsx("px-1.5 py-0.5 rounded text-[10px] font-mono border", b.style)}
+                                      >
+                                        <span>{b.icon}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          haptics.selection();
+                                          setManualProject(t.title);
+                                          setSelectedTopicId(t.id);
+                                          setActiveTab("LOG");
+                                        }}
+                                        className="p-1 text-zinc-500 hover:text-brand-red"
+                                      >
+                                        <Zap className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {addingTopicMilestoneId === m.id ? (
+                              <div className="flex items-center gap-1.5 pt-1">
+                                <input
+                                  type="text"
+                                  placeholder="New Topic"
+                                  value={newTopicTitle}
+                                  onChange={(e) => setNewTopicTitle(e.target.value)}
+                                  className="flex-1 px-2 py-1 rounded bg-black border border-white/15 text-xs text-white font-mono"
+                                />
+                                <Button
+                                  variant="red"
+                                  size="sm"
+                                  onClick={() => handleCreateTopic(m.id)}
+                                  className="h-7 px-2 text-[10px]"
+                                >
+                                  Add
+                                </Button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAddingTopicMilestoneId(null)}
+                                  className="text-zinc-500 p-1"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddingTopicMilestoneId(m.id);
+                                  setNewTopicTitle("");
+                                }}
+                                className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 pt-0.5"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                                <span>Add Topic</span>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                  <span className="text-white font-bold font-mono text-xs">
-                    {formatDuration(s.durationMinutes)}
-                  </span>
-
-                  {/* 1-Tap Repeat Action */}
-                  <button
-                    type="button"
-                    title="Repeat session parameters"
-                    onClick={() => handleRepeatSession(s)}
-                    className="p-1.5 rounded-lg bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all text-[10px] font-mono flex items-center gap-1"
-                  >
-                    <RotateCcw className="w-3 h-3 text-brand-red" />
-                    <span className="hidden sm:inline">Repeat</span>
-                  </button>
-
-                  {/* Delete Action */}
-                  <button
-                    type="button"
-                    title="Delete session"
-                    disabled={deletingId === s.id}
-                    onClick={() => handleDeleteSession(s.id)}
-                    className="p-1.5 rounded-lg bg-white/[0.02] text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            ))
+                );
+              })}
+            </div>
           )}
         </div>
-      </Card>
+      )}
+
+      {/* TAB 3: Minimalist Analytics & Peak Windows */}
+      {activeTab === "ANALYTICS" && (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* 7-Day Bar Chart */}
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase text-zinc-400 font-bold">
+                Last 7 Days Study Hours
+              </span>
+              <span className="text-[10px] font-mono text-zinc-500">
+                Week: {formatDuration(weekStudyMinutes)}
+              </span>
+            </div>
+
+            <div className="h-48 w-full pt-2">
+              {mounted && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={last7Days || []}>
+                    <XAxis dataKey="day" stroke="#71717A" fontSize={10} fontStyle="monospace" />
+                    <YAxis stroke="#71717A" fontSize={10} unit="h" fontStyle="monospace" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "rgba(0,0,0,0.95)",
+                        borderColor: "rgba(255,255,255,0.15)",
+                        borderRadius: "0.75rem",
+                        fontSize: "11px",
+                      }}
+                    />
+                    <Bar dataKey="studyHours" name="Study Hours" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          {/* Peak Cognitive Windows 6-Zone Matrix */}
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Compass className="w-3.5 h-3.5 text-brand-red" />
+                <span className="text-xs font-mono uppercase text-zinc-400 font-bold">
+                  Cognitive Prime Windows
+                </span>
+              </div>
+              {primeWindow && (
+                <span className="text-[9px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  {primeWindow.label}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {(cognitiveWindows?.windows || []).map((w: any) => {
+                const isPrime = primeWindow?.id === w.id;
+                return (
+                  <div
+                    key={w.id}
+                    className={clsx(
+                      "p-2.5 rounded-xl border text-center font-mono transition-all",
+                      isPrime
+                        ? "bg-brand-red/15 border-brand-red/50 shadow-glow-red"
+                        : w.sessionCount > 0
+                        ? "bg-white/[0.03] border-white/10"
+                        : "bg-white/[0.01] border-white/5 opacity-50"
+                    )}
+                  >
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      {w.id === "EARLY_MORNING" && <Sunrise className="w-3 h-3 text-amber-400" />}
+                      {w.id === "MORNING" && <Sun className="w-3 h-3 text-yellow-400" />}
+                      {w.id === "AFTERNOON" && <Coffee className="w-3 h-3 text-orange-400" />}
+                      {w.id === "EVENING" && <Sunset className="w-3 h-3 text-rose-400" />}
+                      {w.id === "NIGHT" && <Moon className="w-3 h-3 text-indigo-400" />}
+                      {w.id === "LATE_NIGHT" && <Sparkles className="w-3 h-3 text-cyan-400" />}
+                      <span className="text-[10px] font-bold text-zinc-300">{w.label}</span>
+                    </div>
+                    <span className="text-[9px] text-zinc-500 block">{w.range}</span>
+                    <div className="mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-zinc-400">{w.studyHours}h</span>
+                      <span className="text-amber-400 font-bold">
+                        {w.avgFocusScore ? `⭐${w.avgFocusScore}` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Today's Study Modal */}
       {isShareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg bg-zinc-950 border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="relative w-full max-w-sm bg-zinc-950 border border-white/10 rounded-3xl p-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Heart className="w-4 h-4 text-rose-400 fill-rose-500/20" />
-                <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-                  Send Today&apos;s Study to {partnerLabel}
+                <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                  Send to {partnerLabel}
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  haptics.selection();
-                  setIsShareModalOpen(false);
-                }}
-                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setIsShareModalOpen(false)}
+                className="p-1 rounded-lg bg-white/5 text-zinc-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Subtitle */}
-            <p className="text-xs text-zinc-400 font-mono mt-3 mb-4">
-              Preview high-resolution study report card and send directly to {partnerLabel} with personalized progress stats.
-            </p>
-
-            {/* Status Alert if any */}
             {shareStatus && (
               <div
-                className={`mb-4 p-3 rounded-xl text-xs font-mono flex items-center gap-2 ${shareStatus.error
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  }`}
-              >
-                {shareStatus.error ? (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                className={clsx(
+                  "my-3 p-2.5 rounded-xl text-xs font-mono flex items-center gap-2",
+                  shareStatus.error
+                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                 )}
-                <span>{shareStatus.text}</span>
+              >
+                {shareStatus.error ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                <span className="text-[11px]">{shareStatus.text}</span>
               </div>
             )}
 
-            {/* Centered Preview Card (This exact element is exported to PNG) */}
+            {/* Preview Card */}
             <div className="flex justify-center my-3 overflow-hidden">
               <div
                 ref={shareCardRef}
@@ -1110,124 +1337,83 @@ export default function ProgressPage() {
                   background: "radial-gradient(ellipse at top, #1f1214 0%, #09090b 70%)",
                   boxShadow: "0 0 40px rgba(239, 68, 68, 0.15)",
                 }}
-                className="w-full max-w-[400px] border border-red-500/30 rounded-3xl p-6 text-white select-none"
+                className="w-full border border-red-500/30 rounded-2xl p-5 text-white select-none"
               >
-                {/* Card Top Brand Row */}
-                <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse shadow-glow-red" />
-                    <div>
-                      <span className="font-mono font-bold tracking-widest text-xs text-white block">
-                        EVERTHING
-                      </span>
-                      <span className="font-mono text-[9px] text-red-400 tracking-wider block -mt-0.5">
-                        DEEP STUDY PROTOCOL
-                      </span>
-                    </div>
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
+                    <span className="font-mono font-bold tracking-widest text-[11px] text-white">EVERTHING</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-mono text-zinc-400 block">
-                      {format(new Date(), "EEE, dd MMM yyyy")}
-                    </span>
-                    <span className="text-[9px] font-mono text-emerald-400 font-bold block">
-                      DISCIPLINE ACTIVE
-                    </span>
-                  </div>
+                  <span className="text-[9px] font-mono text-zinc-400">{format(new Date(), "dd MMM yyyy")}</span>
                 </div>
 
-                {/* Main Hero Study Time */}
-                <div className="mt-5 mb-4">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">
-                    Today&apos;s Deep Study Time
+                <div className="mt-4 mb-3">
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-400 block">
+                    Today&apos;s Focus
                   </span>
-                  <div className="text-5xl font-black font-mono text-white tracking-tight mt-1 flex items-baseline gap-2">
-                    <span>{formatDuration(todayStudyMinutes)}</span>
+                  <div className="text-3xl font-black font-mono text-white tracking-tight mt-0.5">
+                    {formatDuration(todayStudyMinutes)}
                   </div>
-                  <div className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-mono font-bold">
-                    <Zap className="w-3 h-3 text-brand-red" />
-                    <span>+{todayEarnedXP} Discipline XP Yield</span>
-                  </div>
-                </div>
-
-                {/* 3 Telemetry Pods */}
-                <div className="grid grid-cols-3 gap-2 py-3 border-y border-white/10 text-center font-mono">
-                  <div className="p-2 rounded-xl bg-white/[0.03]">
-                    <span className="text-[9px] text-zinc-500 block uppercase">Sessions</span>
-                    <span className="text-sm font-bold text-white block mt-0.5">
-                      {todayStudySessions.length}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/[0.03]">
-                    <span className="text-[9px] text-zinc-500 block uppercase">Week Total</span>
-                    <span className="text-sm font-bold text-white block mt-0.5">
-                      {formatDuration(weekStudyMinutes)}
-                    </span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white/[0.03]">
-                    <span className="text-[9px] text-zinc-500 block uppercase">Week Goal</span>
-                    <span className="text-sm font-bold text-red-400 block mt-0.5">
-                      {weekProgressPercent}%
-                    </span>
+                  <div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-mono font-bold">
+                    <Zap className="w-2.5 h-2.5 text-brand-red" />
+                    <span>+{todayEarnedXP} XP Yield</span>
                   </div>
                 </div>
 
-                {/* Today's Subjects Breakdown */}
-                <div className="mt-3.5 space-y-1.5">
-                  <span className="text-[9px] font-mono text-zinc-400 uppercase tracking-wider block mb-1">
-                    Today&apos;s Subject Breakdown
-                  </span>
-                  {todayStudySessions.length === 0 ? (
-                    <div className="text-[11px] font-mono text-zinc-500 italic py-2 text-center">
-                      Deep study session in progress
-                    </div>
-                  ) : (
-                    todayStudySessions.slice(0, 4).map((s: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between text-xs py-1 border-b border-white/5 font-mono"
-                      >
-                        <span className="text-zinc-200 truncate pr-2 flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-brand-red inline-block shrink-0" />
-                          <span className="truncate">{s.project}</span>
-                        </span>
-                        <span className="text-white font-bold shrink-0">
-                          {formatDuration(s.durationMinutes)}
-                        </span>
-                      </div>
-                    ))
-                  )}
+                <div className="grid grid-cols-2 gap-2 py-2 border-y border-white/10 text-center font-mono">
+                  <div className="p-1.5 rounded-lg bg-white/[0.03]">
+                    <span className="text-[8px] text-zinc-500 block uppercase">Sessions</span>
+                    <span className="text-xs font-bold text-white block mt-0.5">{todayStudySessions.length}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/[0.03]">
+                    <span className="text-[8px] text-zinc-500 block uppercase">Week Total</span>
+                    <span className="text-xs font-bold text-white block mt-0.5">{formatDuration(weekStudyMinutes)}</span>
+                  </div>
                 </div>
 
-                {/* Card Footer / Philosophy Watermark */}
-                <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between text-[9px] font-mono text-zinc-500">
-                  <span>Consistency is the algorithm of mastery.</span>
-                  <span className="text-rose-400/90 font-bold font-mono">Everthing • {partnerLabel}</span>
+                <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[8px] font-mono text-zinc-500">
+                  <span>Consistency is mastery.</span>
+                  <span className="text-rose-400 font-bold">Everthing • {partnerLabel}</span>
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
+            <div className="grid grid-cols-2 gap-2 pt-2">
               <Button
                 variant="red"
                 size="sm"
                 disabled={isExporting}
                 onClick={handleSendToPartner}
-                className="py-2.5 flex items-center justify-center gap-2 font-semibold shadow-glow-red"
+                className="py-2 text-xs font-semibold shadow-glow-red"
               >
-                <Heart className="w-4 h-4 text-rose-300 fill-rose-500/30" />
-                <span>{isExporting ? "Sending..." : `Send to ${partnerLabel}`}</span>
+                <Heart className="w-3.5 h-3.5 text-rose-300" />
+                <span>Send</span>
               </Button>
 
               <Button
                 variant="white"
                 size="sm"
                 disabled={isExporting}
-                onClick={handleDownloadImage}
-                className="py-2.5 flex items-center justify-center gap-2 font-semibold"
+                onClick={async () => {
+                  if (!shareCardRef.current) return;
+                  setIsExporting(true);
+                  try {
+                    const dataUrl = await toPng(shareCardRef.current, { pixelRatio: 2.5, backgroundColor: "#09090b" });
+                    const link = document.createElement("a");
+                    link.download = `Everthing-study-${format(new Date(), "yyyy-MM-dd")}.png`;
+                    link.href = dataUrl;
+                    link.click();
+                    haptics.success();
+                  } catch (e) {
+                    haptics.error();
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                className="py-2 text-xs font-semibold"
               >
-                <Download className="w-4 h-4" />
-                <span>Download PNG</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
               </Button>
             </div>
           </div>

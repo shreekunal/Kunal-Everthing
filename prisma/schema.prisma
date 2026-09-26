@@ -35,6 +35,7 @@ model User {
   disciplineStreaks DisciplineStreak[]
   rewardItems       RewardItem[]
   diaries           DailyDiary[]
+  aims              Aim[]
 }
 
 model UserSettings {
@@ -103,15 +104,61 @@ model RoutineCompletion {
 }
 
 model WorkSession {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type            String   @default("WORK") // WORK, STUDY, PERSONAL
-  project         String
-  durationMinutes Int
-  date            String   // YYYY-MM-DD
-  notes           String?
-  createdAt       DateTime @default(now())
+  id                 String      @id @default(cuid())
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               String      @default("WORK") // WORK, STUDY, PERSONAL
+  project            String
+  durationMinutes    Int
+  startTime          String?     // HH:mm (e.g. "10:00")
+  endTime            String?     // HH:mm (e.g. "13:00")
+  elapsedMinutes     Int?        // Total wall-clock time spent (e.g. 180 mins)
+  efficiencyPercent  Float?      // (durationMinutes / elapsedMinutes) * 100
+  focusScore         Int?        // 1 to 5 flow / depth rating
+  intention          String?     // Pre-session target: What ONE problem/concept must be solved?
+  reflection         String?     // Post-session reflection: What was the hardest bottleneck/concept?
+  topicId            String?
+  topic              StudyTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  date               String      // YYYY-MM-DD
+  notes              String?
+  createdAt          DateTime    @default(now())
+}
+
+model Aim {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String       // e.g. "Gate Exam", "FAANG System Design", "CFA"
+  description String?
+  targetDate  String?      // YYYY-MM-DD
+  status      String       @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  milestones  Milestone[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Milestone {
+  id          String       @id @default(cuid())
+  aimId       String
+  aim         Aim          @relation(fields: [aimId], references: [id], onDelete: Cascade)
+  title       String       // e.g. "Core Data Structures", "Distributed Systems Architecture"
+  order       Int          @default(0)
+  topics      StudyTopic[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model StudyTopic {
+  id           String        @id @default(cuid())
+  milestoneId  String
+  milestone    Milestone     @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title        String        // e.g. "Dynamic Programming & Trees"
+  mastery      String        @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, CONFIDENT, MASTERED
+  order        Int           @default(0)
+  notes        String?
+  sessions     WorkSession[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model FinancialAccount {
