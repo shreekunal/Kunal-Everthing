@@ -113,8 +113,9 @@ export async function POST(request: Request) {
       telemetry,
     } = body;
 
-    const MAX_CONTENT_LENGTH = 1000;
-    const cleanContent = (content || "").trim().slice(0, MAX_CONTENT_LENGTH);
+    const rawContent = (content || "").trim();
+    const words = rawContent ? rawContent.split(/\s+/).filter(Boolean) : [];
+    const cleanContent = words.slice(0, 250).join(" ");
 
     const entry = await prisma.dailyDiary.upsert({
       where: {

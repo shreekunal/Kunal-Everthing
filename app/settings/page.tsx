@@ -416,7 +416,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/backup?download=true");
       if (!res.ok) throw new Error("Failed to generate backup");
       const text = await res.text();
-      const fileName = `kunal-os-backup-${new Date().toISOString().split("T")[0]}.json`;
+      const fileName = `everything-backup-${new Date().toISOString().split("T")[0]}.json`;
 
       if (Capacitor.isNativePlatform()) {
         // Native Android APK export using Capacitor Filesystem & Share

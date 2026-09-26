@@ -455,66 +455,6 @@ export default function UnifiedPartnerHubPage() {
           </form>
         </Card>
 
-        {/* Today's Daily Diary Preview Card (if written) */}
-        {latestDiary && (
-          <Card
-            glow="rose"
-            className="p-4 sm:p-5 bg-gradient-to-r from-rose-950/30 via-zinc-950 to-purple-950/30 border border-rose-500/25"
-          >
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.08]">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-rose-400" />
-                <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                  Today&apos;s Daily Diary • {latestDiary.mood || "✨ Positive"}
-                </h3>
-              </div>
-              <div className="flex items-center gap-1 text-amber-400 text-xs font-mono">
-                {"★".repeat(latestDiary.rating || 5)}
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {(latestDiary.highlights || latestDiary.highlight) && (
-                <p className="text-xs text-zinc-300 font-sans italic">
-                  &ldquo;{latestDiary.highlights || latestDiary.highlight}&rdquo;
-                </p>
-              )}
-              {latestDiary.partnerNote && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-200 font-mono">
-                  💌 <strong className="text-white">Note for {partnerNickname}:</strong>{" "}
-                  {latestDiary.partnerNote}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-3.5 pt-2.5 border-t border-white/5 flex items-center justify-between">
-              <span className="text-[10px] font-mono text-zinc-500">
-                Logged for {format(new Date(latestDiary.date), "MMMM d, yyyy")}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const diaryMsg = `Dear ${partnerNickname} ❤️ Here is my Daily Diary for today:\n⭐ Rating: ${latestDiary.rating}/5\n✨ Highlight: ${latestDiary.highlight || "A productive day!"}\n🙏 Gratitude: ${latestDiary.gratitude || "Grateful for us"}${latestDiary.partnerNote ? `\n💌 Note for you: ${latestDiary.partnerNote}` : ""}`;
-                    handleSendWhatsApp(diaryMsg);
-                  }}
-                  className="text-[11px] font-mono text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold"
-                >
-                  <MessageCircle className="w-3 h-3" />
-                  <span>Share via WhatsApp</span>
-                </button>
-                <span className="text-zinc-600">•</span>
-                <Link
-                  href="/diary"
-                  className="text-[11px] font-mono text-rose-400 hover:text-rose-300 font-bold"
-                >
-                  View Diary →
-                </Link>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* 5 Rich Telemetry Pillars */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 

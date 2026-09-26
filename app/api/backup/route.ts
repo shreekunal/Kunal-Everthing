@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     const checksum = crypto.createHash("sha256").update(dataString).digest("hex");
 
     const payload = {
-      app: "kunal-os",
+      app: "everything",
       version: "3.0",
       exportDate: new Date().toISOString(),
       user: {
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
 
     if (isDownload) {
       const today = new Date().toISOString().split("T")[0];
-      headers["Content-Disposition"] = `attachment; filename="kunal-os-backup-${today}.json"`;
+      headers["Content-Disposition"] = `attachment; filename="everything-backup-${today}.json"`;
     }
 
     return new NextResponse(JSON.stringify(payload, null, 2), {

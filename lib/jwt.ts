@@ -1,8 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 
 export const TOKEN_COOKIE_NAME = "kunal_os_token";
-export const JWT_ISSUER = "kunal-os";
-export const JWT_AUDIENCE = "kunal-os-users";
+export const JWT_ISSUER = "everything";
+export const JWT_AUDIENCE = "everything-users";
 
 /**
  * Retrieves the cryptographic key for JWT signing & verification.
