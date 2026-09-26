@@ -157,7 +157,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           title: "Daily Diary Reflection",
-          points: 25,
+          points: 5,
           type: "DIARY_ENTRY",
           reason: `Daily Diary reflection written for ${date}`,
           category: "DISCIPLINE",

@@ -127,8 +127,8 @@ export async function POST(request: Request) {
       },
     });
 
-    // Award 1 XP per minute of focused study (minimum 5 XP)
-    const earnedXP = Math.max(5, mins);
+    // Award 1 XP per 5 minutes of focused study (minimum 2 XP)
+    const earnedXP = Math.max(2, Math.floor(mins / 5));
     await awardPoints({
       userId: user.id,
       points: earnedXP,

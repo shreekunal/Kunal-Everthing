@@ -77,12 +77,12 @@ export async function PATCH(
       },
     });
 
-    // Award XP rewards (Balanced: 25 XP per habit + 40 XP Daily Perfect Bonus)
+    // Award XP rewards (Low rewarding: 5 XP per habit + 10 XP Daily Perfect Bonus)
     if (isCompletedNow) {
       // Habit completion XP
       await awardPoints({
         userId: user.id,
-        points: 25,
+        points: 5,
         type: "ROUTINE_COMPLETED",
         title: `Completed Routine: ${routine.name}`,
         reason: `Maintained habit (${routine.category})`,
@@ -90,7 +90,7 @@ export async function PATCH(
         referenceId: `${routine.id}_${targetDate}`,
       });
 
-      // Check if all active routines are completed today -> Daily Perfect Bonus (+40 XP)
+      // Check if all active routines are completed today -> Daily Perfect Bonus (+10 XP)
       const allActiveRoutines = await prisma.routine.findMany({
         where: { userId: user.id, isArchived: false },
         include: {
@@ -110,7 +110,7 @@ export async function PATCH(
         if (!existingBonus) {
           await awardPoints({
             userId: user.id,
-            points: 40,
+            points: 10,
             type: "DAILY_PERFECT_HABITS",
             title: "🌟 All Habits Completed! (Perfect Day Bonus)",
             reason: "Completed 100% of your daily routines today.",
@@ -122,7 +122,7 @@ export async function PATCH(
             data: {
               userId: user.id,
               title: "🌟 Perfect Discipline Day!",
-              message: "100% of daily habits logged today! +40 XP Perfect Day Bonus awarded.",
+              message: "100% of daily habits logged today! +10 XP Perfect Day Bonus awarded.",
               category: "ROUTINE",
               priority: "HIGH",
             },
@@ -132,7 +132,7 @@ export async function PATCH(
 
       // Check for streak milestone bonus
       if ([7, 14, 30, 60, 100, 365].includes(currentStreak)) {
-        const bonusXP = currentStreak >= 100 ? 250 : currentStreak >= 30 ? 100 : 50;
+        const bonusXP = currentStreak >= 100 ? 50 : currentStreak >= 30 ? 25 : 15;
         await awardPoints({
           userId: user.id,
           points: bonusXP,

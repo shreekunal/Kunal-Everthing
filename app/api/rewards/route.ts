@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDisciplineSummary, awardPoints, deductPoints } from "@/lib/rewards";
+import { getDisciplineSummary, awardPoints, deductPoints, ensureDefaultRewardItems } from "@/lib/rewards";
 import { format } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const summary = await getDisciplineSummary(user.id);
+    await ensureDefaultRewardItems(user.id);
+    const summary = await getDisciplineSummary(user.id, true);
     return NextResponse.json(summary);
   } catch (error: any) {
     console.error("Rewards GET error:", error);
@@ -32,9 +33,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, points, title, reason, notes, itemId } = body;
 
-    // 1. Unhealthy food penalty
+    // 1. Unhealthy food penalty (High Minus: -150 XP)
     if (action === "PENALTY_UNHEALTHY_FOOD") {
-      const deduction = points || 50;
+      const deduction = points || 150;
       const log = await deductPoints({
         userId: user.id,
         points: deduction,
@@ -46,21 +47,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 2. FAP / Relapse penalty
+    // 2. FAP / Relapse penalty (High Minus: -300 XP)
     if (action === "PENALTY_FAP" || action === "PENALTY_RELAPSE") {
-      const deduction = points || 100;
+      const deduction = points || 300;
       const log = await deductPoints({
         userId: user.id,
         points: deduction,
         type: "PENALTY_FAP",
-        title: title || "Monk Protocol Breach: Relapse ",
+        title: title || "Monk Protocol Breach: Relapse",
         reason: notes || reason || "Discipline relapse logged. Resetting purity streak to Day 0.",
         category: "PURITY",
       });
       return NextResponse.json({ success: true, log });
     }
 
-    // 3. Custom penalty
+    // 3. Custom penalty (High Minus: Default -100 XP)
     if (action === "PENALTY_CUSTOM") {
       if (!points || !title) {
         return NextResponse.json({ error: "Points and Title are required" }, { status: 400 });
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 4. Custom reward
+    // 4. Custom reward (Low Rewarding: Default +10 XP)
     if (action === "REWARD_CUSTOM") {
       if (!points || !title) {
         return NextResponse.json({ error: "Points and Title are required" }, { status: 400 });
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 5a. Direct Daily Monk Purity Check-in (+25 XP)
+    // 5a. Direct Daily Monk Purity Check-in (+5 XP)
     if (action === "CHECKIN_PURITY") {
       const todayKey = format(new Date(), "yyyy-MM-dd");
       const referenceId = `purity_${todayKey}`;
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const pointsToAward = points || 25;
+      const pointsToAward = points || 5;
       const log = await awardPoints({
         userId: user.id,
         points: pointsToAward,
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5b. Direct Daily Clean Diet Check-in (+25 XP)
+    // 5b. Direct Daily Clean Diet Check-in (+5 XP)
     if (action === "CHECKIN_DIET") {
       const todayKey = format(new Date(), "yyyy-MM-dd");
       const referenceId = `diet_${todayKey}`;
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const pointsToAward = points || 25;
+      const pointsToAward = points || 5;
       const log = await awardPoints({
         userId: user.id,
         points: pointsToAward,
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5c. Evening Monk Bedtime Reflection Check-in
+    // 5c. Evening Monk Bedtime Reflection Check-in (+10 XP)
     if (action === "EVENING_CHECKIN") {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -200,7 +201,7 @@ export async function POST(req: NextRequest) {
 
       const log = await awardPoints({
         userId: user.id,
-        points: 50,
+        points: 10,
         type: "REWARD_DAILY_CHECKIN",
         title: "Evening Monk Reflection Completed",
         reason: notes || "Preserved monk purity and clean nutrition throughout the day.",
@@ -210,7 +211,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, log });
     }
 
-    // 6. Daily Water / Hydration Target Completed Reward (+30 XP)
+    // 6. Daily Water / Hydration Target Completed Reward (+5 XP)
     if (action === "REWARD_WATER") {
       const todayKey = format(new Date(), "yyyy-MM-dd");
       const referenceId = `water_${todayKey}`;
@@ -233,7 +234,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const pointsToAward = points || 30;
+      const pointsToAward = points || 5;
       const log = await awardPoints({
         userId: user.id,
         points: pointsToAward,

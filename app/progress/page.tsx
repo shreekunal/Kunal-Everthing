@@ -246,7 +246,7 @@ export default function ProgressPage() {
   );
   const remainingDailyMinutes = Math.max(0, dailyTargetMinutes - todayStudyMinutes);
   const remainingWeeklyMinutes = Math.max(0, weeklyTargetMinutes - weekStudyMinutes);
-  const todayEarnedXP = todayStudyMinutes;
+  const todayEarnedXP = Math.floor(todayStudyMinutes / 5);
 
   const partnerLabel =
     (partner?.name && partner.name.toLowerCase() !== "kunal"
@@ -908,12 +908,13 @@ export default function ProgressPage() {
                     Quick Pomodoro Presets
                   </span>
                   <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                    +{Math.max(5, Number(manualDuration) || 0)} XP Yield
+                    +{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP Yield
                   </span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[25, 45, 60, 90].map((mins) => {
                     const isSelected = Number(manualDuration) === mins;
+                    const xpVal = Math.floor(mins / 5);
                     return (
                       <button
                         key={mins}
@@ -929,7 +930,7 @@ export default function ProgressPage() {
                       >
                         <span>{mins}m</span>
                         <span className={`text-[9px] ${isSelected ? "text-white/90" : "text-emerald-400"}`}>
-                          +{mins}XP
+                          +{xpVal}XP
                         </span>
                       </button>
                     );
@@ -940,7 +941,7 @@ export default function ProgressPage() {
               <div className="pt-2">
                 <Button variant="red" size="sm" type="submit" isLoading={isLoggingStudy} className="w-full py-2.5 font-semibold">
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Record Study Session (+{Math.max(5, Number(manualDuration) || 0)} XP)</span>
+                  <span>Record Study Session (+{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP)</span>
                 </Button>
               </div>
             </form>

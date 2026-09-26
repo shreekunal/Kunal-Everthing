@@ -386,7 +386,7 @@ export default function DailyDiaryPage() {
           )}
           <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-emerald-400" />
-            <span>+25 XP</span>
+            <span>+5 XP</span>
           </span>
         </div>
       </div>

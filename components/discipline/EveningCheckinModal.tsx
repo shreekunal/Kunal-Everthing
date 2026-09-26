@@ -188,7 +188,7 @@ export function EveningCheckinModal({
         {success && (
           <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-mono text-emerald-400 text-center flex items-center justify-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" />
-            <span>Daily Karma locked in! +50 XP awarded. Good night!</span>
+            <span>Daily Karma locked in! +10 XP awarded. Good night!</span>
           </div>
         )}
 
@@ -212,7 +212,7 @@ export function EveningCheckinModal({
             className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red"
           >
             <Moon className="w-4 h-4" />
-            <span>Lock in Daily Karma (+50 XP)</span>
+            <span>Lock in Daily Karma (+10 XP)</span>
           </Button>
         </div>
       </form>

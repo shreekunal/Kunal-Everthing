@@ -42,10 +42,10 @@ export async function PATCH(
       data: updateData,
     });
 
-    // Reward XP on task completion (Balanced ratios: HIGH 50, MEDIUM 25, LOW 10)
+    // Reward XP on task completion (Low rewarding scale: HIGH 10, MEDIUM 5, LOW 2)
     if (isMarkingComplete) {
       const priorityXP =
-        existingTask.priority === "HIGH" ? 50 : existingTask.priority === "MEDIUM" ? 25 : 10;
+        existingTask.priority === "HIGH" ? 10 : existingTask.priority === "MEDIUM" ? 5 : 2;
 
       await awardPoints({
         userId: user.id,

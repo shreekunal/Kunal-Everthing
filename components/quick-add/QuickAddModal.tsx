@@ -299,21 +299,21 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
     try {
       let payload: any = {};
       if (disciplineAction === "UNHEALTHY_FOOD") {
-        payload = { action: "PENALTY_UNHEALTHY_FOOD", points: 50, notes: disciplineNotes };
+        payload = { action: "PENALTY_UNHEALTHY_FOOD", points: 150, notes: disciplineNotes };
       } else if (disciplineAction === "FAP") {
-        payload = { action: "PENALTY_FAP", points: 100, notes: disciplineNotes };
+        payload = { action: "PENALTY_FAP", points: 300, notes: disciplineNotes };
       } else if (disciplineAction === "CUSTOM_PENALTY") {
         payload = {
           action: "PENALTY_CUSTOM",
           title: disciplineTitle || "Discipline Infraction",
-          points: Number(disciplinePoints) || 30,
+          points: Number(disciplinePoints) || 100,
           notes: disciplineNotes,
         };
       } else {
         payload = {
           action: "REWARD_CUSTOM",
           title: disciplineTitle || "Good Habit Deed",
-          points: Number(disciplinePoints) || 30,
+          points: Number(disciplinePoints) || 10,
           notes: disciplineNotes,
         };
       }
@@ -770,7 +770,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               Cancel
             </Button>
             <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
-              Log Activity (+{Math.max(5, Number(sessionDuration) || 0)} XP)
+              Log Activity (+{Math.max(2, Math.floor((Number(sessionDuration) || 30) / 5))} XP)
             </Button>
           </div>
         </form>
@@ -912,7 +912,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                 type="button"
                 onClick={() => {
                   setDisciplineAction("UNHEALTHY_FOOD");
-                  setDisciplinePoints("50");
+                  setDisciplinePoints("150");
                 }}
                 className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "UNHEALTHY_FOOD"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
@@ -921,7 +921,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               >
                 <div className="flex items-center justify-between">
                   <span>🍔 Ate Junk Food</span>
-                  <span className="text-brand-red font-bold">-50 XP</span>
+                  <span className="text-brand-red font-bold">-150 XP</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Resets Clean Diet streak</span>
               </button>
@@ -930,7 +930,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                 type="button"
                 onClick={() => {
                   setDisciplineAction("FAP");
-                  setDisciplinePoints("100");
+                  setDisciplinePoints("300");
                 }}
                 className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "FAP"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
@@ -939,7 +939,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               >
                 <div className="flex items-center justify-between">
                   <span>⚡ Relapse </span>
-                  <span className="text-brand-red font-bold">-100 XP</span>
+                  <span className="text-brand-red font-bold">-300 XP</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Resets Purity to Day 0</span>
               </button>
@@ -948,7 +948,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                 type="button"
                 onClick={() => {
                   setDisciplineAction("CUSTOM_PENALTY");
-                  setDisciplinePoints("30");
+                  setDisciplinePoints("100");
                 }}
                 className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "CUSTOM_PENALTY"
                     ? "bg-brand-red/20 text-white border-brand-red font-bold shadow-glow-red-subtle"
@@ -957,7 +957,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               >
                 <div className="flex items-center justify-between">
                   <span>⚠️ Other Penalty</span>
-                  <span className="text-brand-red font-bold">-XP</span>
+                  <span className="text-brand-red font-bold">-100 XP</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Custom infraction deduction</span>
               </button>
@@ -966,7 +966,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
                 type="button"
                 onClick={() => {
                   setDisciplineAction("CUSTOM_REWARD");
-                  setDisciplinePoints("30");
+                  setDisciplinePoints("10");
                 }}
                 className={`p-2.5 rounded-xl border text-left font-mono text-xs transition-all ${disciplineAction === "CUSTOM_REWARD"
                     ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold"
@@ -975,7 +975,7 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
               >
                 <div className="flex items-center justify-between">
                   <span>🌟 Habit / Deed</span>
-                  <span className="text-emerald-400 font-bold">+XP</span>
+                  <span className="text-emerald-400 font-bold">+10 XP</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 block mt-0.5">Cold shower, reading, etc.</span>
               </button>

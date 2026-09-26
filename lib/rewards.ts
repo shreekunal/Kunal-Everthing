@@ -240,50 +240,83 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
   return results;
 }
 
+export const DEFAULT_STORE_PERKS = [
+  {
+    title: "Cheat Meal / Junk Food Pass",
+    cost: 150,
+    category: "FOOD",
+    icon: "Pizza",
+    description: "One planned, guilt-free cheat meal or junk food treat.",
+  },
+  {
+    title: "1-Hour Gaming / Streaming Pass",
+    cost: 100,
+    category: "LEISURE",
+    icon: "Gamepad2",
+    description: "1 hour of guilt-free video games, YouTube, or anime/Netflix.",
+  },
+  {
+    title: "Streak Freeze Shield",
+    cost: 80,
+    category: "DISCIPLINE",
+    icon: "Shield",
+    description: "Emergency safeguard to protect any routine streak for 1 day.",
+  },
+  {
+    title: "Specialty Coffee / Cafe Treat",
+    cost: 60,
+    category: "FOOD",
+    icon: "Coffee",
+    description: "Treat yourself to a special artisan coffee or dessert outing.",
+  },
+  {
+    title: "Movie / Cinema Night Out",
+    cost: 200,
+    category: "ENTERTAINMENT",
+    icon: "Film",
+    description: "Unwind with a new cinema film release or movie night with snacks.",
+  },
+  {
+    title: "Wishlist Impulse Buy (<₹500)",
+    cost: 250,
+    category: "BUY",
+    icon: "ShoppingBag",
+    description: "Guilt-free purchase for a book, tech accessory, or desk item.",
+  },
+  {
+    title: "Sunday Sleep-In Pass (+1 Hr)",
+    cost: 50,
+    category: "LEISURE",
+    icon: "Moon",
+    description: "Sleep in 1 extra hour past regular waking time on the weekend.",
+  },
+  {
+    title: "Half-Day Rest & Relaxation",
+    cost: 300,
+    category: "LEISURE",
+    icon: "Sparkles",
+    description: "Total mental unplug: afternoon off from all study/work guilt-free.",
+  },
+];
+
 /**
  * Seed default reward store items if none exist
  */
 export async function ensureDefaultRewardItems(userId: string) {
-  const allowedTitles = ["Eat Junk", "Relapse", "Streak Freeze"];
-
-  // Prune any reward items that are not in the approved core perks list
-  await prisma.rewardItem.deleteMany({
-    where: {
-      userId,
-      title: { notIn: allowedTitles },
-    },
-  });
-
-  const existing = await prisma.rewardItem.findMany({ where: { userId } });
-  const existingTitles = existing.map((i) => i.title);
+  const existing = await prisma.rewardItem.findMany({ where: { userId, isArchived: false } });
+  const existingTitles = new Set(existing.map((i) => i.title.toLowerCase().trim()));
 
   const toCreate: any[] = [];
-  if (!existingTitles.includes("Eat Junk")) {
-    toCreate.push({
-      userId,
-      title: "Eat Junk",
-      cost: 200,
-      category: "FOOD",
-      icon: "Pizza",
-    });
-  }
-  if (!existingTitles.includes("Relapse")) {
-    toCreate.push({
-      userId,
-      title: "Relapse",
-      cost: 500,
-      category: "LEISURE",
-      icon: "Zap",
-    });
-  }
-  if (!existingTitles.includes("Streak Freeze")) {
-    toCreate.push({
-      userId,
-      title: "Streak Freeze",
-      cost: 150,
-      category: "DISCIPLINE",
-      icon: "Shield",
-    });
+  for (const perk of DEFAULT_STORE_PERKS) {
+    if (!existingTitles.has(perk.title.toLowerCase().trim())) {
+      toCreate.push({
+        userId,
+        title: perk.title,
+        cost: perk.cost,
+        category: perk.category,
+        icon: perk.icon,
+      });
+    }
   }
 
   if (toCreate.length > 0) {
@@ -294,7 +327,7 @@ export async function ensureDefaultRewardItems(userId: string) {
 /**
  * Get comprehensive discipline & rewards overview (Ultra-fast parallel queries)
  */
-export async function getDisciplineSummary(userId: string, includeItems = false) {
+export async function getDisciplineSummary(userId: string, includeItems = true) {
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
   const currentMonthEnd = endOfMonth(now);

@@ -28,6 +28,8 @@ import {
   Pizza,
   Film,
   Droplets,
+  Coffee,
+  Moon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { haptics } from "@/lib/haptics";
@@ -50,11 +52,11 @@ export default function RewardsPage() {
 
   // Form states
   const [deductType, setDeductType] = useState<"UNHEALTHY_FOOD" | "FAP" | "CUSTOM">("UNHEALTHY_FOOD");
-  const [deductPoints, setDeductPoints] = useState("50");
+  const [deductPoints, setDeductPoints] = useState("150");
   const [deductReason, setDeductReason] = useState("");
   const [deductTitle, setDeductTitle] = useState("");
 
-  const [rewardPoints, setRewardPoints] = useState("30");
+  const [rewardPoints, setRewardPoints] = useState("10");
   const [rewardTitle, setRewardTitle] = useState("");
   const [rewardReason, setRewardReason] = useState("");
 
@@ -109,15 +111,15 @@ export default function RewardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: isFood ? "PENALTY_UNHEALTHY_FOOD" : "PENALTY_FAP",
-          points: isFood ? 50 : 100,
+          points: isFood ? 150 : 300,
         }),
       });
 
       if (res.ok) {
         setActionMessage({
           text: isFood
-            ? "🍔 50 XP deducted. Clean Diet streak reset."
-            : "⚡ 100 XP deducted. Purity streak reset. Stay focused!",
+            ? "🍔 150 XP deducted. Clean Diet streak reset."
+            : "⚡ 300 XP deducted. Purity streak reset. Stay focused!",
           error: true,
         });
         setConfirmDeductType(null);
@@ -322,7 +324,7 @@ export default function RewardsPage() {
             className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
           >
             <UtensilsCrossed className="w-3.5 h-3.5 text-brand-red" />
-            <span>Ate Junk Food (-50 XP)</span>
+            <span>Ate Junk Food (-150 XP)</span>
           </Button>
 
           <Button
@@ -332,7 +334,7 @@ export default function RewardsPage() {
             className="text-xs shadow-glow-red"
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>Relapse  (-100 XP)</span>
+            <span>Relapse (-300 XP)</span>
           </Button>
 
           <Button
@@ -428,23 +430,23 @@ export default function RewardsPage() {
           <div className="space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Deep Work / Focus Session</span>
-              <span className="font-bold text-emerald-400">+1 XP / min</span>
+              <span className="font-bold text-emerald-400">+1 XP / 5 mins</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Complete High Task</span>
-              <span className="font-bold text-emerald-400">+50 XP</span>
+              <span className="font-bold text-emerald-400">+10 XP</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Complete Daily Habit</span>
-              <span className="font-bold text-emerald-400">+30 XP</span>
+              <span className="font-bold text-emerald-400">+5 XP</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
               <span className="text-zinc-300">Unhealthy Food Penalty</span>
-              <span className="font-bold text-brand-red">-50 XP</span>
+              <span className="font-bold text-brand-red">-150 XP</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
-              <span className="text-zinc-300">Relapse  Penalty</span>
-              <span className="font-bold text-brand-red">-100 XP</span>
+              <span className="text-zinc-300">Relapse Penalty</span>
+              <span className="font-bold text-brand-red">-300 XP</span>
             </div>
           </div>
         </Card>
@@ -503,7 +505,7 @@ export default function RewardsPage() {
               className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5 py-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Log Relapse &amp; Reset (-100 XP)</span>
+              <span>Log Relapse &amp; Reset (-300 XP)</span>
             </Button>
           </div>
 
@@ -543,7 +545,7 @@ export default function RewardsPage() {
               className="w-full text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 gap-1.5 py-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Ate Junk Food &amp; Reset (-50 XP)</span>
+              <span>Ate Junk Food &amp; Reset (-150 XP)</span>
             </Button>
           </div>
         </div>
@@ -556,68 +558,111 @@ export default function RewardsPage() {
             <Gift className="w-4 h-4 text-brand-red" />
             <CardTitle>Guilt-Free Rewards Store</CardTitle>
           </div>
-          <Badge variant="red" size="sm">
-            Discipline Passes
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={() => setIsAddPerkModalOpen(true)}
+              className="text-xs text-zinc-300"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              <span>Add Custom Perk</span>
+            </Button>
+            <Badge variant="red" size="sm">
+              Discipline Passes ({rewardItems.length})
+            </Badge>
+          </div>
         </CardHeader>
 
         <p className="text-xs text-zinc-400 -mt-2 mb-4">
-          Redeem earned discipline XP to take planned, guilt-free breaks without sacrificing long-term streaks.
+          Redeem hard-earned discipline XP to take planned, guilt-free breaks without sacrificing long-term streaks.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {rewardItems.map((item: any) => {
-            const canAfford = totalXP >= item.cost;
-            const isJunk = item.title.toLowerCase().includes("junk");
-            const isFreeze = item.title.toLowerCase().includes("freeze");
-            return (
-              <div
-                key={item.id}
-                className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-4 hover:border-brand-red/30 transition-all shadow-glass-card"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red">
-                      {isJunk ? (
-                        <Pizza className="w-5 h-5" />
-                      ) : isFreeze ? (
-                        <Shield className="w-5 h-5" />
-                      ) : (
-                        <Zap className="w-5 h-5" />
-                      )}
-                    </div>
-                    <span className="font-bold text-base font-mono text-brand-red">
-                      {item.cost} XP
-                    </span>
-                  </div>
-                  <h5 className="text-sm font-bold text-white leading-snug">{item.title}</h5>
-                  <p className="text-xs text-zinc-400 font-mono mt-1">
-                    {isJunk
-                      ? "One guilt-free cheat meal or junk food pass."
-                      : isFreeze
-                      ? "Emergency safeguard to protect your habit streak for 1 day."
-                      : "Controlled release protocol without streak penalty."}
-                  </p>
-                  {item.timesRedeemed > 0 && (
-                    <span className="text-[10px] text-zinc-500 font-mono block mt-2">
-                      Redeemed {item.timesRedeemed}x
-                    </span>
-                  )}
-                </div>
+        {rewardItems.length === 0 ? (
+          <div className="p-8 text-center text-xs text-zinc-500 font-mono space-y-3">
+            <p>No store perks available right now.</p>
+            <Button
+              variant="red"
+              size="sm"
+              onClick={fetchRewards}
+              className="text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              <span>Load Default Store Perks</span>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {rewardItems.map((item: any) => {
+              const canAfford = totalXP >= item.cost;
+              const t = item.title.toLowerCase();
 
-                <Button
-                  variant={canAfford ? "red" : "glass"}
-                  size="sm"
-                  disabled={!canAfford}
-                  onClick={() => handleRedeemPerk(item.id, item.cost, item.title)}
-                  className="w-full text-xs font-semibold py-2.5"
+              let IconComponent = Gift;
+              if (t.includes("pizza") || t.includes("junk") || t.includes("cheat") || item.icon === "Pizza") IconComponent = Pizza;
+              else if (t.includes("game") || t.includes("streaming") || item.icon === "Gamepad2") IconComponent = Gamepad2;
+              else if (t.includes("freeze") || t.includes("shield") || item.icon === "Shield") IconComponent = Shield;
+              else if (t.includes("coffee") || t.includes("cafe") || item.icon === "Coffee") IconComponent = Coffee;
+              else if (t.includes("movie") || t.includes("cinema") || item.icon === "Film") IconComponent = Film;
+              else if (t.includes("buy") || t.includes("wishlist") || item.icon === "ShoppingBag") IconComponent = ShoppingBag;
+              else if (t.includes("sleep") || item.icon === "Moon") IconComponent = Moon;
+              else if (t.includes("rest") || t.includes("spa") || item.icon === "Sparkles") IconComponent = Sparkles;
+              else if (t.includes("relapse") || item.icon === "Zap") IconComponent = Zap;
+
+              return (
+                <div
+                  key={item.id}
+                  className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between gap-4 hover:border-brand-red/30 transition-all shadow-glass-card"
                 >
-                  {canAfford ? `Redeem ${item.title}` : `Need ${item.cost - totalXP} More XP`}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-center text-brand-red shadow-glow-red">
+                        <IconComponent className="w-5 h-5" />
+                      </div>
+                      <span className="font-bold text-base font-mono text-brand-red">
+                        {item.cost} XP
+                      </span>
+                    </div>
+                    <h5 className="text-sm font-bold text-white leading-snug">{item.title}</h5>
+                    <p className="text-xs text-zinc-400 font-mono mt-1">
+                      {t.includes("junk") || t.includes("cheat")
+                        ? "One planned, guilt-free cheat meal or junk food treat."
+                        : t.includes("game") || t.includes("streaming")
+                        ? "1 hour of guilt-free video games, YouTube, or anime/Netflix."
+                        : t.includes("freeze") || t.includes("shield")
+                        ? "Emergency safeguard to protect any routine streak for 1 day."
+                        : t.includes("coffee") || t.includes("cafe")
+                        ? "Treat yourself to a special artisan coffee or dessert outing."
+                        : t.includes("movie") || t.includes("cinema")
+                        ? "Unwind with a new cinema film release or movie night with snacks."
+                        : t.includes("buy") || t.includes("wishlist")
+                        ? "Guilt-free purchase for a book, tech accessory, or desk item."
+                        : t.includes("sleep")
+                        ? "Sleep in 1 extra hour past regular waking time on the weekend."
+                        : t.includes("rest") || t.includes("relaxation")
+                        ? "Total mental unplug: afternoon off from all study/work guilt-free."
+                        : "Controlled release protocol without streak penalty."}
+                    </p>
+                    {item.timesRedeemed > 0 && (
+                      <span className="text-[10px] text-zinc-500 font-mono block mt-2">
+                        Redeemed {item.timesRedeemed}x
+                      </span>
+                    )}
+                  </div>
+
+                  <Button
+                    variant={canAfford ? "red" : "glass"}
+                    size="sm"
+                    disabled={!canAfford}
+                    onClick={() => handleRedeemPerk(item.id, item.cost, item.title)}
+                    className="w-full text-xs font-semibold py-2.5"
+                  >
+                    {canAfford ? `Redeem ${item.title}` : `Need ${item.cost - totalXP} More XP`}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Activity Ledger / Audit Log */}
@@ -719,40 +764,40 @@ export default function RewardsPage() {
                 type="button"
                 onClick={() => {
                   setDeductType("UNHEALTHY_FOOD");
-                  setDeductPoints("50");
+                  setDeductPoints("150");
                 }}
                 className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "UNHEALTHY_FOOD"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                   }`}
               >
-                🍔 Junk Food
+                🍔 Junk Food (-150)
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setDeductType("FAP");
-                  setDeductPoints("100");
+                  setDeductPoints("300");
                 }}
                 className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "FAP"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                   }`}
               >
-                ⚡ Relapse
+                ⚡ Relapse (-300)
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setDeductType("CUSTOM");
-                  setDeductPoints("30");
+                  setDeductPoints("100");
                 }}
                 className={`p-2.5 rounded-xl border text-center font-mono ${deductType === "CUSTOM"
                     ? "bg-brand-red text-white border-brand-red font-bold"
                     : "bg-white/[0.04] text-zinc-400 border-white/10"
                   }`}
               >
-                ⚠️ Custom
+                ⚠️ Custom (-100)
               </button>
             </div>
           </div>
@@ -939,10 +984,10 @@ export default function RewardsPage() {
         title={confirmDeductType === "UNHEALTHY_FOOD" ? "Log Junk Food Infraction" : "Log Protocol Relapse"}
         message={
           confirmDeductType === "UNHEALTHY_FOOD"
-            ? "Log an Unhealthy / Junk Food infraction (-50 XP) and reset your Clean Diet streak?"
-            : "Log a Monk Protocol Relapse (-100 XP) and reset your Purity streak to Day 0?"
+            ? "Log an Unhealthy / Junk Food infraction (-150 XP) and reset your Clean Diet streak?"
+            : "Log a Monk Protocol Relapse (-300 XP) and reset your Purity streak to Day 0?"
         }
-        confirmText={confirmDeductType === "UNHEALTHY_FOOD" ? "Deduct 50 XP" : "Deduct 100 XP"}
+        confirmText={confirmDeductType === "UNHEALTHY_FOOD" ? "Deduct 150 XP" : "Deduct 300 XP"}
         confirmVariant="red"
         iconType="danger"
       />
