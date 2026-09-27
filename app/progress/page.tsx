@@ -979,7 +979,7 @@ function ProgressContent() {
               className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 justify-end group transition-colors"
             >
               <span>
-                Goal: <strong className="text-white">{dailyTargetHours}h</strong>{" "}
+                Goal: <strong className="text-white">{formatDuration(dailyTargetHours * 60)}</strong>{" "}
                 <span className="text-zinc-500">({isTodayWeekend ? "Weekend" : "Weekday"})</span>
               </span>
               <Pencil className="w-2.5 h-2.5 text-brand-red group-hover:scale-110 transition-transform" />
@@ -1052,7 +1052,7 @@ function ProgressContent() {
             </div>
 
             <div className="pt-1.5 flex items-center justify-between text-[9px] font-mono text-zinc-500 border-t border-white/5">
-              <span>Weekly Pace: <strong className="text-zinc-300 font-bold">{weeklyTargetHours}h / week</strong></span>
+              <span>Weekly Pace: <strong className="text-zinc-300 font-bold">{formatDuration(weeklyTargetHours * 60)} / week</strong></span>
               <button
                 type="button"
                 onClick={() => setIsEditingGoal(false)}
@@ -1075,7 +1075,7 @@ function ProgressContent() {
             </span>
           </div>
           <span className="text-[10px] text-red-300 font-bold shrink-0">
-            {primeWindow.studyHours}h logged
+            {formatDuration(primeWindow.totalStudyMins ?? Math.round((primeWindow.studyHours || 0) * 60))} logged
           </span>
         </div>
       )}
@@ -2046,6 +2046,10 @@ function ProgressContent() {
                         borderRadius: "0.75rem",
                         fontSize: "11px",
                       }}
+                      formatter={(value: any) => [
+                        formatDuration(Math.round(Number(value) * 60)),
+                        "Study Focus",
+                      ]}
                     />
                     <Bar dataKey="studyHours" name="Study Hours" fill="#EF4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -2153,7 +2157,7 @@ function ProgressContent() {
 
                     {/* Bottom Stats Row */}
                     <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
-                      <span className="text-white font-bold">{w.studyHours}h</span>
+                      <span className="text-white font-bold">{formatDuration(w.totalStudyMins ?? Math.round((w.studyHours || 0) * 60))}</span>
                       <span className="text-zinc-400 text-[9px]">{w.sessionCount} sess</span>
                       <span className={clsx("text-[9px] font-bold", isPrime ? "text-red-300" : "text-zinc-400")}>
                         {w.avgEfficiencyPercent ? `${w.avgEfficiencyPercent}%` : "—"}

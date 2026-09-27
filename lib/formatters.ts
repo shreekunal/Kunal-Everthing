@@ -20,12 +20,11 @@ export function formatINR(amount: number, showDecimals: boolean = false): string
  * Format minutes into human readable hours & minutes (e.g. "2h 15m")
  */
 export function formatDuration(minutes: number): string {
-  if (!minutes || minutes <= 0) return "0m";
+  if (!minutes || minutes <= 0) return "0h 00m";
   const hrs = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  if (hrs === 0) return `${mins}m`;
-  if (mins === 0) return `${hrs}h`;
-  return `${hrs}h ${mins}m`;
+  const padMins = mins.toString().padStart(2, "0");
+  return `${hrs}h ${padMins}m`;
 }
 
 /**
