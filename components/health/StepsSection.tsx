@@ -170,8 +170,8 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
             <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
               <span>Target: {targetSteps.toLocaleString()}</span>
               {stepsData.today.syncSource === "HEALTH_CONNECT" ? (
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  • <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Health Connect
+                <span className="text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
+                  Health Connect
                 </span>
               ) : (
                 <button

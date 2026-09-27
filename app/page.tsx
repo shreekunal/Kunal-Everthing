@@ -28,6 +28,7 @@ import {
   Droplets,
   Crown,
   GraduationCap,
+  Footprints,
 } from "lucide-react";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
@@ -39,7 +40,6 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
 import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
-import { VitalityWidgetCard } from "@/components/dashboard/VitalityWidgetCard";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -383,7 +383,7 @@ export default function DashboardPage() {
 
   const greeting = getGreeting(currentUserName);
 
-  const { todayTasks, routines, financials, weeklySummary, upcomingDues, discipline } =
+  const { todayTasks, routines, financials, weeklySummary, upcomingDues, discipline, steps } =
     data || {};
 
   return (
@@ -580,23 +580,40 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* 4. Consistency -> /routines */}
+          {/* 4. Daily Movement & Steps -> /health */}
           <Link
-            href="/routines"
+            href="/health"
             onClick={() => haptics.selection()}
             className="block group cursor-pointer focus:outline-none active:scale-[0.98] transition-transform"
           >
             <div className="rounded-2xl bg-zinc-950 border border-white/10 group-hover:border-brand-red/40 p-3 flex flex-col justify-between h-full transition-all shadow-sm">
               <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono uppercase">
-                <span className="group-hover:text-white transition-colors">Habits</span>
-                <Flame className="w-3.5 h-3.5 text-brand-red fill-brand-red/20 group-hover:scale-110 transition-transform" />
+                <span className="group-hover:text-white transition-colors">Daily Steps</span>
+                <Footprints className="w-3.5 h-3.5 text-brand-red group-hover:scale-110 transition-transform" />
               </div>
-              <div className="text-lg sm:text-xl font-bold tracking-tight text-white font-mono my-1">
-                {weeklySummary?.routineCompletionRate || 0}%
+              <div className="text-lg sm:text-xl font-bold tracking-tight text-white font-mono my-1 flex items-baseline gap-1">
+                <span>{(steps?.todayCount || 0).toLocaleString()}</span>
+                <span className="text-xs text-zinc-500 font-normal">
+                  / {((steps?.targetSteps || 10000) / 1000).toFixed(0)}k
+                </span>
+                {steps?.syncSource === "HEALTH_CONNECT" && (
+                  <span className="text-[9px] text-emerald-400 font-bold ml-auto font-mono flex items-center gap-0.5">
+                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                    Sync
+                  </span>
+                )}
               </div>
               <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 pt-1 border-t border-white/5">
-                <span>Tasks: {weeklySummary?.tasksCompleted || 0}/{weeklySummary?.tasksTotal || 0}</span>
-                <span className="text-red-300 font-semibold">{weeklySummary?.routineCompletionRate || 0}%</span>
+                {(steps?.todayCount || 0) >= (steps?.targetSteps || 10000) ? (
+                  <span className="text-red-300 font-bold flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5 text-brand-red animate-pulse" />
+                    Goal Met!
+                  </span>
+                ) : (
+                  <span>
+                    {Math.min(100, Math.round(((steps?.todayCount || 0) / Math.max(1, (steps?.targetSteps || 10000))) * 100))}% ({steps?.distanceKm || Number(((steps?.todayCount || 0) * 0.00078).toFixed(1))} km)
+                  </span>
+                )}
               </div>
             </div>
           </Link>
@@ -1025,10 +1042,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Col: Health & Hydration Trackers */}
+          {/* Right Col: Hydration Tracker */}
           <div id="hydration-tracker" className="space-y-4 rounded-2xl transition-all duration-300">
-            {/* Vitality & Health Hub Widget */}
-            <VitalityWidgetCard />
             {/* Water & Hydration Tracker with 2h Alarms */}
             <WaterTrackerCard userId={data?.user?.id} />
           </div>

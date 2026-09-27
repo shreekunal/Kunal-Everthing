@@ -29,6 +29,8 @@ export async function GET() {
       weekSessions,
       importantDates,
       partner,
+      todayStepLog,
+      userSettings,
     ] = await Promise.all([
       getDisciplineSummary(user.id, false),
       prisma.task.findMany({
@@ -67,6 +69,18 @@ export async function GET() {
       }),
       prisma.partner.findFirst({
         where: { userId: user.id },
+      }),
+      prisma.dailyStepLog.findUnique({
+        where: {
+          userId_date: {
+            userId: user.id,
+            date: todayStr,
+          },
+        },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { defaultStepGoal: true },
       }),
     ]);
 
@@ -170,6 +184,13 @@ export async function GET() {
       upcomingDues: upcomingCardDues.slice(0, 3),
       importantDates,
       partner,
+      steps: {
+        todayCount: todayStepLog?.stepCount || 0,
+        targetSteps: userSettings?.defaultStepGoal || 10000,
+        syncSource: todayStepLog?.syncSource || "MANUAL",
+        distanceKm: todayStepLog?.distanceKm || 0,
+        calories: todayStepLog?.calories || 0,
+      },
     });
   } catch (error: any) {
     console.error("Dashboard API error:", error);
