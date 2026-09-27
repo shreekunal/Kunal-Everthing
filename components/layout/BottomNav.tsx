@@ -180,7 +180,7 @@ export function BottomNav({
   const extendedNav = [
     { name: "Health", href: "/health", icon: Activity },
     { name: "Habits", href: "/routines", icon: Flame },
-    { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },
+    { name: "Study", href: "/progress", icon: GraduationCap },
     { name: "Discipline", href: "/rewards", icon: Target },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
