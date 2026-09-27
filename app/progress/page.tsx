@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from "react
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { formatDuration, formatDate } from "@/lib/formatters";
 import {
   GraduationCap,
@@ -166,6 +167,24 @@ function ProgressContent() {
   const [expandedAims, setExpandedAims] = useState<Record<string, boolean>>({});
   const [addingTopicMilestoneId, setAddingTopicMilestoneId] = useState<string | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState("");
+
+  // Edit Aim State
+  const [editingAimId, setEditingAimId] = useState<string | null>(null);
+  const [editAimTitle, setEditAimTitle] = useState("");
+  const [editAimTargetDate, setEditAimTargetDate] = useState("");
+  const [isSavingAimEdit, setIsSavingAimEdit] = useState(false);
+  const [aimToDelete, setAimToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingAim, setIsDeletingAim] = useState(false);
+
+  // Milestone Add & Edit State
+  const [addingMilestoneAimId, setAddingMilestoneAimId] = useState<string | null>(null);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
+  const [isSavingMilestone, setIsSavingMilestone] = useState(false);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [editMilestoneTitle, setEditMilestoneTitle] = useState("");
+  const [isSavingMilestoneEdit, setIsSavingMilestoneEdit] = useState(false);
+  const [milestoneToDelete, setMilestoneToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingMilestone, setIsDeletingMilestone] = useState(false);
 
   // Share Modal & Image Export states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -658,6 +677,131 @@ function ProgressContent() {
       }
     } catch (err) {
       console.error("Failed to create topic:", err);
+    }
+  };
+
+  // Edit Aim Handler
+  const handleSaveAimEdit = async (aimId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editAimTitle.trim() || isSavingAimEdit) return;
+
+    setIsSavingAimEdit(true);
+    haptics.impactMedium();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_AIM",
+          aimId,
+          title: editAimTitle.trim(),
+          targetDate: editAimTargetDate || null,
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setEditingAimId(null);
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to update aim:", err);
+      haptics.error();
+    } finally {
+      setIsSavingAimEdit(false);
+    }
+  };
+
+  const handleExecuteDeleteAim = async () => {
+    if (!aimToDelete) return;
+    setIsDeletingAim(true);
+    try {
+      const res = await fetch(`/api/aims?aimId=${aimToDelete.id}`, { method: "DELETE" });
+      if (res.ok) {
+        haptics.success();
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to delete aim:", err);
+      haptics.error();
+    } finally {
+      setIsDeletingAim(false);
+      setAimToDelete(null);
+    }
+  };
+
+  // Milestone Handlers
+  const handleCreateMilestone = async (aimId: string) => {
+    if (!newMilestoneTitle.trim() || isSavingMilestone) return;
+    setIsSavingMilestone(true);
+    haptics.selection();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_MILESTONE",
+          aimId,
+          title: newMilestoneTitle.trim(),
+        }),
+      });
+      if (res.ok) {
+        setNewMilestoneTitle("");
+        setAddingMilestoneAimId(null);
+        haptics.success();
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to create milestone:", err);
+      haptics.error();
+    } finally {
+      setIsSavingMilestone(false);
+    }
+  };
+
+  const handleSaveMilestoneEdit = async (milestoneId: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editMilestoneTitle.trim() || isSavingMilestoneEdit) return;
+
+    setIsSavingMilestoneEdit(true);
+    haptics.selection();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_MILESTONE",
+          milestoneId,
+          title: editMilestoneTitle.trim(),
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setEditingMilestoneId(null);
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to update milestone:", err);
+      haptics.error();
+    } finally {
+      setIsSavingMilestoneEdit(false);
+    }
+  };
+
+  const handleExecuteDeleteMilestone = async () => {
+    if (!milestoneToDelete) return;
+    setIsDeletingMilestone(true);
+    try {
+      const res = await fetch(`/api/aims?milestoneId=${milestoneToDelete.id}`, { method: "DELETE" });
+      if (res.ok) {
+        haptics.success();
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to delete milestone:", err);
+      haptics.error();
+    } finally {
+      setIsDeletingMilestone(false);
+      setMilestoneToDelete(null);
     }
   };
 
@@ -1494,56 +1638,215 @@ function ProgressContent() {
               {aimsData.map((aim) => {
                 const isExpanded = !!expandedAims[aim.id];
                 const stats = aim.stats || {};
+                const isEditingThisAim = editingAimId === aim.id;
+
                 return (
                   <div key={aim.id} className="rounded-2xl bg-zinc-950 border border-white/10 overflow-hidden">
-                    <div
-                      onClick={() => {
-                        haptics.selection();
-                        setExpandedAims((prev) => ({ ...prev, [aim.id]: !isExpanded }));
-                      }}
-                      className="p-3.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.02]"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <button type="button" className="text-zinc-500">
-                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        </button>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white font-mono truncate">{aim.title}</h4>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {stats.masteredTopics || 0}/{stats.totalTopics || 0} completed • {formatDuration(stats.totalStudyMinutes || 0)}
+                    {/* AIM HEADER ROW OR EDIT FORM */}
+                    {isEditingThisAim ? (
+                      <form
+                        onSubmit={(e) => handleSaveAimEdit(aim.id, e)}
+                        className="p-3.5 space-y-2.5 bg-black/60 border-b border-white/10 animate-in fade-in duration-150"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono uppercase text-brand-red font-bold">
+                            Edit Aim
                           </span>
+                          <span className="text-[9px] font-mono text-zinc-500">ID: {aim.id.slice(-6)}</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[9px] font-mono text-zinc-400 block mb-1">Aim Title *</span>
+                            <input
+                              type="text"
+                              required
+                              value={editAimTitle}
+                              onChange={(e) => setEditAimTitle(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                              placeholder="e.g. FAANG System Design"
+                              autoFocus
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-mono text-zinc-400 block mb-1">Target Date (Optional)</span>
+                            <input
+                              type="date"
+                              value={editAimTargetDate}
+                              onChange={(e) => setEditAimTargetDate(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingAimId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-mono text-zinc-400 hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                          <Button
+                            variant="red"
+                            size="sm"
+                            type="submit"
+                            isLoading={isSavingAimEdit}
+                            className="h-7 px-3 text-[10px]"
+                          >
+                            Save Changes
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div
+                        onClick={() => {
+                          haptics.selection();
+                          setExpandedAims((prev) => ({ ...prev, [aim.id]: !isExpanded }));
+                        }}
+                        className="p-3.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.02]"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <button type="button" className="text-zinc-500">
+                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-xs font-bold text-white font-mono truncate">{aim.title}</h4>
+                              {aim.targetDate && (
+                                <span className="text-[9px] font-mono text-zinc-500 bg-white/[0.03] px-1.5 py-0.2 rounded border border-white/5">
+                                  {aim.targetDate}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {stats.masteredTopics || 0}/{stats.totalTopics || 0} completed • {formatDuration(stats.totalStudyMinutes || 0)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <div className="text-right">
+                            <span className="text-xs font-bold font-mono text-red-300">
+                              {stats.masteryPercent || 0}%
+                            </span>
+                            <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
+                              <div
+                                className="h-full bg-brand-red rounded-full shadow-glow-red-subtle"
+                                style={{ width: `${Math.max(4, stats.masteryPercent || 0)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-0.5 border-l border-white/10 pl-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                haptics.selection();
+                                setEditingAimId(aim.id);
+                                setEditAimTitle(aim.title);
+                                setEditAimTargetDate(aim.targetDate || "");
+                              }}
+                              className="p-1 rounded text-zinc-500 hover:text-white hover:bg-white/[0.05] transition-colors"
+                              title="Edit Aim"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                haptics.warning();
+                                setAimToDelete({ id: aim.id, title: aim.title });
+                              }}
+                              className="p-1 rounded text-zinc-600 hover:text-rose-400 hover:bg-white/[0.05] transition-colors"
+                              title="Delete Aim"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-bold font-mono text-red-300">
-                          {stats.masteryPercent || 0}%
-                        </span>
-                        <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
-                          <div
-                            className="h-full bg-brand-red rounded-full shadow-glow-red-subtle"
-                            style={{ width: `${Math.max(4, stats.masteryPercent || 0)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Checkpoints Checklist */}
+                    {/* Checkpoints Checklist & Milestones */}
                     {isExpanded && (
                       <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-white/5 bg-black/40">
                         {aim.milestones.map((m: any) => {
                           const completedCount = (m.topics || []).filter((t: any) => t.mastery === "MASTERED").length;
                           const totalCount = (m.topics || []).length;
+                          const isEditingThisMilestone = editingMilestoneId === m.id;
 
                           return (
                             <div key={m.id} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
-                                <span>{m.title}</span>
-                                <span className="text-[9px] text-zinc-500 font-normal">
+                              {/* Milestone Header / Edit row */}
+                              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold gap-2">
+                                {isEditingThisMilestone ? (
+                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <input
+                                      type="text"
+                                      value={editMilestoneTitle}
+                                      onChange={(e) => setEditMilestoneTitle(e.target.value)}
+                                      className="flex-1 px-2 py-0.5 rounded bg-black border border-brand-red text-xs text-white font-mono focus:outline-none"
+                                      autoFocus
+                                      placeholder="Milestone title"
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleSaveMilestoneEdit(m.id);
+                                        if (e.key === "Escape") setEditingMilestoneId(null);
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveMilestoneEdit(m.id)}
+                                      disabled={isSavingMilestoneEdit}
+                                      className="p-1 rounded bg-brand-red text-white hover:bg-brand-redDark"
+                                      title="Save"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingMilestoneId(null)}
+                                      className="p-1 text-zinc-400 hover:text-white"
+                                      title="Cancel"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <span className="truncate">{m.title}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        haptics.selection();
+                                        setEditingMilestoneId(m.id);
+                                        setEditMilestoneTitle(m.title);
+                                      }}
+                                      className="p-0.5 text-zinc-500 hover:text-white transition-colors"
+                                      title="Edit Milestone"
+                                    >
+                                      <Pencil className="w-2.5 h-2.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        haptics.warning();
+                                        setMilestoneToDelete({ id: m.id, title: m.title });
+                                      }}
+                                      className="p-0.5 text-zinc-600 hover:text-rose-400 transition-colors"
+                                      title="Delete Milestone"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                )}
+
+                                <span className="text-[9px] text-zinc-500 font-normal shrink-0">
                                   {completedCount}/{totalCount} completed
                                 </span>
                               </div>
 
+                              {/* Topics / Checkpoints List */}
                               <div className="space-y-1">
                                 {m.topics.map((t: any) => {
                                   const isDone = t.mastery === "MASTERED";
@@ -1610,47 +1913,102 @@ function ProgressContent() {
                                 })}
                               </div>
 
-                            {addingTopicMilestoneId === m.id ? (
-                              <div className="flex items-center gap-1.5 pt-1">
-                                <input
-                                  type="text"
-                                  placeholder="New Topic"
-                                  value={newTopicTitle}
-                                  onChange={(e) => setNewTopicTitle(e.target.value)}
-                                  className="flex-1 px-2 py-1 rounded bg-black border border-white/15 text-xs text-white font-mono"
-                                />
-                                <Button
-                                  variant="red"
-                                  size="sm"
-                                  onClick={() => handleCreateTopic(m.id)}
-                                  className="h-7 px-2 text-[10px]"
-                                >
-                                  Add
-                                </Button>
+                              {/* Add Topic under Milestone */}
+                              {addingTopicMilestoneId === m.id ? (
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <input
+                                    type="text"
+                                    placeholder="New Topic"
+                                    value={newTopicTitle}
+                                    onChange={(e) => setNewTopicTitle(e.target.value)}
+                                    className="flex-1 px-2 py-1 rounded bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleCreateTopic(m.id);
+                                      if (e.key === "Escape") setAddingTopicMilestoneId(null);
+                                    }}
+                                  />
+                                  <Button
+                                    variant="red"
+                                    size="sm"
+                                    onClick={() => handleCreateTopic(m.id)}
+                                    className="h-7 px-2 text-[10px]"
+                                  >
+                                    Add
+                                  </Button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddingTopicMilestoneId(null)}
+                                    className="text-zinc-500 p-1"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setAddingTopicMilestoneId(null)}
-                                  className="text-zinc-500 p-1"
+                                  onClick={() => {
+                                    setAddingTopicMilestoneId(m.id);
+                                    setNewTopicTitle("");
+                                  }}
+                                  className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 pt-0.5"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <Plus className="w-2.5 h-2.5" />
+                                  <span>Add Topic</span>
                                 </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAddingTopicMilestoneId(m.id);
-                                  setNewTopicTitle("");
-                                }}
-                                className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 pt-0.5"
-                              >
-                                <Plus className="w-2.5 h-2.5" />
-                                <span>Add Topic</span>
-                              </button>
-                            )}
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Add Milestone to Aim */}
+                        {addingMilestoneAimId === aim.id ? (
+                          <div className="p-2.5 rounded-xl bg-white/[0.02] border border-brand-red/30 flex items-center gap-1.5 mt-2 animate-in fade-in duration-150">
+                            <input
+                              type="text"
+                              placeholder="New Milestone Title"
+                              value={newMilestoneTitle}
+                              onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                              className="flex-1 px-2.5 py-1 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleCreateMilestone(aim.id);
+                                if (e.key === "Escape") setAddingMilestoneAimId(null);
+                              }}
+                            />
+                            <Button
+                              variant="red"
+                              size="sm"
+                              onClick={() => handleCreateMilestone(aim.id)}
+                              isLoading={isSavingMilestone}
+                              className="h-7 px-2.5 text-[10px]"
+                            >
+                              Add Milestone
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingMilestoneAimId(null);
+                                setNewMilestoneTitle("");
+                              }}
+                              className="text-zinc-500 hover:text-zinc-300 p-1"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                        );
-                      })}
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingMilestoneAimId(aim.id);
+                              setNewMilestoneTitle("");
+                            }}
+                            className="w-full py-2 rounded-xl border border-dashed border-white/10 hover:border-brand-red/40 text-[10px] font-mono text-zinc-400 hover:text-brand-red transition-all flex items-center justify-center gap-1.5 mt-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Add Milestone to {aim.title}</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1943,6 +2301,32 @@ function ProgressContent() {
           </div>
         </div>
       )}
+
+      {/* Aim Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(aimToDelete)}
+        onClose={() => setAimToDelete(null)}
+        onConfirm={handleExecuteDeleteAim}
+        isLoading={isDeletingAim}
+        title="Delete Aim"
+        message={`Are you sure you want to delete "${aimToDelete?.title}"? All milestones, topics, and study links for this aim will be removed.`}
+        confirmText="Delete Aim"
+        confirmVariant="red"
+        iconType="danger"
+      />
+
+      {/* Milestone Deletion Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(milestoneToDelete)}
+        onClose={() => setMilestoneToDelete(null)}
+        onConfirm={handleExecuteDeleteMilestone}
+        isLoading={isDeletingMilestone}
+        title="Delete Milestone"
+        message={`Are you sure you want to delete milestone "${milestoneToDelete?.title}"? All checkpoints within this milestone will be removed.`}
+        confirmText="Delete Milestone"
+        confirmVariant="red"
+        iconType="danger"
+      />
     </div>
   );
 }

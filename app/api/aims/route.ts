@@ -302,6 +302,30 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ aim: updatedAim });
     }
 
+    if (action === "UPDATE_MILESTONE") {
+      const { milestoneId, title, order } = body;
+      if (!milestoneId || !title?.trim()) {
+        return NextResponse.json({ error: "Milestone ID and title required" }, { status: 400 });
+      }
+
+      const milestone = await prisma.milestone.findFirst({
+        where: { id: milestoneId, aim: { userId: user.id } },
+      });
+      if (!milestone) {
+        return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
+      }
+
+      const updatedMilestone = await prisma.milestone.update({
+        where: { id: milestoneId },
+        data: {
+          title: title.trim(),
+          ...(order !== undefined ? { order } : {}),
+        },
+      });
+
+      return NextResponse.json({ milestone: updatedMilestone });
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
