@@ -181,7 +181,7 @@ export function BottomNav({
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Habits", href: "/routines", icon: Flame },
     { name: "Study", href: "/progress?tab=LOG", icon: GraduationCap },
-    { name: "Discipline", href: "/rewards", icon: Trophy },
+    { name: "Discipline", href: "/rewards", icon: Target },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
