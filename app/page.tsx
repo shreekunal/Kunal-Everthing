@@ -39,6 +39,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
 import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
+import { VitalityWidgetCard } from "@/components/dashboard/VitalityWidgetCard";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -1024,8 +1025,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Col: Hydration Tracker */}
+          {/* Right Col: Health & Hydration Trackers */}
           <div id="hydration-tracker" className="space-y-4 rounded-2xl transition-all duration-300">
+            {/* Vitality & Health Hub Widget */}
+            <VitalityWidgetCard />
             {/* Water & Hydration Tracker with 2h Alarms */}
             <WaterTrackerCard userId={data?.user?.id} />
           </div>

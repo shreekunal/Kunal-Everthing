@@ -36,6 +36,9 @@ model User {
   rewardItems       RewardItem[]
   diaries           DailyDiary[]
   aims              Aim[]
+  weightLogs        WeightLog[]
+  fastingSessions   FastingSession[]
+  dailyStepLogs     DailyStepLog[]
 }
 
 model UserSettings {
@@ -48,6 +51,11 @@ model UserSettings {
   vaultAutoLockMinutes Int      @default(5)
   clipboardClearSecs   Int      @default(30)
   notificationsEnabled Boolean  @default(true)
+  heightCm              Float?   @default(175.0)
+  targetWeightKg        Float?   @default(70.0)
+  defaultStepGoal       Int      @default(10000)
+  fastingProtocol       String   @default("16:8") // 16:8, 18:6, 20:4, 24:0, CUSTOM
+  fastingNotifications  Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -353,4 +361,52 @@ model RewardItem {
   timesRedeemed Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model WeightLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weightKg  Float
+  bmi       Float?
+  notes     String?
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model FastingSession {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  protocol       String    // "16:8", "18:6", "20:4", "24:0", "CUSTOM"
+  targetHours    Float     @default(16.0)
+  startTime      DateTime  @default(now())
+  targetEndTime  DateTime
+  endTime        DateTime?
+  status         String    @default("ACTIVE") // ACTIVE, COMPLETED, BROKEN, CANCELLED
+  feelingsRating Int?      // 1-5 post-fast rating
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, status])
+}
+
+model DailyStepLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String   // YYYY-MM-DD
+  stepCount   Int      @default(0)
+  targetSteps Int      @default(10000)
+  distanceKm  Float    @default(0.0)
+  calories    Int      @default(0)
+  syncSource  String   @default("MANUAL") // "HEALTH_CONNECT" or "MANUAL"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }

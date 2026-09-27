@@ -6,6 +6,11 @@ export const NOTIFICATION_IDS = {
   STREAK_DEFENDER: 1002,
   MIDDAY_HABIT_CHECK: 1003,
   WATER_REMINDER_BASE: 2000,
+  FASTING_HALFWAY: 3001,
+  FASTING_ONE_HOUR_LEFT: 3002,
+  FASTING_COMPLETE: 3003,
+  EATING_WINDOW_ONE_HOUR_LEFT: 3004,
+  EATING_WINDOW_CLOSED: 3005,
   TEST_WATER_NOTIFICATION: 9998,
   TEST_NOTIFICATION: 9999,
 };
@@ -14,6 +19,7 @@ export const NOTIFICATION_CHANNELS = {
   DAILY_BRIEFING: "daily-briefing",
   TASK_REMINDERS: "task-reminders",
   HYDRATION: "hydration-reminders",
+  FASTING: "fasting-reminders",
 } as const;
 
 /**
@@ -66,6 +72,16 @@ export async function setupNotificationChannels(): Promise<void> {
         vibration: true,
         lights: true,
         lightColor: "#06B6D4",
+      },
+      {
+        id: NOTIFICATION_CHANNELS.FASTING,
+        name: "Intermittent Fasting & Health",
+        description: "Fasting milestones, completion alarms, and eating window alerts",
+        importance: 4, // High importance
+        visibility: 1, // Public on lockscreen
+        vibration: true,
+        lights: true,
+        lightColor: "#10B981",
       },
     ];
 
@@ -807,3 +823,142 @@ export async function setupNotificationListeners(
     return () => {};
   }
 }
+
+/**
+ * Schedule smart intermittent fasting alerts (halfway checkpoint, 1h-remaining, fast complete, and eating window alerts)
+ */
+export async function scheduleFastingNotifications(
+  startTime: Date | string,
+  targetEndTime: Date | string,
+  protocol: string = "16:8"
+): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const hasPermission = await requestNotificationPermission();
+    if (!hasPermission) return false;
+
+    await cancelFastingNotifications();
+
+    const now = Date.now();
+    const startMs = new Date(startTime).getTime();
+    const endMs = new Date(targetEndTime).getTime();
+    const totalDurationMs = endMs - startMs;
+    const halfwayMs = startMs + Math.round(totalDurationMs / 2);
+    const oneHourBeforeEndMs = endMs - 60 * 60 * 1000;
+
+    let eatingWindowHours = 8;
+    if (protocol.includes(":")) {
+      const parts = protocol.split(":");
+      const fastHours = parseFloat(parts[0]);
+      if (!isNaN(fastHours) && fastHours < 24) {
+        eatingWindowHours = 24 - fastHours;
+      }
+    }
+    const eatingWindowEndMs = endMs + eatingWindowHours * 60 * 60 * 1000;
+    const eatingWindowOneHourBeforeMs = eatingWindowEndMs - 60 * 60 * 1000;
+
+    const notificationsToSchedule: any[] = [];
+
+    // 1. Halfway Checkpoint
+    if (halfwayMs > now) {
+      notificationsToSchedule.push({
+        id: NOTIFICATION_IDS.FASTING_HALFWAY,
+        title: "⚡ Halfway Through Fast!",
+        body: `You've completed 50% of your ${protocol} fast. Insulin has normalized and fat oxidation is active. Stay hydrated!`,
+        schedule: { at: new Date(halfwayMs), allowWhileIdle: true },
+        channelId: NOTIFICATION_CHANNELS.FASTING,
+        smallIcon: "ic_stat_notification",
+        iconColor: "#10B981",
+        extra: { route: "/health", type: "FASTING" },
+      });
+    }
+
+    // 2. One Hour Left
+    if (oneHourBeforeEndMs > now) {
+      notificationsToSchedule.push({
+        id: NOTIFICATION_IDS.FASTING_ONE_HOUR_LEFT,
+        title: "⏳ 1 Hour Remaining!",
+        body: `Almost there! 1 hour left until your eating window opens. Plan your meal with whole foods and clean protein.`,
+        schedule: { at: new Date(oneHourBeforeEndMs), allowWhileIdle: true },
+        channelId: NOTIFICATION_CHANNELS.FASTING,
+        smallIcon: "ic_stat_notification",
+        iconColor: "#10B981",
+        extra: { route: "/health", type: "FASTING" },
+      });
+    }
+
+    // 3. Fast Complete / Eating Window Open
+    if (endMs > now) {
+      notificationsToSchedule.push({
+        id: NOTIFICATION_IDS.FASTING_COMPLETE,
+        title: "🎉 Fast Complete!",
+        body: `Target achieved! Your fast is complete. Your ${eatingWindowHours}h eating window is now open.`,
+        schedule: { at: new Date(endMs), allowWhileIdle: true },
+        channelId: NOTIFICATION_CHANNELS.FASTING,
+        smallIcon: "ic_stat_notification",
+        iconColor: "#10B981",
+        extra: { route: "/health", type: "FASTING" },
+      });
+    }
+
+    // 4. Eating Window 1 Hour Left
+    if (eatingWindowHours > 0 && eatingWindowOneHourBeforeMs > now) {
+      notificationsToSchedule.push({
+        id: NOTIFICATION_IDS.EATING_WINDOW_ONE_HOUR_LEFT,
+        title: "🍽️ 1 Hour Left in Eating Window",
+        body: "Ensure you meet your daily nutritional and hydration targets before fasting starts.",
+        schedule: { at: new Date(eatingWindowOneHourBeforeMs), allowWhileIdle: true },
+        channelId: NOTIFICATION_CHANNELS.FASTING,
+        smallIcon: "ic_stat_notification",
+        iconColor: "#F59E0B",
+        extra: { route: "/health", type: "FASTING" },
+      });
+    }
+
+    // 5. Eating Window Closed
+    if (eatingWindowHours > 0 && eatingWindowEndMs > now) {
+      notificationsToSchedule.push({
+        id: NOTIFICATION_IDS.EATING_WINDOW_CLOSED,
+        title: "🔒 Eating Window Closed",
+        body: "Your eating window has concluded. Time to start the next fast and stay disciplined.",
+        schedule: { at: new Date(eatingWindowEndMs), allowWhileIdle: true },
+        channelId: NOTIFICATION_CHANNELS.FASTING,
+        smallIcon: "ic_stat_notification",
+        iconColor: "#EF4444",
+        extra: { route: "/health", type: "FASTING" },
+      });
+    }
+
+    if (notificationsToSchedule.length > 0) {
+      await LocalNotifications.schedule({ notifications: notificationsToSchedule });
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to schedule fasting notifications:", err);
+    return false;
+  }
+}
+
+/**
+ * Cancel all active scheduled fasting notifications
+ */
+export async function cancelFastingNotifications(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const idsToCancel = [
+      NOTIFICATION_IDS.FASTING_HALFWAY,
+      NOTIFICATION_IDS.FASTING_ONE_HOUR_LEFT,
+      NOTIFICATION_IDS.FASTING_COMPLETE,
+      NOTIFICATION_IDS.EATING_WINDOW_ONE_HOUR_LEFT,
+      NOTIFICATION_IDS.EATING_WINDOW_CLOSED,
+    ];
+    await LocalNotifications.cancel({
+      notifications: idsToCancel.map((id) => ({ id })),
+    });
+    return true;
+  } catch (err) {
+    console.warn("Failed to cancel fasting notifications:", err);
+    return false;
+  }
+}
+

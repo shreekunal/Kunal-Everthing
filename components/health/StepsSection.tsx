@@ -1,0 +1,396 @@
+"use client";
+
+import React, { useState } from "react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Footprints, Flame, MapPin, Clock, Plus, RefreshCw, Smartphone, ExternalLink } from "lucide-react";
+import { haptics } from "@/lib/haptics";
+import { fetchHealthConnectSteps, openHealthConnect } from "@/lib/healthSync";
+import { formatDuration } from "@/lib/formatters";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { format, parseISO } from "date-fns";
+
+interface StepsSectionProps {
+  stepsData: {
+    today: {
+      date: string;
+      stepCount: number;
+      targetSteps: number;
+      distanceKm: number;
+      calories: number;
+      syncSource: string;
+    };
+    history: Array<{
+      date: string;
+      stepCount: number;
+      targetSteps: number;
+      distanceKm: number;
+      calories: number;
+    }>;
+  };
+  onRefresh: () => Promise<void>;
+}
+
+export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isIncrementing, setIsIncrementing] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualCount, setManualCount] = useState(stepsData.today.stepCount.toString());
+
+  const currentSteps = stepsData.today.stepCount;
+  const targetSteps = stepsData.today.targetSteps || 10000;
+  const progressPercent = Math.min(100, Math.round((currentSteps / targetSteps) * 100));
+  const activeMinutes = Math.floor(currentSteps / 100);
+
+  // Quick increment handler
+  const handleIncrement = async (delta: number) => {
+    haptics.impactLight();
+    setIsIncrementing(true);
+    try {
+      const res = await fetch("/api/vitality", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "INCREMENT_STEPS", delta }),
+      });
+      if (res.ok) {
+        haptics.selection();
+        await onRefresh();
+      }
+    } catch (err) {
+      console.error("Increment steps error:", err);
+    } finally {
+      setIsIncrementing(false);
+    }
+  };
+
+  // Direct manual save
+  const handleSaveManual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const count = parseInt(manualCount, 10);
+    if (isNaN(count) || count < 0) return;
+
+    haptics.impactMedium();
+    setIsIncrementing(true);
+    try {
+      const res = await fetch("/api/vitality", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "LOG_STEPS",
+          stepCount: count,
+          syncSource: "MANUAL",
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setShowManualModal(false);
+        await onRefresh();
+      }
+    } catch (err) {
+      console.error("Save manual steps error:", err);
+    } finally {
+      setIsIncrementing(false);
+    }
+  };
+
+  // Google Health Connect Sync
+  const handleHealthConnectSync = async () => {
+    haptics.impactMedium();
+    setIsSyncing(true);
+    try {
+      const result = await fetchHealthConnectSteps();
+      if (result.success && result.stepCount !== undefined) {
+        // Save to backend
+        await fetch("/api/vitality", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "LOG_STEPS",
+            stepCount: result.stepCount,
+            syncSource: "HEALTH_CONNECT",
+          }),
+        });
+        haptics.success();
+        await onRefresh();
+      } else {
+        haptics.warning();
+        // Offer to open Health Connect
+        openHealthConnect();
+      }
+    } catch (err) {
+      console.error("Health Connect sync error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Chart data format
+  const chartData = stepsData.history.map((h) => ({
+    day: format(parseISO(h.date), "EEE"),
+    steps: h.stepCount,
+    target: h.targetSteps,
+  }));
+
+  // Circular progress calculations
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-zinc-950 via-black to-black p-4 sm:p-5 shadow-2xl relative overflow-hidden space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-2 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <Footprints className="w-3.5 h-3.5" />
+          </div>
+          <div>
+            <h2 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
+              Daily Movement & Steps
+            </h2>
+            <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
+              <span>Target: {targetSteps.toLocaleString()}</span>
+              {stepsData.today.syncSource === "HEALTH_CONNECT" && (
+                <span className="text-emerald-400 font-bold">• Health Connect</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleHealthConnectSync}
+            disabled={isSyncing}
+            className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 gap-1 rounded-md"
+            title="Sync with Google Health Connect"
+          >
+            <RefreshCw className={`w-3 h-3 text-blue-400 ${isSyncing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Sync Health</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setManualCount(currentSteps.toString());
+              setShowManualModal(true);
+            }}
+            className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-md"
+          >
+            Edit
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Main Progress Ring & Telemetry */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Radial Progress Ring */}
+          <div className="relative flex items-center justify-center w-36 h-36 flex-shrink-0">
+            <svg className="w-36 h-36 -rotate-90 transform" viewBox="0 0 128 128">
+              <circle
+                cx="64"
+                cy="64"
+                r={radius}
+                className="stroke-zinc-900"
+                strokeWidth="10"
+                fill="transparent"
+              />
+              <circle
+                cx="64"
+                cy="64"
+                r={radius}
+                className="stroke-blue-500 transition-all duration-700 ease-out"
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            </svg>
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-2xl font-bold font-mono text-white tracking-tight">
+                {currentSteps.toLocaleString()}
+              </span>
+              <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">
+                {progressPercent}% Met
+              </span>
+            </div>
+          </div>
+
+          {/* Derived Metrics Grid */}
+          <div className="grid grid-cols-3 gap-2 w-full">
+            <div className="bg-black/50 border border-white/5 p-2.5 rounded-xl flex flex-col items-center justify-center text-center">
+              <MapPin className="w-3.5 h-3.5 text-blue-400 mb-1" />
+              <span className="text-xs font-mono font-bold text-white">
+                {stepsData.today.distanceKm.toFixed(2)}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono">
+                km walked
+              </span>
+            </div>
+
+            <div className="bg-black/50 border border-white/5 p-2.5 rounded-xl flex flex-col items-center justify-center text-center">
+              <Flame className="w-3.5 h-3.5 text-amber-500 mb-1" />
+              <span className="text-xs font-mono font-bold text-white">
+                {stepsData.today.calories}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono">
+                kcal burned
+              </span>
+            </div>
+
+            <div className="bg-black/50 border border-white/5 p-2.5 rounded-xl flex flex-col items-center justify-center text-center">
+              <Clock className="w-3.5 h-3.5 text-emerald-400 mb-1" />
+              <span className="text-xs font-mono font-bold text-white">
+                {formatDuration(activeMinutes)}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-mono">
+                active time
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Increment Buttons (Fallback & on-the-go logging) */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+              Quick Log Steps
+            </span>
+            <button
+              onClick={openHealthConnect}
+              className="text-[9px] font-mono text-zinc-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
+            >
+              <span>Health Connect App</span>
+              <ExternalLink className="w-2.5 h-2.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[500, 1000, 2500, 5000].map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                disabled={isIncrementing}
+                onClick={() => handleIncrement(delta)}
+                className="py-1.5 px-2 bg-black/60 hover:bg-blue-950/30 border border-white/10 hover:border-blue-500/40 rounded-lg text-xs font-mono text-zinc-300 hover:text-blue-300 transition-all flex items-center justify-center gap-1 active:scale-95"
+              >
+                <Plus className="w-3 h-3 text-blue-400" />
+                <span>{delta >= 1000 ? `${delta / 1000}k` : delta}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 7-Day History Movement Chart */}
+        {chartData.length > 0 && (
+          <div className="pt-2 border-t border-white/5">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">
+              7-Day Activity Trend
+            </div>
+            <div className="h-28 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                  <XAxis
+                    dataKey="day"
+                    stroke="#52525b"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#52525b"
+                    fontSize={9}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : v)}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#09090b",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                    }}
+                    formatter={(val: any) => [`${Number(val).toLocaleString()} steps`, "Steps"]}
+                  />
+                  <ReferenceLine
+                    y={targetSteps}
+                    stroke="#3b82f6"
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.6}
+                  />
+                  <Bar
+                    dataKey="steps"
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                    opacity={0.85}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Manual Input Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-white/10 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <h3 className="text-sm font-mono uppercase tracking-wider text-white">
+              Set Today's Step Count
+            </h3>
+            <form onSubmit={handleSaveManual} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Steps Count
+                </label>
+                <input
+                  type="number"
+                  autoFocus
+                  min="0"
+                  max="100000"
+                  value={manualCount}
+                  onChange={(e) => setManualCount(e.target.value)}
+                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-blue-500"
+                  placeholder="e.g. 8500"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowManualModal(false)}
+                  className="flex-1 text-xs font-mono border border-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isIncrementing}
+                  className="flex-1 text-xs font-mono bg-blue-600 hover:bg-blue-500 text-white"
+                >
+                  Save Count
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

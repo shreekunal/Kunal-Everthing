@@ -20,6 +20,7 @@ import {
   Trophy,
   BookOpen,
   Target,
+  Activity,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { BrandLogo } from "../ui/BrandLogo";
@@ -68,6 +69,7 @@ export function Navbar({
     { name: "Home", href: "/", icon: LayoutDashboard },
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
     { name: "Routines", href: "/routines", icon: Flame },
+    { name: "Health", href: "/health", icon: Activity },
     { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Focus", href: "/progress?tab=LOG", icon: Target },
     { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },

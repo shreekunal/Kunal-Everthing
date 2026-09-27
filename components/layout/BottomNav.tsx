@@ -21,6 +21,7 @@ import {
   BookOpen,
   Target,
   GraduationCap,
+  Activity,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
@@ -177,11 +178,12 @@ export function BottomNav({
   };
 
   const extendedNav = [
+    { name: "Health", href: "/health", icon: Activity },
+    { name: "Habits", href: "/routines", icon: Flame },
+    { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },
+    { name: "Discipline", href: "/rewards", icon: Target },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
-    { name: "Habits", href: "/routines", icon: Flame },
-    { name: "Study", href: "/progress?tab=LOG", icon: GraduationCap },
-    { name: "Discipline", href: "/rewards", icon: Target },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
@@ -283,8 +285,10 @@ export function BottomNav({
                 </Link>
               );
             })}
+          </div>
 
-            {/* 8th Button: Lock OS - Single Sleek Tile */}
+          {/* Dedicated Full-Width Security Action Bar */}
+          <div className="pt-1.5 pb-1">
             <button
               type="button"
               title="Lock Everything"
@@ -293,9 +297,10 @@ export function BottomNav({
                 haptics.warning();
                 handleLockPortal();
               }}
-              className="h-12 sm:h-13 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-all active:scale-90"
+              className="w-full h-11 rounded-2xl border border-red-500/25 bg-red-950/20 hover:bg-red-950/40 text-red-400 font-mono text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
             >
-              <Lock className="w-5 h-5" />
+              <Lock className="w-3.5 h-3.5 text-red-400" />
+              <span className="uppercase tracking-wider font-semibold">Lock Everything</span>
             </button>
           </div>
         </div>
