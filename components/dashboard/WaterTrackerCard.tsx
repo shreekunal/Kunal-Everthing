@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
   Droplets,
@@ -14,9 +14,10 @@ import {
   RotateCcw,
   Trophy,
   Calendar,
+  Sliders,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import clsx from "clsx";
 import {
   scheduleWaterReminders,
@@ -98,46 +99,114 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
     }
   }, [activeUserId]);
 
-  // Claim XP reward from API
-  const claimReward = async (showToast = true) => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Load today's count
+    let storedCount = localStorage.getItem(storageCountKey);
+    if (storedCount === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
+      storedCount = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
+    }
+    if (storedCount !== null) {
+      const val = parseInt(storedCount, 10);
+      if (!isNaN(val)) setDrankGlasses(val);
+    }
+
+    // Load target
+    let storedTarget = localStorage.getItem(storageTargetKey);
+    if (storedTarget === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
+      storedTarget = localStorage.getItem("kunal_os_water_target_glasses");
+    }
+    if (storedTarget !== null) {
+      const val = parseInt(storedTarget, 10);
+      if (!isNaN(val) && val > 0) setTargetGlasses(val);
+    }
+
+    // Load reward state
+    const storedReward = localStorage.getItem(storageRewardKey);
+    if (storedReward === "true") {
+      setHasClaimedReward(true);
+    }
+
+    // Verify background notifications active state
+    areWaterNotificationsActive().then((isActive) => {
+      setNotificationsEnabled(isActive);
+      localStorage.setItem(storageNotifKey, isActive ? "true" : "false");
+    });
+
+    fetchWaterData();
+
+    const handleRefresh = () => {
+      let refreshedCount = localStorage.getItem(storageCountKey);
+      if (refreshedCount === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
+        refreshedCount = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
+      }
+      if (refreshedCount !== null) {
+        const val = parseInt(refreshedCount, 10);
+        if (!isNaN(val)) setDrankGlasses(val);
+      }
+      fetchWaterData();
+    };
+
+    window.addEventListener("kunal-os-refresh", handleRefresh);
+    window.addEventListener("storage", handleRefresh);
+
+    return () => {
+      window.removeEventListener("kunal-os-refresh", handleRefresh);
+      window.removeEventListener("storage", handleRefresh);
+    };
+  }, [activeUserId, storageCountKey, storageTargetKey, storageRewardKey, storageNotifKey, todayKey, fetchWaterData]);
+
+  // Claim 30 XP discipline reward once per day
+  const claimReward = async () => {
+    if (hasClaimedReward) return;
+
     try {
       const res = await fetch("/api/rewards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "REWARD_WATER", points: 30 }),
+        body: JSON.stringify({
+          action: "REWARD_WATER_GOAL",
+          points: 30,
+          userId: activeUserId,
+        }),
       });
-      const data = await res.json();
+
       if (res.ok) {
+        const json = await res.json().catch(() => ({}));
         setHasClaimedReward(true);
-        if (showToast) {
-          setRewardMessage(data.message || "+30 Monk Karma XP Earned!");
-          setShowRewardToast(true);
-          setTimeout(() => setShowRewardToast(false), 4500);
-        }
         if (typeof window !== "undefined") {
           localStorage.setItem(storageRewardKey, "true");
           window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
         }
+        setRewardMessage(json.message || "+30 Monk Karma XP Earned!");
+        setShowRewardToast(true);
+        haptics.success();
+        setTimeout(() => setShowRewardToast(false), 5000);
       }
     } catch (err) {
-      console.error("Failed to claim water reward:", err);
+      console.error("Failed to claim water goal reward:", err);
     }
   };
 
-  // Revert reward if user drops below target
+  // Revert reward if user drops below target after achieving
   const revertReward = async () => {
+    if (!hasClaimedReward) return;
+
     try {
-      setHasClaimedReward(false);
-      setShowRewardToast(false);
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(storageRewardKey);
-      }
       await fetch("/api/rewards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "REVERT_WATER" }),
+        body: JSON.stringify({
+          action: "REVERT_WATER_GOAL",
+          points: 30,
+          userId: activeUserId,
+        }),
       });
+
+      setHasClaimedReward(false);
       if (typeof window !== "undefined") {
+        localStorage.removeItem(storageRewardKey);
         window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
       }
     } catch (err) {
@@ -145,108 +214,36 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
     }
   };
 
-  // Test instant water reminder
+  // Instant notification test
   const handleTestWaterAlert = async () => {
     setTestingNotif(true);
     haptics.impactLight();
-    setNotifFeedback("Sending test alert (fires in 2s)...");
-    const ok = await sendTestWaterNotification();
-    setTestingNotif(false);
-    if (ok) {
-      setNotifFeedback("✓ Test notification scheduled! Check your notification shade in 2s.");
-      setTimeout(() => setNotifFeedback(null), 5000);
-    } else {
-      setNotifFeedback("⚠️ Could not trigger notification. Ensure notifications are allowed.");
+    try {
+      const scheduled = await sendTestWaterNotification();
+      if (scheduled) {
+        setNotifFeedback("✓ Test notification scheduled! Check your lock screen in 2s.");
+      } else {
+        setNotifFeedback("⚠️ Permission denied or notification not scheduled. Check browser permissions.");
+      }
+    } catch (e: any) {
+      setNotifFeedback(`Error: ${e?.message || "Failed to trigger"}`);
+    } finally {
+      setTestingNotif(false);
       setTimeout(() => setNotifFeedback(null), 5000);
     }
   };
 
-  // Initialize from storage & fetch weekly data on mount
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let initialGlasses = 0;
-    let currentTarget = DEFAULT_TARGET_GLASSES;
-
-    // Load today's count
-    let savedCount = localStorage.getItem(storageCountKey);
-    if (savedCount === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
-      savedCount = localStorage.getItem(`kunal_os_water_count_${todayKey}`);
-    }
-    if (savedCount !== null) {
-      const parsed = parseInt(savedCount, 10);
-      if (!isNaN(parsed)) {
-        initialGlasses = parsed;
-        setDrankGlasses(parsed);
-      }
-    } else {
-      setDrankGlasses(0);
-    }
-
-    // Load user target
-    let savedTarget = localStorage.getItem(storageTargetKey);
-    if (savedTarget === null && (activeUserId === "default" || activeUserId.startsWith("kunal"))) {
-      savedTarget = localStorage.getItem("kunal_os_water_target_glasses");
-    }
-    if (savedTarget !== null) {
-      const parsed = parseInt(savedTarget, 10);
-      if (!isNaN(parsed)) {
-        currentTarget = parsed;
-        setTargetGlasses(parsed);
-      }
-    } else {
-      setTargetGlasses(DEFAULT_TARGET_GLASSES);
-    }
-
-    // Load notification state
-    const savedNotif = localStorage.getItem(storageNotifKey);
-    setNotificationsEnabled(savedNotif === "true");
-    areWaterNotificationsActive().then((active) => {
-      if (active) setNotificationsEnabled(true);
-    });
-
-    // Load reward claimed state
-    const savedReward = localStorage.getItem(storageRewardKey);
-    if (savedReward === "true") {
-      setHasClaimedReward(true);
-    } else {
-      setHasClaimedReward(false);
-      if (initialGlasses >= currentTarget) {
-        claimReward(false);
-      }
-    }
-
-    fetchWaterData();
-  }, [storageCountKey, storageTargetKey, storageNotifKey, storageRewardKey, activeUserId, todayKey, fetchWaterData]);
-
-  // Sync claimed state with server rewards on mount
-  useEffect(() => {
-    fetch("/api/rewards")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.recentLogs) {
-          const claimed = data.recentLogs.some(
-            (log: any) => log.referenceId === `water_${todayKey}`
-          );
-          if (claimed) {
-            setHasClaimedReward(true);
-            if (typeof window !== "undefined") {
-              localStorage.setItem(storageRewardKey, "true");
-            }
-          }
-        }
-      })
-      .catch(() => {});
-  }, [todayKey, storageRewardKey]);
-
-  // Update drank glasses
+  // Update drank glasses count
   const updateDrankGlasses = (newCount: number) => {
-    const val = Math.max(0, newCount);
+    const val = Math.max(0, Math.min(32, newCount));
     const prevCount = drankGlasses;
     setDrankGlasses(val);
 
     if (typeof window !== "undefined") {
       localStorage.setItem(storageCountKey, val.toString());
+      if (activeUserId === "default" || activeUserId.startsWith("kunal")) {
+        localStorage.setItem(`kunal_os_water_count_${todayKey}`, val.toString());
+      }
       window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
 
@@ -286,7 +283,7 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
 
     if (isNowAchieved && (!wasAchieved || !hasClaimedReward)) {
       haptics.success();
-      claimReward(true);
+      claimReward();
     } else if (!isNowAchieved && wasAchieved && hasClaimedReward) {
       haptics.warning();
       revertReward();
@@ -338,76 +335,82 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
   const isGoalAchieved = drankGlasses >= targetGlasses;
 
   return (
-    <Card glow="cyan" className="relative overflow-hidden group border-cyan-500/20">
-      {/* Background Subtle Gradient Glow */}
-      <div className="absolute -top-12 -right-12 w-44 h-44 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+    <Card glow="red" className="relative overflow-hidden group border-white/10 hover:border-brand-red/30 p-3.5 sm:p-4">
+      {/* Background Subtle Red Ambient Glow */}
+      <div className="absolute -top-16 -right-16 w-48 h-48 bg-brand-red/10 rounded-full blur-3xl pointer-events-none" />
 
-      <CardHeader>
+      {/* 1. Ultra-Clean, Non-Wrapping Minimalist Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+        {/* Left: Section Identity */}
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-            <Droplets className="w-4 h-4 fill-cyan-400/20" />
+          <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/25 text-brand-red flex-shrink-0">
+            <Droplets className="w-3.5 h-3.5 fill-brand-red/20" />
           </div>
           <div>
-            <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-              Hydration & Water
-              {isGoalAchieved && (
-                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-                  <Sparkles className="w-3 h-3 text-emerald-400 animate-pulse" />
-                  Goal Met • +30 XP!
-                </span>
+            <h3 className="text-xs font-mono font-bold tracking-wider uppercase text-white flex items-center gap-1.5">
+              Hydration
+              {notificationsEnabled && (
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-red shadow-glow-red animate-pulse" />
               )}
-            </CardTitle>
+            </h3>
           </div>
         </div>
 
+        {/* Right: Clean Utility Controls (Never wraps) */}
         <div className="flex items-center gap-1.5">
-          {/* Notifications Toggle */}
+          {/* 2h Reminder Notification Toggle */}
           <button
             type="button"
             onClick={handleToggleNotifications}
-            title={notificationsEnabled ? "Disable 2h Reminders" : "Enable 2h Reminders"}
+            title={notificationsEnabled ? "2h Reminders Active (Tap to disable)" : "Enable 2h Reminders"}
             className={clsx(
-              "p-1.5 rounded-lg border transition-all active:scale-90",
+              "p-1.5 rounded-lg border transition-all active:scale-95 flex items-center gap-1 text-[10px] font-mono",
               notificationsEnabled
-                ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                ? "bg-brand-red/15 border-brand-red/40 text-red-300 shadow-glow-red-subtle"
                 : "bg-white/[0.03] border-white/10 text-zinc-500 hover:text-zinc-300"
             )}
           >
             {notificationsEnabled ? (
-              <Bell className="w-3.5 h-3.5" />
+              <Bell className="w-3.5 h-3.5 text-brand-red" />
             ) : (
               <BellOff className="w-3.5 h-3.5" />
             )}
           </button>
 
-          {/* Target Glasses Edit Trigger */}
+          {/* Target Config Stepper Toggle */}
           <button
             type="button"
             onClick={() => {
               haptics.impactLight();
               setIsEditingTarget(!isEditingTarget);
             }}
-            className="text-[11px] font-mono px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-300"
+            className={clsx(
+              "px-2 py-1 rounded-lg border text-[11px] font-mono transition-all flex items-center gap-1",
+              isEditingTarget
+                ? "bg-brand-red/20 border-brand-red/40 text-white font-bold"
+                : "bg-white/[0.03] hover:bg-white/[0.08] border-white/10 text-zinc-400"
+            )}
           >
-            {isEditingTarget ? "Done" : `${targetGlasses} Glasses`}
+            <Sliders className="w-3 h-3 text-brand-red" />
+            <span>{targetGlasses}G</span>
           </button>
         </div>
-      </CardHeader>
+      </div>
 
-      <div className="space-y-4">
-        {/* Celebratory Reward Notification Toast */}
+      <div className="space-y-3 pt-3">
+        {/* Celebratory Reward Notification Toast (Slides gracefully below header) */}
         {showRewardToast && (
-          <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-950/90 via-emerald-950/80 to-cyan-950/90 border border-cyan-400/50 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2 duration-300 shadow-[0_0_25px_rgba(6,182,212,0.35)]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-cyan-400/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 flex-shrink-0">
-                <Trophy className="w-4 h-4 text-yellow-400 animate-bounce" />
+          <div className="p-2.5 rounded-xl bg-gradient-to-r from-zinc-950 via-red-950/70 to-zinc-950 border border-brand-red/50 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-1 duration-300 shadow-glow-red">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-red/20 border border-brand-red/40 flex items-center justify-center text-red-300 flex-shrink-0">
+                <Trophy className="w-3.5 h-3.5 text-brand-red animate-bounce" />
               </div>
               <div>
-                <p className="font-bold text-white flex items-center gap-1.5 text-xs">
-                  Hydration Target Completed!
-                  <span className="text-emerald-400 font-mono font-bold">+30 XP</span>
+                <p className="font-bold text-white flex items-center gap-1 text-[11px]">
+                  Daily Goal Achieved!
+                  <span className="text-red-300 font-mono font-bold">+30 XP</span>
                 </p>
-                <p className="text-[11px] text-zinc-300 font-mono">
+                <p className="text-[10px] text-zinc-400 font-mono">
                   {rewardMessage}
                 </p>
               </div>
@@ -415,90 +418,110 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
             <button
               type="button"
               onClick={() => setShowRewardToast(false)}
-              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 ml-2"
+              className="text-zinc-500 hover:text-white p-1 rounded-lg hover:bg-white/10 ml-2"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Notification Status / Feedback Banner */}
+        {/* Feedback / Status Alert */}
         {notifFeedback && (
-          <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-xs font-mono text-cyan-300 flex items-center justify-between animate-in fade-in duration-200">
-            <span className="flex items-center gap-2">
-              <Bell className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 animate-pulse" />
-              <span>{notifFeedback}</span>
+          <div className="p-2 rounded-xl bg-brand-red/10 border border-brand-red/30 text-[11px] font-mono text-red-300 flex items-center justify-between animate-in fade-in duration-200">
+            <span className="flex items-center gap-1.5 truncate">
+              <Bell className="w-3 h-3 text-brand-red flex-shrink-0 animate-pulse" />
+              <span className="truncate">{notifFeedback}</span>
             </span>
             <button
               type="button"
               onClick={() => setNotifFeedback(null)}
-              className="text-zinc-400 hover:text-white p-0.5 ml-2 transition-colors"
+              className="text-zinc-400 hover:text-white p-0.5 ml-2 transition-colors flex-shrink-0"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Metric & Liquid Progress Bar */}
-        <div>
-          <div className="flex items-baseline justify-between mb-1.5">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold font-mono tracking-tight text-white">
-                {drankGlasses}
+        {/* Target Stepper Accordion (Visible when user taps target pill) */}
+        {isEditingTarget && (
+          <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-brand-red/30 flex items-center justify-between text-xs animate-in fade-in duration-200">
+            <span className="text-zinc-400 font-mono text-[11px]">Daily Target:</span>
+            <div className="flex items-center gap-2 font-mono">
+              <button
+                type="button"
+                onClick={() => updateTargetGlasses(targetGlasses - 1)}
+                className="w-6 h-6 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white active:scale-90"
+              >
+                -
+              </button>
+              <span className="w-16 text-center font-bold text-red-300 text-xs">
+                {targetGlasses} ({targetMl}ml)
               </span>
-              <span className="text-xs font-mono text-zinc-400">
-                / {targetGlasses} glasses ({drankMl} / {targetMl} ml)
+              <button
+                type="button"
+                onClick={() => updateTargetGlasses(targetGlasses + 1)}
+                className="w-6 h-6 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white active:scale-90"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingTarget(false)}
+                className="ml-2 text-[10px] text-zinc-400 hover:text-white underline"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Cockpit Metric & Status Row */}
+        <div>
+          <div className="flex items-end justify-between mb-1.5">
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-white">
+                  {drankGlasses}
+                </span>
+                <span className="text-xs font-mono text-zinc-400">
+                  / {targetGlasses} <span className="hidden sm:inline">glasses</span>
+                </span>
+                <span className="text-[11px] font-mono text-zinc-500">
+                  ({drankMl} ml)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              {isGoalAchieved ? (
+                <span className="flex items-center gap-1 text-[10px] text-red-300 font-mono font-bold px-2 py-0.5 rounded-full bg-brand-red/15 border border-brand-red/30 shadow-glow-red-subtle mb-1">
+                  <Sparkles className="w-2.5 h-2.5 text-brand-red animate-pulse" />
+                  GOAL MET (+30 XP)
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono text-zinc-400 mb-1">
+                  {targetGlasses - drankGlasses} left
+                </span>
+              )}
+              <span className="text-xs font-mono font-bold text-red-300">
+                {progressPercent}%
               </span>
             </div>
-            <span className="text-xs font-mono font-semibold text-cyan-400">
-              {progressPercent}%
-            </span>
           </div>
 
-          <div className="h-2 w-full bg-white/[0.06] rounded-full overflow-hidden p-0.5">
+          {/* Fluid Laser Progress Bar */}
+          <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden p-0.5">
             <div
-              className={clsx(
-                "h-full rounded-full transition-all duration-500 ease-out",
-                isGoalAchieved
-                  ? "bg-gradient-to-r from-cyan-400 to-emerald-400 shadow-[0_0_12px_rgba(6,182,212,0.6)]"
-                  : "bg-gradient-to-r from-cyan-500 to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]"
-              )}
+              className="h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-brand-redDark via-brand-red to-brand-redLight shadow-glow-red"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
         </div>
 
-        {/* Target Stepper Editor (Visible when user taps target badge) */}
-        {isEditingTarget && (
-          <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between text-xs animate-in fade-in duration-200">
-            <span className="text-zinc-300 font-mono">Set Daily Target:</span>
-            <div className="flex items-center gap-2 font-mono">
-              <button
-                type="button"
-                onClick={() => updateTargetGlasses(targetGlasses - 1)}
-                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white active:scale-90"
-              >
-                -
-              </button>
-              <span className="w-8 text-center font-bold text-cyan-300">
-                {targetGlasses}
-              </span>
-              <button
-                type="button"
-                onClick={() => updateTargetGlasses(targetGlasses + 1)}
-                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white active:scale-90"
-              >
-                +
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Interactive Visual Glass Grid */}
-        <div className="grid grid-cols-8 sm:grid-cols-8 gap-1.5 py-1">
+        {/* 3. Sleek Segmented Glass Reservoir */}
+        <div className="grid grid-cols-8 gap-1 py-0.5">
           {Array.from({ length: Math.max(targetGlasses, drankGlasses) }).map((_, idx) => {
             const isFilled = idx < drankGlasses;
-            const isExtra = idx >= targetGlasses;
             return (
               <button
                 key={idx}
@@ -513,21 +536,19 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
                 title={`Glass ${idx + 1} (250ml)`}
                 aria-label={`Glass ${idx + 1}`}
                 className={clsx(
-                  "h-10 rounded-xl border flex flex-col items-center justify-center transition-all duration-200 active:scale-90 group/glass relative",
+                  "h-8 rounded-lg border flex flex-col items-center justify-center transition-all duration-200 active:scale-95 group/glass relative",
                   isFilled
-                    ? isExtra
-                      ? "bg-emerald-500/20 border-emerald-400/60 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                      : "bg-cyan-500/20 border-cyan-400/60 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-                    : "bg-white/[0.03] border-white/10 text-zinc-600 hover:border-white/20 hover:text-zinc-400"
+                    ? "bg-brand-red/15 border-brand-red/40 text-red-300 shadow-glow-red-subtle"
+                    : "bg-white/[0.02] border-white/5 text-zinc-600 hover:border-white/20 hover:text-zinc-400"
                 )}
               >
                 <Droplets
                   className={clsx(
-                    "w-4 h-4 transition-transform group-hover/glass:scale-110",
-                    isFilled ? "fill-current" : "fill-transparent"
+                    "w-3 h-3 transition-transform group-hover/glass:scale-110",
+                    isFilled ? "fill-brand-red/30 text-brand-red" : "fill-transparent text-zinc-600"
                   )}
                 />
-                <span className="text-[9px] font-mono leading-none mt-0.5 opacity-75">
+                <span className="text-[8px] font-mono leading-none mt-0.5 opacity-80">
                   {idx + 1}
                 </span>
               </button>
@@ -535,29 +556,29 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
           })}
         </div>
 
-        {/* Quick Actions Bar */}
-        <div className="flex items-center gap-2 pt-1">
+        {/* 4. Quick Action Controls */}
+        <div className="flex items-center gap-1.5 pt-0.5">
           <Button
             type="button"
             variant="secondary"
             size="sm"
             onClick={() => updateDrankGlasses(drankGlasses - 1)}
             disabled={drankGlasses === 0}
-            className="flex-1 text-xs border-white/10 hover:bg-white/10"
+            className="flex-1 text-[11px] h-8 border-white/10 hover:bg-white/10"
           >
-            <Minus className="w-3.5 h-3.5 mr-1" />
+            <Minus className="w-3 h-3 mr-1" />
             1 Glass
           </Button>
 
           <Button
             type="button"
-            variant="primary"
+            variant="red"
             size="sm"
             onClick={() => updateDrankGlasses(drankGlasses + 1)}
-            className="flex-[2] text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border-cyan-400/30 text-white font-bold shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+            className="flex-[2] text-[11px] h-8 font-bold shadow-glow-red"
           >
-            <Plus className="w-4 h-4 mr-1 stroke-[2.5]" />
-            Drank 1 Glass (+250ml)
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
+            +1 Glass (250ml)
           </Button>
 
           {drankGlasses > 0 && (
@@ -568,26 +589,26 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
                 updateDrankGlasses(0);
               }}
               title="Reset Today"
-              className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="h-8 w-8 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-zinc-500 hover:text-zinc-300 transition-colors flex items-center justify-center flex-shrink-0"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3 h-3" />
             </button>
           )}
         </div>
 
-        {/* 7-Day Rolling Weekly Hydration Track */}
-        <div className="pt-3 border-t border-white/[0.08]">
-          <div className="flex items-center justify-between text-[11px] font-mono mb-2">
-            <span className="text-zinc-300 flex items-center gap-1.5 font-bold">
-              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-              <span>7-Day Hydration Track</span>
+        {/* 5. Minimalist 7-Day Rolling Weekly Telemetry */}
+        <div className="pt-2.5 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
+            <span className="text-zinc-400 flex items-center gap-1 font-semibold uppercase tracking-wider">
+              <Calendar className="w-3 h-3 text-brand-red" />
+              <span>7-Day Track</span>
             </span>
-            <span className="text-[10px] text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
-              {weeklyData.daysMetGoal}/7 Days Goal Met • {((weeklyData.totalGlasses * 250) / 1000).toFixed(1)}L Total
+            <span className="text-red-300 font-bold bg-brand-red/10 border border-brand-red/20 px-1.5 py-0.2 rounded-full text-[9px]">
+              {weeklyData.daysMetGoal}/7 Met • {((weeklyData.totalGlasses * 250) / 1000).toFixed(1)}L Total
             </span>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1">
             {(weeklyData.days.length > 0 ? weeklyData.days : Array.from({ length: 7 }).map((_, i) => ({
               date: "",
               dayLabel: ["M", "T", "W", "T", "F", "S", "S"][i],
@@ -607,35 +628,35 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
                 <div
                   key={day.date || idx}
                   className={clsx(
-                    "p-2 rounded-xl border flex flex-col items-center justify-between transition-all",
+                    "p-1.5 rounded-lg border flex flex-col items-center justify-between transition-all",
                     isToday
-                      ? "bg-cyan-500/15 border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                      ? "bg-brand-red/15 border-brand-red/40 shadow-glow-red-subtle"
                       : isMet
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                      : "bg-white/[0.02] border-white/5 text-zinc-400"
+                      ? "bg-white/[0.04] border-brand-red/25 text-red-300"
+                      : "bg-white/[0.015] border-white/5 text-zinc-500"
                   )}
                 >
-                  <span className="text-[9px] font-mono uppercase text-zinc-400">
+                  <span className="text-[8px] font-mono uppercase text-zinc-400">
                     {day.dayLabel}
                   </span>
-                  <span className="text-xs font-mono font-bold text-white mt-0.5">
+                  <span className="text-[10px] font-mono font-bold text-white">
                     {day.dayNumber || ""}
                   </span>
 
                   {/* Micro Cylinder Level Indicator */}
-                  <div className="w-full h-8 bg-black/40 border border-white/10 rounded-md overflow-hidden relative my-1.5 p-0.5 flex flex-col justify-end">
+                  <div className="w-full h-5 bg-black/40 border border-white/5 rounded-sm overflow-hidden relative my-1 p-0.2 flex flex-col justify-end">
                     <div
                       className={clsx(
-                        "w-full rounded-sm transition-all duration-500",
+                        "w-full rounded-[1px] transition-all duration-500",
                         isMet
-                          ? "bg-gradient-to-t from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                          : "bg-gradient-to-t from-cyan-600 to-cyan-400"
+                          ? "bg-gradient-to-t from-brand-redDark to-brand-red shadow-glow-red-subtle"
+                          : "bg-brand-red/40"
                       )}
-                      style={{ height: `${Math.max(6, pct)}%` }}
+                      style={{ height: `${Math.max(8, pct)}%` }}
                     />
                   </div>
 
-                  <span className="text-[9px] font-mono font-semibold">
+                  <span className="text-[8px] font-mono font-semibold">
                     {isMet ? "✓" : `${count}/${target}`}
                   </span>
                 </div>
@@ -644,32 +665,30 @@ export function WaterTrackerCard({ userId }: { userId?: string } = {}) {
           </div>
         </div>
 
-        {/* Notification Status & 1-Click Verification Trigger */}
-        <div className="pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono">
+        {/* 6. Footer: Status & Test Alert Trigger */}
+        <div className="pt-2 border-t border-white/[0.05] flex items-center justify-between text-[10px] font-mono">
           <div className="flex items-center gap-1.5 text-zinc-400">
             <span
               className={clsx(
-                "w-2 h-2 rounded-full transition-all",
+                "w-1.5 h-1.5 rounded-full transition-all",
                 notificationsEnabled
-                  ? "bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                  ? "bg-brand-red shadow-glow-red animate-pulse"
                   : "bg-zinc-600"
               )}
             />
             <span>
-              {notificationsEnabled
-                ? "2h Reminders (9 AM – 9 PM)"
-                : "Reminders Disabled"}
+              {notificationsEnabled ? "2h Reminders (9 AM – 9 PM)" : "Reminders Off"}
             </span>
           </div>
           <button
             type="button"
             onClick={handleTestWaterAlert}
             disabled={testingNotif}
-            className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 active:scale-95 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(6,182,212,0.15)] disabled:opacity-50"
+            className="px-2 py-0.5 rounded-md bg-brand-red/10 hover:bg-brand-red/20 active:scale-95 text-red-300 border border-brand-red/25 text-[9px] font-mono transition-all flex items-center gap-1 shadow-glow-red-subtle disabled:opacity-50"
             title="Fire an instant water notification in 2 seconds"
           >
-            <Bell className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{testingNotif ? "Scheduling..." : "Test Alert (2s)"}</span>
+            <Bell className="w-2.5 h-2.5 text-brand-red" />
+            <span>{testingNotif ? "Sending..." : "Test Alert (2s)"}</span>
           </button>
         </div>
       </div>
