@@ -64,7 +64,7 @@ class HealthConnectPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun checkPermissions(call: PluginCall) {
+    fun checkHealthPermissions(call: PluginCall) {
         if (!isAvailableInternal()) {
             val ret = JSObject()
             ret.put("granted", false)
@@ -95,7 +95,7 @@ class HealthConnectPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun requestPermissions(call: PluginCall) {
+    fun requestHealthPermissions(call: PluginCall) {
         if (!isAvailableInternal()) {
             call.reject("Health Connect is not available on this device.")
             return

@@ -6,12 +6,12 @@ export interface NativeHealthConnectPlugin {
     status: "AVAILABLE" | "UPDATE_REQUIRED" | "UNAVAILABLE";
     error?: string;
   }>;
-  checkPermissions(): Promise<{
+  checkHealthPermissions(): Promise<{
     granted: boolean;
     available: boolean;
     error?: string;
   }>;
-  requestPermissions(): Promise<{
+  requestHealthPermissions(): Promise<{
     granted: boolean;
     error?: string;
   }>;
@@ -54,7 +54,7 @@ export async function isHealthConnectSupported(): Promise<boolean> {
 export async function checkHealthConnectPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return false;
   try {
-    const res = await HealthConnect.checkPermissions();
+    const res = await HealthConnect.checkHealthPermissions();
     return !!res.granted;
   } catch {
     return false;
@@ -67,7 +67,7 @@ export async function checkHealthConnectPermission(): Promise<boolean> {
 export async function requestHealthConnectPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return false;
   try {
-    const res = await HealthConnect.requestPermissions();
+    const res = await HealthConnect.requestHealthPermissions();
     return !!res.granted;
   } catch (err: any) {
     console.error("Health Connect permission request failed:", err);
