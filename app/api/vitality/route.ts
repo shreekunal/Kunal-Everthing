@@ -21,13 +21,20 @@ export async function GET(request: Request) {
     const sevenDaysAgoStr = format(subDays(new Date(), 6), "yyyy-MM-dd");
     const thirtyDaysAgoStr = format(subDays(new Date(), 29), "yyyy-MM-dd");
 
-    // 1. Get or create UserSettings
-    let settings = await prisma.userSettings.findUnique({
-      where: { userId: user.id },
-    });
-    if (!settings) {
-      settings = await prisma.userSettings.create({
-        data: {
+    // Execute all database queries concurrently in parallel with Promise.all
+    const [
+      settings,
+      todayStepLog,
+      stepLogs7Days,
+      activeFast,
+      fastHistory,
+      latestWeight,
+      weightLogs30Days,
+    ] = await Promise.all([
+      prisma.userSettings.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
           userId: user.id,
           heightCm: 175.0,
           targetWeightKg: 70.0,
@@ -35,60 +42,50 @@ export async function GET(request: Request) {
           fastingProtocol: "16:8",
           fastingNotifications: true,
         },
-      });
-    }
-
-    // 2. Fetch Steps data
-    const todayStepLog = await prisma.dailyStepLog.findUnique({
-      where: {
-        userId_date: {
-          userId: user.id,
-          date: todayStr,
+      }),
+      prisma.dailyStepLog.findUnique({
+        where: {
+          userId_date: {
+            userId: user.id,
+            date: todayStr,
+          },
         },
-      },
-    });
-
-    const stepLogs7Days = await prisma.dailyStepLog.findMany({
-      where: {
-        userId: user.id,
-        date: { gte: sevenDaysAgoStr, lte: todayStr },
-      },
-      orderBy: { date: "asc" },
-    });
-
-    // 3. Fetch Active Fasting Session
-    const activeFast = await prisma.fastingSession.findFirst({
-      where: {
-        userId: user.id,
-        status: "ACTIVE",
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Fetch past fast history
-    const fastHistory = await prisma.fastingSession.findMany({
-      where: {
-        userId: user.id,
-        status: { in: ["COMPLETED", "BROKEN"] },
-      },
-      orderBy: { startTime: "desc" },
-      take: 10,
-    });
-
-    // 4. Fetch Weight Logs
-    const latestWeight = await prisma.weightLog.findFirst({
-      where: { userId: user.id },
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    });
-
-    const weightLogs30Days = await prisma.weightLog.findMany({
-      where: {
-        userId: user.id,
-        date: { gte: thirtyDaysAgoStr },
-      },
-      orderBy: { date: "asc" },
-      take: 30,
-    });
+      }),
+      prisma.dailyStepLog.findMany({
+        where: {
+          userId: user.id,
+          date: { gte: sevenDaysAgoStr, lte: todayStr },
+        },
+        orderBy: { date: "asc" },
+      }),
+      prisma.fastingSession.findFirst({
+        where: {
+          userId: user.id,
+          status: "ACTIVE",
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.fastingSession.findMany({
+        where: {
+          userId: user.id,
+          status: { in: ["COMPLETED", "BROKEN"] },
+        },
+        orderBy: { startTime: "desc" },
+        take: 10,
+      }),
+      prisma.weightLog.findFirst({
+        where: { userId: user.id },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      }),
+      prisma.weightLog.findMany({
+        where: {
+          userId: user.id,
+          date: { gte: thirtyDaysAgoStr },
+        },
+        orderBy: { date: "asc" },
+        take: 30,
+      }),
+    ]);
 
     return NextResponse.json({
       todayStr,

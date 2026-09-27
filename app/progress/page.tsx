@@ -152,6 +152,18 @@ function ProgressContent() {
   const [swAccumulatedSecs, setSwAccumulatedSecs] = useState<number>(0);
   const [swStartClock, setSwStartClock] = useState<string>("");
 
+  // Stopwatch Completion & Direct Save Modal State
+  const [showStopwatchModal, setShowStopwatchModal] = useState<boolean>(false);
+  const [swModalDuration, setSwModalDuration] = useState<string>("60");
+  const [swModalProject, setSwModalProject] = useState<string>("");
+  const [swModalTopicId, setSwModalTopicId] = useState<string>("");
+  const [swModalCategory, setSwModalCategory] = useState<string>("Deep Work");
+  const [swModalIntention, setSwModalIntention] = useState<string>("");
+  const [swModalReflection, setSwModalReflection] = useState<string>("");
+  const [swModalStartTime, setSwModalStartTime] = useState<string>("");
+  const [swModalEndTime, setSwModalEndTime] = useState<string>("");
+  const [isSavingSwSession, setIsSavingSwSession] = useState<boolean>(false);
+
   // Study Goal State (Weekdays vs Weekends)
   const [weekdayTargetHours, setWeekdayTargetHours] = useState<number>(3);
   const [weekendTargetHours, setWeekendTargetHours] = useState<number>(5);
@@ -314,8 +326,8 @@ function ProgressContent() {
     saveStopwatchState("RUNNING", swStartTimeMs, now, swAccumulatedSecs, swStartClock);
   };
 
-  const handleStopAndFill = () => {
-    haptics.success();
+  const handleOpenStopwatchSaveModal = () => {
+    haptics.impactMedium();
     const now = Date.now();
     let finalPureSecs = swAccumulatedSecs;
     if (swStatus === "RUNNING" && swLastResumeTimeMs) {
@@ -324,24 +336,80 @@ function ProgressContent() {
 
     const pureMins = Math.max(1, Math.round(finalPureSecs / 60));
     const nowClock = format(new Date(), "HH:mm");
+    const startClock = swStartClock || format(new Date(now - pureMins * 60000), "HH:mm");
 
-    // Populate form fields
-    setManualDuration(String(pureMins));
-    if (swStartClock) setStartTime(swStartClock);
-    setEndTime(nowClock);
-
-    // Reset Stopwatch
-    setSwStatus("IDLE");
-    setSwActiveSeconds(0);
-    setSwAccumulatedSecs(0);
-    setSwStartTimeMs(null);
+    // Pause the stopwatch so elapsed time is locked while user fills details
+    setSwStatus("PAUSED");
+    setSwAccumulatedSecs(finalPureSecs);
+    setSwActiveSeconds(finalPureSecs);
     setSwLastResumeTimeMs(null);
-    setSwStartClock("");
-    saveStopwatchState("IDLE", null, null, 0, "");
+    saveStopwatchState("PAUSED", swStartTimeMs, null, finalPureSecs, swStartClock);
 
-    // Scroll to logger form smoothly
-    window.scrollTo({ top: 350, behavior: "smooth" });
+    // Populate modal fields
+    setSwModalDuration(String(pureMins));
+    setSwModalStartTime(startClock);
+    setSwModalEndTime(nowClock);
+    setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
+    setSwModalTopicId(selectedTopicId || (aimsData && aimsData.length > 0 ? aimsData[0].id : ""));
+    setSwModalCategory(manualCategory || "Deep Work");
+    setSwModalIntention(intention || "");
+    setSwModalReflection("");
+
+    setShowStopwatchModal(true);
   };
+
+  const handleSaveStopwatchSession = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!swModalProject.trim() || isSavingSwSession) return;
+
+    setIsSavingSwSession(true);
+    try {
+      const res = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: swModalProject.trim(),
+          durationMinutes: Number(swModalDuration) || 1,
+          startTime: swModalStartTime || null,
+          endTime: swModalEndTime || null,
+          intention: swModalIntention.trim() || null,
+          reflection: swModalReflection.trim() || null,
+          topicId: swModalTopicId || null,
+          type: "STUDY",
+          notes: swModalCategory,
+          date: format(new Date(), "yyyy-MM-dd"),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to record study session");
+      }
+
+      haptics.success();
+
+      // Reset stopwatch to IDLE
+      setSwStatus("IDLE");
+      setSwActiveSeconds(0);
+      setSwAccumulatedSecs(0);
+      setSwStartTimeMs(null);
+      setSwLastResumeTimeMs(null);
+      setSwStartClock("");
+      saveStopwatchState("IDLE", null, null, 0, "");
+
+      // Close modal
+      setShowStopwatchModal(false);
+
+      // Refresh progress metrics & aim status
+      await fetchProgress();
+    } catch (err) {
+      console.error("Save stopwatch session error:", err);
+      haptics.error();
+    } finally {
+      setIsSavingSwSession(false);
+    }
+  };
+
+  const handleStopAndFill = handleOpenStopwatchSaveModal;
 
   const handleResetStopwatch = () => {
     haptics.warning();
@@ -1221,11 +1289,11 @@ function ProgressContent() {
 
                   <button
                     type="button"
-                    onClick={handleStopAndFill}
+                    onClick={handleOpenStopwatchSaveModal}
                     className="py-2.5 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
                   >
                     <Square className="w-3.5 h-3.5 fill-white" />
-                    <span>Stop &amp; Fill</span>
+                    <span>Finish &amp; Save</span>
                   </button>
 
                   <button
@@ -2302,6 +2370,226 @@ function ProgressContent() {
                 <span>Download</span>
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PHONE-LOCK FOCUS SESSION COMPLETE & SAVE MODAL */}
+      {showStopwatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-brand-red/30 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto">
+            {/* Ambient Red Glow */}
+            <div className="absolute -top-12 -right-12 w-36 h-36 bg-brand-red/15 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-mono uppercase tracking-wider text-white font-bold">
+                    Focus Session Complete
+                  </h3>
+                  <p className="text-[10px] text-zinc-400 font-mono">
+                    Save session directly to your study history
+                  </p>
+                </div>
+              </div>
+
+              <span className="text-[10px] font-mono text-brand-red font-bold px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/20">
+                +{Math.max(2, Math.floor((Number(swModalDuration) || 0) / 5))} XP
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveStopwatchSession} className="space-y-3.5">
+              {/* Duration and Wall Clock Summary */}
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-brand-red" />
+                    Focus Duration
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        setSwModalDuration(String(Math.max(1, Number(swModalDuration) - 5)));
+                      }}
+                      className="px-2 py-0.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-md text-[10px] font-mono text-zinc-300"
+                    >
+                      -5m
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        setSwModalDuration(String(Number(swModalDuration) + 5));
+                      }}
+                      className="px-2 py-0.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-md text-[10px] font-mono text-zinc-300"
+                    >
+                      +5m
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="text-xl font-black font-mono text-white">
+                    {formatDuration(Number(swModalDuration))}
+                  </div>
+                  <div className="text-xs font-mono text-zinc-400">
+                    <span>{swModalStartTime}</span> → <span className="text-white font-bold">{swModalEndTime}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Aim & Project Subject Picker */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                    Subject / Goal Detail <span className="text-brand-red">*</span>
+                  </label>
+                  {swModalTopicId && (
+                    <span className="text-[9px] font-mono text-red-300 font-bold bg-brand-red/10 border border-brand-red/20 px-1.5 py-0.5 rounded-full">
+                      Aim Linked
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick Select Aim Pills */}
+                {aimsData && aimsData.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-0.5">
+                    {aimsData.map((aim: any) => {
+                      const isSelected = swModalProject === aim.title || swModalTopicId === aim.id;
+                      return (
+                        <button
+                          key={aim.id}
+                          type="button"
+                          onClick={() => {
+                            haptics.selection();
+                            setSwModalProject(aim.title);
+                            setSwModalTopicId(aim.id);
+                          }}
+                          className={clsx(
+                            "px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-all active:scale-95 flex items-center gap-1.5",
+                            isSelected
+                              ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
+                              : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                          )}
+                        >
+                          <Target className="w-3 h-3 text-brand-red" />
+                          <span className="truncate max-w-[130px]">{aim.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Physics - Electromagnetism, Cell Biology..."
+                    value={swModalProject}
+                    onChange={(e) => setSwModalProject(e.target.value)}
+                    className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-brand-red"
+                  />
+                  {swModalProject && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSwModalProject("");
+                        setSwModalTopicId("");
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Focus Category Selector */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold block">
+                  Focus Type
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {["Deep Work", "Revision", "Practice", "Lecture", "Reading"].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        setSwModalCategory(cat);
+                      }}
+                      className={clsx(
+                        "px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all",
+                        swModalCategory === cat
+                          ? "bg-brand-red/25 text-red-300 border-brand-red font-bold shadow-glow-red-subtle"
+                          : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Accomplishment / Notes */}
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Session Notes / Checkpoint <span className="text-zinc-600">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Key concepts mastered or problems solved..."
+                  value={swModalReflection}
+                  onChange={(e) => setSwModalReflection(e.target.value)}
+                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-brand-red"
+                />
+              </div>
+
+              {/* Save & Cancel Actions */}
+              <div className="pt-2 space-y-2">
+                <Button
+                  type="submit"
+                  variant="red"
+                  size="sm"
+                  disabled={isSavingSwSession || !swModalProject.trim()}
+                  className="w-full py-2.5 text-xs font-mono font-bold shadow-glow-red flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isSavingSwSession ? "Saving to Database..." : "Save Session Immediately"}</span>
+                </Button>
+
+                <div className="flex items-center justify-between px-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setShowStopwatchModal(false);
+                    }}
+                    className="text-[11px] font-mono text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Keep Timing (Cancel)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.warning();
+                      setShowStopwatchModal(false);
+                      handleResetStopwatch();
+                    }}
+                    className="text-[11px] font-mono text-zinc-600 hover:text-red-400 transition-colors"
+                  >
+                    Discard Session
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

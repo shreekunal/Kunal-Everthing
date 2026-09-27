@@ -16,21 +16,31 @@ export async function isHealthConnectSupported(): Promise<boolean> {
 }
 
 /**
- * Opens Google Health Connect or its Play Store page on Android
+ * Opens Google Health Connect settings on Android, or web portal as fallback
  */
 export function openHealthConnect(): void {
   if (typeof window === "undefined") return;
   
   if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
-    // Attempt to open Health Connect via Android market / intent URI
+    // 1. Try launching modern Health Connect system settings intent (Android 14+)
     try {
-      window.location.href = "market://details?id=com.google.android.apps.healthdata";
+      window.location.href = "intent:#Intent;action=androidx.health.ACTION_HEALTH_CONNECT_SETTINGS;end";
       return;
     } catch {
-      // Fallback to standard web URL
+      // Intent scheme fallback
+    }
+
+    // 2. Try launching fallback Android settings
+    try {
+      window.location.href = "intent:#Intent;action=android.settings.HEALTH_CONNECT_SETTINGS;end";
+      return;
+    } catch {
+      // Fallback
     }
   }
-  window.open("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata", "_blank");
+  
+  // Web documentation / info portal fallback
+  window.open("https://health.google/health-connect-android/", "_blank");
 }
 
 /**

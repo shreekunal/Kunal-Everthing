@@ -17,6 +17,9 @@ export default function HealthPage() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("everything_vitality_cache", JSON.stringify(json));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch vitality data:", err);
@@ -26,6 +29,17 @@ export default function HealthPage() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("everything_vitality_cache");
+        if (cached) {
+          setData(JSON.parse(cached));
+          setLoading(false);
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
     fetchData();
   }, [fetchData]);
 
@@ -74,13 +88,13 @@ export default function HealthPage() {
           {/* Quick Header Badges */}
           <div className="flex items-center gap-1.5">
             <div className="px-2 py-0.5 rounded-full bg-zinc-950 border border-white/10 text-[10px] font-mono flex items-center gap-1">
-              <Footprints className="w-2.5 h-2.5 text-blue-400" />
+              <Footprints className="w-2.5 h-2.5 text-brand-red" />
               <span className="text-zinc-300 font-bold">{stepProgress}%</span>
             </div>
 
             {hasActiveFast ? (
-              <div className="px-2 py-0.5 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/25 text-[10px] font-mono text-red-300 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse" />
                 <span>{activeProtocol}</span>
               </div>
             ) : null}

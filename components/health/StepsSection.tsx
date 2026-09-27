@@ -102,6 +102,8 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
     }
   };
 
+  const [showSyncModal, setShowSyncModal] = useState(false);
+
   // Google Health Connect Sync
   const handleHealthConnectSync = async () => {
     haptics.impactMedium();
@@ -122,12 +124,14 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
         haptics.success();
         await onRefresh();
       } else {
-        haptics.warning();
-        // Offer to open Health Connect
-        openHealthConnect();
+        haptics.selection();
+        setManualCount(currentSteps.toString());
+        setShowSyncModal(true);
       }
     } catch (err) {
       console.error("Health Connect sync error:", err);
+      setManualCount(currentSteps.toString());
+      setShowSyncModal(true);
     } finally {
       setIsSyncing(false);
     }
@@ -150,17 +154,17 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
       {/* Header */}
       <div className="flex items-center justify-between pb-2 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+          <div className="w-7 h-7 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
             <Footprints className="w-3.5 h-3.5" />
           </div>
           <div>
             <h2 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-              Daily Movement & Steps
+              Daily Movement &amp; Steps
             </h2>
             <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
               <span>Target: {targetSteps.toLocaleString()}</span>
               {stepsData.today.syncSource === "HEALTH_CONNECT" && (
-                <span className="text-emerald-400 font-bold">• Health Connect</span>
+                <span className="text-brand-red font-bold">• Health Connect</span>
               )}
             </div>
           </div>
@@ -175,7 +179,7 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
             className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 gap-1 rounded-md"
             title="Sync with Google Health Connect"
           >
-            <RefreshCw className={`w-3 h-3 text-blue-400 ${isSyncing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3 h-3 text-brand-red ${isSyncing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Sync Health</span>
           </Button>
 
@@ -211,12 +215,15 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 cx="64"
                 cy="64"
                 r={radius}
-                className="stroke-blue-500 transition-all duration-700 ease-out"
+                className="stroke-brand-red transition-all duration-700 ease-out"
                 strokeWidth="10"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
                 fill="transparent"
+                style={{
+                  filter: "drop-shadow(0 0 8px rgba(239, 68, 68, 0.45))",
+                }}
               />
             </svg>
 
@@ -233,7 +240,7 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
           {/* Derived Metrics Grid */}
           <div className="grid grid-cols-3 gap-2 w-full">
             <div className="bg-black/50 border border-white/5 p-2.5 rounded-xl flex flex-col items-center justify-center text-center">
-              <MapPin className="w-3.5 h-3.5 text-blue-400 mb-1" />
+              <MapPin className="w-3.5 h-3.5 text-brand-red mb-1" />
               <span className="text-xs font-mono font-bold text-white">
                 {stepsData.today.distanceKm.toFixed(2)}
               </span>
@@ -253,7 +260,7 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
             </div>
 
             <div className="bg-black/50 border border-white/5 p-2.5 rounded-xl flex flex-col items-center justify-center text-center">
-              <Clock className="w-3.5 h-3.5 text-emerald-400 mb-1" />
+              <Clock className="w-3.5 h-3.5 text-zinc-400 mb-1" />
               <span className="text-xs font-mono font-bold text-white">
                 {formatDuration(activeMinutes)}
               </span>
@@ -271,10 +278,13 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
               Quick Log Steps
             </span>
             <button
-              onClick={openHealthConnect}
-              className="text-[9px] font-mono text-zinc-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
+              onClick={() => {
+                setManualCount(currentSteps.toString());
+                setShowSyncModal(true);
+              }}
+              className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 transition-colors"
             >
-              <span>Health Connect App</span>
+              <span>Health Connect Sync</span>
               <ExternalLink className="w-2.5 h-2.5" />
             </button>
           </div>
@@ -285,9 +295,9 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 type="button"
                 disabled={isIncrementing}
                 onClick={() => handleIncrement(delta)}
-                className="py-1.5 px-2 bg-black/60 hover:bg-blue-950/30 border border-white/10 hover:border-blue-500/40 rounded-lg text-xs font-mono text-zinc-300 hover:text-blue-300 transition-all flex items-center justify-center gap-1 active:scale-95"
+                className="py-1.5 px-2 bg-black/60 hover:bg-brand-red/10 border border-white/10 hover:border-brand-red/30 rounded-lg text-xs font-mono text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-1 active:scale-95"
               >
-                <Plus className="w-3 h-3 text-blue-400" />
+                <Plus className="w-3 h-3 text-brand-red" />
                 <span>{delta >= 1000 ? `${delta / 1000}k` : delta}</span>
               </button>
             ))}
@@ -320,7 +330,7 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#09090b",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      border: "1px solid rgba(239,68,68,0.2)",
                       borderRadius: "8px",
                       fontSize: "11px",
                       fontFamily: "monospace",
@@ -329,13 +339,13 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                   />
                   <ReferenceLine
                     y={targetSteps}
-                    stroke="#3b82f6"
+                    stroke="#71717a"
                     strokeDasharray="3 3"
                     strokeOpacity={0.6}
                   />
                   <Bar
                     dataKey="steps"
-                    fill="#3b82f6"
+                    fill="#EF4444"
                     radius={[4, 4, 0, 0]}
                     opacity={0.85}
                   />
@@ -346,35 +356,103 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
         )}
       </div>
 
-      {/* Manual Input Modal */}
-      {showManualModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-950 border border-white/10 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
-            <h3 className="text-sm font-mono uppercase tracking-wider text-white">
-              Set Today's Step Count
-            </h3>
-            <form onSubmit={handleSaveManual} className="space-y-4">
+      {/* Health Connect & Manual Steps Modal */}
+      {(showSyncModal || showManualModal) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-brand-red/30 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative overflow-hidden">
+            {/* Ambient Red Glow */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-red/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
+                  <Footprints className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
+                    Steps &amp; Health Connect
+                  </h3>
+                  <p className="text-[10px] text-zinc-400 font-mono">
+                    Log or synchronize today&apos;s activity
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveManual} className="space-y-3.5">
               <div>
                 <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-                  Steps Count
+                  Today&apos;s Step Count
                 </label>
-                <input
-                  type="number"
-                  autoFocus
-                  min="0"
-                  max="100000"
-                  value={manualCount}
-                  onChange={(e) => setManualCount(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-blue-500"
-                  placeholder="e.g. 8500"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    autoFocus
+                    min="0"
+                    max="150000"
+                    value={manualCount}
+                    onChange={(e) => setManualCount(e.target.value)}
+                    className="w-full bg-black border border-white/10 rounded-xl px-3 py-2.5 text-base font-mono text-white focus:outline-none focus:border-brand-red pr-16"
+                    placeholder="e.g. 8500"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-500 pointer-events-none">
+                    steps
+                  </span>
+                </div>
               </div>
 
-              <div className="flex gap-2">
+              {/* Quick Add Increment Chips within modal */}
+              <div>
+                <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-500 block mb-1">
+                  Quick Adjust
+                </span>
+                <div className="grid grid-cols-4 gap-1">
+                  {[500, 1000, 2500, 5000].map((delta) => (
+                    <button
+                      key={delta}
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        const current = parseInt(manualCount, 10) || 0;
+                        setManualCount(String(current + delta));
+                      }}
+                      className="py-1 px-1.5 bg-white/[0.04] hover:bg-brand-red/10 border border-white/10 hover:border-brand-red/30 rounded-lg text-[10px] font-mono text-zinc-300 hover:text-white transition-all text-center"
+                    >
+                      +{delta >= 1000 ? `${delta / 1000}k` : delta}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Health Connect App / Settings link */}
+              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-zinc-400 uppercase font-bold flex items-center gap-1">
+                    <Smartphone className="w-3 h-3 text-brand-red" />
+                    Google Health Connect
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openHealthConnect}
+                    className="text-[9px] font-mono text-brand-red hover:underline flex items-center gap-1"
+                  >
+                    <span>Open Settings</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+                <p className="text-[9px] text-zinc-500 font-mono leading-relaxed">
+                  Direct background reading connects to Android OS Health Connect. You can set steps manually above or link permissions in system settings.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setShowManualModal(false)}
+                  onClick={() => {
+                    setShowSyncModal(false);
+                    setShowManualModal(false);
+                  }}
                   className="flex-1 text-xs font-mono border border-white/10"
                 >
                   Cancel
@@ -382,9 +460,9 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 <Button
                   type="submit"
                   disabled={isIncrementing}
-                  className="flex-1 text-xs font-mono bg-blue-600 hover:bg-blue-500 text-white"
+                  className="flex-1 text-xs font-mono bg-brand-red hover:bg-brand-redDark text-white font-bold shadow-glow-red"
                 >
-                  Save Count
+                  Save Steps
                 </Button>
               </div>
             </form>

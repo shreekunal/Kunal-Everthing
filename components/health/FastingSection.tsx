@@ -275,7 +275,7 @@ export function FastingSection({
         {/* Card Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <div className="w-7 h-7 rounded-xl bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
               <Timer className="w-3.5 h-3.5" />
             </div>
             <div>
@@ -291,7 +291,7 @@ export function FastingSection({
           </div>
 
           <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
-            <Bell className="w-2.5 h-2.5 text-emerald-400" />
+            <Bell className="w-2.5 h-2.5 text-brand-red" />
             <span>Alarms Active</span>
           </div>
         </div>
@@ -315,20 +315,20 @@ export function FastingSection({
                     cx="28"
                     cy="28"
                     r={radius}
-                    className="stroke-emerald-400 transition-all duration-700 ease-out"
+                    className="stroke-brand-red transition-all duration-700 ease-out"
                     strokeWidth="4.5"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
                     strokeLinecap="round"
                     fill="transparent"
                     style={{
-                      filter: "drop-shadow(0 0 6px rgba(52, 211, 153, 0.5))",
+                      filter: "drop-shadow(0 0 8px rgba(239, 68, 68, 0.45))",
                     }}
                   />
                 </svg>
 
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[10px] font-mono font-bold text-emerald-400">
+                  <span className="text-[10px] font-mono font-bold text-brand-red">
                     {progressPercent}%
                   </span>
                 </div>
@@ -350,7 +350,7 @@ export function FastingSection({
                 <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500">
                   <span>Target: {format(new Date(activeFast.targetEndTime), "hh:mm a")}</span>
                   {currentStage && (
-                    <span className="text-emerald-400 font-bold truncate max-w-[130px]">
+                    <span className="text-red-300 font-bold truncate max-w-[130px]">
                       • {currentStage.name}
                     </span>
                   )}
@@ -373,10 +373,10 @@ export function FastingSection({
                 type="button"
                 onClick={() => setShowEndModal(true)}
                 disabled={isSubmitting}
-                className="flex-[2] h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+                className="flex-[2] h-9 rounded-xl bg-brand-red hover:bg-brand-redDark text-white font-mono text-xs font-bold transition-all active:scale-95 shadow-glow-red flex items-center justify-center gap-1.5"
               >
                 <Square className="w-3 h-3 fill-current" />
-                <span>End Fast & Record</span>
+                <span>End Fast &amp; Record</span>
               </button>
             </div>
           </div>
@@ -397,12 +397,14 @@ export function FastingSection({
                     }}
                     className={`py-2 px-1 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
                       isSelected
-                        ? "bg-emerald-950/40 border-emerald-500 text-white shadow-glow-emerald-subtle"
-                        : "bg-black/50 border-white/5 text-zinc-400 hover:border-white/20 active:scale-95"
+                        ? "bg-brand-red text-white border-brand-red shadow-glow-red-subtle font-bold"
+                        : "bg-black/60 border-white/10 text-zinc-300 hover:border-white/25 active:scale-95"
                     }`}
                   >
-                    <span className="text-xs font-mono font-bold">{p.name}</span>
-                    <span className="text-[8px] font-mono text-zinc-500 mt-0.5">
+                    <span className={`text-xs font-mono font-bold ${isSelected ? "text-white" : "text-zinc-200"}`}>
+                      {p.name}
+                    </span>
+                    <span className={`text-[8px] font-mono mt-0.5 ${isSelected ? "text-red-100 font-semibold" : "text-zinc-400 font-normal"}`}>
                       {p.desc}
                     </span>
                   </button>
@@ -424,7 +426,7 @@ export function FastingSection({
                     }}
                     className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all ${
                       startOffsetHours === offset
-                        ? "bg-emerald-500 text-black font-bold"
+                        ? "bg-brand-red text-white font-bold"
                         : "text-zinc-500 hover:text-white"
                     }`}
                   >
@@ -438,7 +440,7 @@ export function FastingSection({
                 type="button"
                 onClick={handleStartFast}
                 disabled={isSubmitting}
-                className="flex-1 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+                className="flex-1 h-9 rounded-xl bg-brand-red hover:bg-brand-redDark text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-glow-red"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Start {selectedProtocol} Fast</span>
@@ -620,7 +622,7 @@ export function FastingSection({
                       onClick={() => setFeelingsRating(val)}
                       className={`flex-1 py-1.5 rounded-lg border font-mono text-xs transition-all ${
                         feelingsRating === val
-                          ? "bg-emerald-500 text-black border-emerald-400 font-bold"
+                          ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
                           : "bg-black border-white/10 text-zinc-400 hover:text-white"
                       }`}
                     >
@@ -639,7 +641,7 @@ export function FastingSection({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. Broke fast clean with bone broth & eggs"
-                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500 resize-none"
+                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-red resize-none"
                 />
               </div>
 
@@ -656,9 +658,9 @@ export function FastingSection({
                   type="button"
                   onClick={handleEndFast}
                   disabled={isSubmitting}
-                  className="flex-1 text-xs font-mono bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  className="flex-1 text-xs font-mono bg-brand-red hover:bg-brand-redDark text-white font-bold shadow-glow-red"
                 >
-                  Confirm & Save
+                  Confirm &amp; Save
                 </Button>
               </div>
             </div>
