@@ -151,11 +151,11 @@ function ProgressContent() {
   const [swAccumulatedSecs, setSwAccumulatedSecs] = useState<number>(0);
   const [swStartClock, setSwStartClock] = useState<string>("");
 
-  // Study Goal State
-  const [dailyTargetHours, setDailyTargetHours] = useState<number>(3);
-  const [weeklyTargetHours, setWeeklyTargetHours] = useState<number>(21);
+  // Study Goal State (Weekdays vs Weekends)
+  const [weekdayTargetHours, setWeekdayTargetHours] = useState<number>(3);
+  const [weekendTargetHours, setWeekendTargetHours] = useState<number>(5);
+  const [weeklyTargetHours, setWeeklyTargetHours] = useState<number>(25);
   const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
-  const [tempDailyInput, setTempDailyInput] = useState<string>("3");
 
   // Aim Manager State
   const [isAddingAim, setIsAddingAim] = useState(false);
@@ -386,35 +386,62 @@ function ProgressContent() {
 
   const loadTargetHours = () => {
     if (typeof window === "undefined") return;
-    const storedWeekly = localStorage.getItem("everthing_weekly_study_goal_hours");
+    const storedWeekday = localStorage.getItem("everthing_weekday_study_goal_hours");
+    const storedWeekend = localStorage.getItem("everthing_weekend_study_goal_hours");
     const storedDaily = localStorage.getItem("everthing_daily_study_goal_hours");
 
-    let weekly = 21;
-    if (storedWeekly) {
-      const val = parseInt(storedWeekly, 10);
-      if (!isNaN(val) && val > 0) weekly = val;
-    }
-    setWeeklyTargetHours(weekly);
-
-    let daily = Math.max(1, Math.round(weekly / 7));
-    if (storedDaily) {
+    let weekday = 3;
+    if (storedWeekday) {
+      const val = parseInt(storedWeekday, 10);
+      if (!isNaN(val) && val > 0) weekday = val;
+    } else if (storedDaily) {
       const val = parseInt(storedDaily, 10);
-      if (!isNaN(val) && val > 0) daily = val;
+      if (!isNaN(val) && val > 0) weekday = val;
     }
-    setDailyTargetHours(daily);
-    setTempDailyInput(daily.toString());
+    setWeekdayTargetHours(weekday);
+
+    let weekend = 5;
+    if (storedWeekend) {
+      const val = parseInt(storedWeekend, 10);
+      if (!isNaN(val) && val > 0) weekend = val;
+    } else if (storedDaily) {
+      const val = parseInt(storedDaily, 10);
+      if (!isNaN(val) && val > 0) weekend = Math.max(val, 5);
+    }
+    setWeekendTargetHours(weekend);
+
+    const computedWeekly = weekday * 5 + weekend * 2;
+    setWeeklyTargetHours(computedWeekly);
   };
 
-  const handleSaveDailyGoal = (newHours: number) => {
+  const handleSaveWeekdayGoal = (newHours: number) => {
     const val = Math.max(1, Math.min(24, Math.round(newHours)));
-    setDailyTargetHours(val);
-    setTempDailyInput(val.toString());
+    setWeekdayTargetHours(val);
+    const newWeekly = val * 5 + weekendTargetHours * 2;
+    setWeeklyTargetHours(newWeekly);
     if (typeof window !== "undefined") {
-      localStorage.setItem("everthing_daily_study_goal_hours", val.toString());
+      localStorage.setItem("everthing_weekday_study_goal_hours", val.toString());
+      localStorage.setItem("everthing_weekly_study_goal_hours", newWeekly.toString());
+      const isWeekend = [0, 6].includes(new Date().getDay());
+      localStorage.setItem("everthing_daily_study_goal_hours", (isWeekend ? weekendTargetHours : val).toString());
       window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
     }
-    setIsEditingGoal(false);
-    haptics.success();
+    haptics.selection();
+  };
+
+  const handleSaveWeekendGoal = (newHours: number) => {
+    const val = Math.max(1, Math.min(24, Math.round(newHours)));
+    setWeekendTargetHours(val);
+    const newWeekly = weekdayTargetHours * 5 + val * 2;
+    setWeeklyTargetHours(newWeekly);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("everthing_weekend_study_goal_hours", val.toString());
+      localStorage.setItem("everthing_weekly_study_goal_hours", newWeekly.toString());
+      const isWeekend = [0, 6].includes(new Date().getDay());
+      localStorage.setItem("everthing_daily_study_goal_hours", (isWeekend ? val : weekdayTargetHours).toString());
+      window.dispatchEvent(new CustomEvent("kunal-os-refresh"));
+    }
+    haptics.selection();
   };
 
   useEffect(() => {
@@ -505,16 +532,15 @@ function ProgressContent() {
     }
   };
 
-  // Aim Mastery Update Handler
-  const handleUpdateMastery = async (topicId: string, currentMastery: string) => {
-    const cycleMap: Record<string, string> = {
-      NOT_STARTED: "IN_PROGRESS",
-      IN_PROGRESS: "CONFIDENT",
-      CONFIDENT: "MASTERED",
-      MASTERED: "NOT_STARTED",
-    };
-    const nextMastery = cycleMap[currentMastery] || "IN_PROGRESS";
-    haptics.selection();
+  // Checkpoint Toggle Handler (Completed vs Incomplete)
+  const handleToggleTopic = async (topicId: string, currentMastery: string) => {
+    const isCompleted = currentMastery === "MASTERED";
+    const nextMastery = isCompleted ? "NOT_STARTED" : "MASTERED";
+    if (nextMastery === "MASTERED") {
+      haptics.success();
+    } else {
+      haptics.selection();
+    }
 
     setAimsData((prevAims) =>
       prevAims.map((aim) => ({
@@ -540,7 +566,30 @@ function ProgressContent() {
       });
       fetchProgress();
     } catch (err) {
-      console.error("Failed to update topic mastery:", err);
+      console.error("Failed to update topic checkpoint:", err);
+      fetchProgress();
+    }
+  };
+
+  const handleDeleteTopic = async (topicId: string) => {
+    haptics.warning();
+    setAimsData((prevAims) =>
+      prevAims.map((aim) => ({
+        ...aim,
+        milestones: aim.milestones.map((m: any) => ({
+          ...m,
+          topics: m.topics.filter((t: any) => t.id !== topicId),
+        })),
+      }))
+    );
+
+    try {
+      await fetch(`/api/aims?topicId=${topicId}`, {
+        method: "DELETE",
+      });
+      fetchProgress();
+    } catch (err) {
+      console.error("Failed to delete topic checkpoint:", err);
       fetchProgress();
     }
   };
@@ -628,6 +677,8 @@ function ProgressContent() {
   const todayStudyMinutes = today?.studyMinutes || 0;
   const todayStudySessions = (today?.sessions || []).filter((s: any) => s.type === "STUDY");
   const weekStudyMinutes = thisWeek?.studyMinutes || 0;
+  const isTodayWeekend = mounted ? [0, 6].includes(new Date().getDay()) : false;
+  const dailyTargetHours = isTodayWeekend ? weekendTargetHours : weekdayTargetHours;
   const dailyTargetMinutes = dailyTargetHours * 60;
   const weeklyTargetMinutes = weeklyTargetHours * 60;
   const dailyProgressPercent = Math.min(100, Math.round((todayStudyMinutes / dailyTargetMinutes) * 100));
@@ -781,10 +832,13 @@ function ProgressContent() {
                 haptics.selection();
                 setIsEditingGoal(!isEditingGoal);
               }}
-              className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 justify-end"
+              className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 justify-end group transition-colors"
             >
-              <span>Goal: {dailyTargetHours}h</span>
-              <Pencil className="w-2.5 h-2.5 text-brand-red" />
+              <span>
+                Goal: <strong className="text-white">{dailyTargetHours}h</strong>{" "}
+                <span className="text-zinc-500">({isTodayWeekend ? "Weekend" : "Weekday"})</span>
+              </span>
+              <Pencil className="w-2.5 h-2.5 text-brand-red group-hover:scale-110 transition-transform" />
             </button>
             <span className="text-xs font-bold font-mono text-brand-red block mt-0.5">
               {dailyProgressPercent}%
@@ -800,26 +854,68 @@ function ProgressContent() {
           />
         </div>
 
-        {/* Inline Goal Quick Selector */}
+        {/* Inline Goal Quick Selector: Weekdays & Weekends */}
         {isEditingGoal && (
-          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5 animate-in fade-in duration-150">
-            <span className="text-[9px] font-mono text-zinc-400 uppercase">Target:</span>
-            <div className="flex items-center gap-1">
-              {[2, 3, 4, 5, 6].map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  onClick={() => handleSaveDailyGoal(h)}
-                  className={clsx(
-                    "px-2 py-0.5 rounded-lg text-[10px] font-mono border transition-all",
-                    dailyTargetHours === h
-                      ? "bg-brand-red text-white border-brand-red font-bold"
-                      : "bg-white/[0.03] text-zinc-400 border-white/10"
-                  )}
-                >
-                  {h}h
-                </button>
-              ))}
+          <div className="mt-3 pt-2.5 border-t border-white/10 space-y-2 animate-in fade-in duration-150">
+            {/* Weekdays Row */}
+            <div className="flex items-center justify-between gap-1.5 flex-wrap">
+              <span className="text-[9px] font-mono text-zinc-400 uppercase flex items-center gap-1.5">
+                <span className={clsx("w-1.5 h-1.5 rounded-full", !isTodayWeekend ? "bg-brand-red animate-pulse" : "bg-zinc-600")} />
+                <span>Weekdays (Mon–Fri):</span>
+              </span>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5, 6].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => handleSaveWeekdayGoal(h)}
+                    className={clsx(
+                      "px-2 py-0.5 rounded-lg text-[10px] font-mono border transition-all active:scale-95",
+                      weekdayTargetHours === h
+                        ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
+                        : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    {h}h
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Weekends Row */}
+            <div className="flex items-center justify-between gap-1.5 flex-wrap">
+              <span className="text-[9px] font-mono text-zinc-400 uppercase flex items-center gap-1.5">
+                <span className={clsx("w-1.5 h-1.5 rounded-full", isTodayWeekend ? "bg-brand-red animate-pulse" : "bg-zinc-600")} />
+                <span>Weekends (Sat–Sun):</span>
+              </span>
+              <div className="flex items-center gap-1">
+                {[2, 3, 4, 5, 6, 8].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => handleSaveWeekendGoal(h)}
+                    className={clsx(
+                      "px-2 py-0.5 rounded-lg text-[10px] font-mono border transition-all active:scale-95",
+                      weekendTargetHours === h
+                        ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red-subtle"
+                        : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    {h}h
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-1.5 flex items-center justify-between text-[9px] font-mono text-zinc-500 border-t border-white/5">
+              <span>Weekly Pace: <strong className="text-zinc-300 font-bold">{weeklyTargetHours}h / week</strong></span>
+              <button
+                type="button"
+                onClick={() => setIsEditingGoal(false)}
+                className="text-brand-red hover:underline font-semibold"
+              >
+                Done
+              </button>
             </div>
           </div>
         )}
@@ -1414,7 +1510,7 @@ function ProgressContent() {
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-white font-mono truncate">{aim.title}</h4>
                           <span className="text-[10px] text-zinc-500 font-mono">
-                            {stats.masteredTopics || 0}/{stats.totalTopics || 0} mastered • {formatDuration(stats.totalStudyMinutes || 0)}
+                            {stats.masteredTopics || 0}/{stats.totalTopics || 0} completed • {formatDuration(stats.totalStudyMinutes || 0)}
                           </span>
                         </div>
                       </div>
@@ -1432,60 +1528,87 @@ function ProgressContent() {
                       </div>
                     </div>
 
-                    {/* Topics Checklist */}
+                    {/* Checkpoints Checklist */}
                     {isExpanded && (
                       <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-white/5 bg-black/40">
-                        {aim.milestones.map((m: any) => (
-                          <div key={m.id} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
-                              <span>{m.title}</span>
-                              <span className="text-[9px] text-zinc-500 font-normal">
-                                {m.topics.length} topics
-                              </span>
-                            </div>
+                        {aim.milestones.map((m: any) => {
+                          const completedCount = (m.topics || []).filter((t: any) => t.mastery === "MASTERED").length;
+                          const totalCount = (m.topics || []).length;
 
-                            <div className="space-y-1">
-                              {m.topics.map((t: any) => {
-                                const badges: Record<string, { label: string; style: string }> = {
-                                  NOT_STARTED: { label: "Queue", style: "bg-white/[0.02] text-zinc-500 border-white/10" },
-                                  IN_PROGRESS: { label: "Learning", style: "bg-white/[0.08] text-zinc-200 border-white/20" },
-                                  CONFIDENT: { label: "Confident", style: "bg-brand-red/15 text-red-300 border-brand-red/30" },
-                                  MASTERED: { label: "Mastered", style: "bg-brand-red text-white border-brand-red shadow-glow-red-subtle font-bold" },
-                                };
-                                const b = badges[t.mastery] || badges.NOT_STARTED;
+                          return (
+                            <div key={m.id} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
+                                <span>{m.title}</span>
+                                <span className="text-[9px] text-zinc-500 font-normal">
+                                  {completedCount}/{totalCount} completed
+                                </span>
+                              </div>
 
-                                return (
-                                  <div
-                                    key={t.id}
-                                    className="py-1 px-2 rounded-lg bg-white/[0.02] flex items-center justify-between text-xs font-mono"
-                                  >
-                                    <span className="text-white truncate text-[11px]">{t.title}</span>
+                              <div className="space-y-1">
+                                {m.topics.map((t: any) => {
+                                  const isDone = t.mastery === "MASTERED";
 
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUpdateMastery(t.id, t.mastery)}
-                                        className={clsx("px-2 py-0.5 rounded text-[9px] font-mono border transition-all active:scale-95", b.style)}
-                                      >
-                                        <span>{b.label}</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          haptics.selection();
-                                          setManualProject(t.title);
-                                          setSelectedTopicId(t.id);
-                                          setActiveTab("LOG");
-                                        }}
-                                        className="p-1 text-zinc-500 hover:text-brand-red transition-colors"
-                                      >
-                                        <Zap className="w-3 h-3" />
-                                      </button>
+                                  return (
+                                    <div
+                                      key={t.id}
+                                      className="py-1.5 px-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs font-mono group hover:border-white/10 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                        {/* Tactile Checkbox */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleTopic(t.id, t.mastery)}
+                                          className={clsx(
+                                            "w-4 h-4 rounded-md border flex items-center justify-center transition-all duration-150 active:scale-90 flex-shrink-0",
+                                            isDone
+                                              ? "bg-brand-red border-brand-red text-white shadow-glow-red-subtle"
+                                              : "border-zinc-700 hover:border-brand-red/80 bg-white/[0.02] hover:bg-brand-red/10 text-transparent"
+                                          )}
+                                          aria-label={isDone ? "Mark incomplete" : "Mark completed"}
+                                        >
+                                          <Check className={clsx("w-3 h-3 stroke-[2.5]", isDone ? "opacity-100" : "opacity-0")} />
+                                        </button>
+
+                                        <span
+                                          className={clsx(
+                                            "truncate text-xs transition-all cursor-pointer select-none",
+                                            isDone
+                                              ? "line-through text-zinc-500 font-normal"
+                                              : "text-zinc-200 hover:text-white"
+                                          )}
+                                          onClick={() => handleToggleTopic(t.id, t.mastery)}
+                                        >
+                                          {t.title}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            haptics.selection();
+                                            setManualProject(t.title);
+                                            setSelectedTopicId(t.id);
+                                            setActiveTab("LOG");
+                                          }}
+                                          className="p-1 text-zinc-500 hover:text-brand-red transition-colors"
+                                          title="Quick focus session"
+                                        >
+                                          <Zap className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteTopic(t.id)}
+                                          className="p-1 text-zinc-600 hover:text-rose-400 opacity-60 hover:opacity-100 transition-all"
+                                          title="Delete checkpoint"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                  );
+                                })}
+                              </div>
 
                             {addingTopicMilestoneId === m.id ? (
                               <div className="flex items-center gap-1.5 pt-1">
@@ -1526,7 +1649,8 @@ function ProgressContent() {
                               </button>
                             )}
                           </div>
-                        ))}
+                        );
+                      })}
                       </div>
                     )}
                   </div>

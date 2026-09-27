@@ -56,22 +56,39 @@ export default function DashboardPage() {
 
   const loadStudyGoal = () => {
     if (typeof window === "undefined") return;
+    const isWeekend = [0, 6].includes(new Date().getDay());
+    const storedWeekday = localStorage.getItem("everthing_weekday_study_goal_hours");
+    const storedWeekend = localStorage.getItem("everthing_weekend_study_goal_hours");
     const storedWeekly = localStorage.getItem("everthing_weekly_study_goal_hours");
     const storedDaily = localStorage.getItem("everthing_daily_study_goal_hours");
+
+    let weekdayGoal = 3;
+    let weekendGoal = 5;
+
+    if (storedWeekday) {
+      const val = parseInt(storedWeekday, 10);
+      if (!isNaN(val) && val > 0) weekdayGoal = val;
+    } else if (storedDaily) {
+      const val = parseInt(storedDaily, 10);
+      if (!isNaN(val) && val > 0) weekdayGoal = val;
+    }
+
+    if (storedWeekend) {
+      const val = parseInt(storedWeekend, 10);
+      if (!isNaN(val) && val > 0) weekendGoal = val;
+    } else if (storedDaily) {
+      const val = parseInt(storedDaily, 10);
+      if (!isNaN(val) && val > 0) weekendGoal = Math.max(val, 5);
+    }
+
+    const currentDaily = isWeekend ? weekendGoal : weekdayGoal;
+    setDailyStudyGoal(currentDaily);
+
     if (storedWeekly) {
       const val = parseInt(storedWeekly, 10);
       if (!isNaN(val) && val > 0) setWeeklyStudyGoal(val);
-    }
-    if (storedDaily) {
-      const val = parseInt(storedDaily, 10);
-      if (!isNaN(val) && val > 0) {
-        setDailyStudyGoal(val);
-      }
-    } else if (storedWeekly) {
-      const val = parseInt(storedWeekly, 10);
-      if (!isNaN(val) && val > 0) {
-        setDailyStudyGoal(Math.max(1, Math.round(val / 7)));
-      }
+    } else {
+      setWeeklyStudyGoal(weekdayGoal * 5 + weekendGoal * 2);
     }
   };
 
@@ -553,7 +570,7 @@ export default function DashboardPage() {
                         Done: {formatDuration(studiedTodayMins)}
                       </span>
                       <span className="text-zinc-500 shrink-0 ml-1">
-                        {dailyStudyGoal}h goal
+                        {dailyStudyGoal}h goal ({[0, 6].includes(new Date().getDay()) ? "Wknd" : "Wkday"})
                       </span>
                     </div>
                   </>
