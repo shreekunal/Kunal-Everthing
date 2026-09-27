@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Activity, Footprints, Timer, Scale } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { FastingSection } from "@/components/health/FastingSection";
 import { StepsSection } from "@/components/health/StepsSection";
 import { WeightBmiSection } from "@/components/health/WeightBmiSection";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { fetchHealthConnectSteps } from "@/lib/healthSync";
 
 export default function HealthPage() {
   const [data, setData] = useState<any>(null);
@@ -13,6 +15,15 @@ export default function HealthPage() {
 
   const fetchData = useCallback(async () => {
     try {
+      // Auto-sync Health Connect if on native Android
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+        try {
+          await fetchHealthConnectSteps();
+        } catch {
+          // Graceful fallback
+        }
+      }
+
       const res = await fetch("/api/vitality");
       if (res.ok) {
         const json = await res.json();

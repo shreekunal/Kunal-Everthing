@@ -4,10 +4,16 @@ import React, { useState } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Footprints, Flame, MapPin, Clock, Plus, RefreshCw, Smartphone, ExternalLink } from "lucide-react";
+import { Footprints, Flame, MapPin, Clock, Plus, RefreshCw } from "lucide-react";
 import { haptics } from "@/lib/haptics";
-import { fetchHealthConnectSteps, openHealthConnect } from "@/lib/healthSync";
 import { formatDuration } from "@/lib/formatters";
+import {
+  fetchHealthConnectSteps,
+  requestHealthConnectPermission,
+  checkHealthConnectPermission,
+  isHealthConnectSupported,
+  openHealthConnect,
+} from "@/lib/healthSync";
 import {
   BarChart,
   Bar,
@@ -41,15 +47,50 @@ interface StepsSectionProps {
 }
 
 export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isIncrementing, setIsIncrementing] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualCount, setManualCount] = useState(stepsData.today.stepCount.toString());
+  const [isHealthSyncing, setIsHealthSyncing] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<string | null>(null);
 
   const currentSteps = stepsData.today.stepCount;
   const targetSteps = stepsData.today.targetSteps || 10000;
   const progressPercent = Math.min(100, Math.round((currentSteps / targetSteps) * 100));
   const activeMinutes = Math.floor(currentSteps / 100);
+
+  const handleHealthSync = async () => {
+    setIsHealthSyncing(true);
+    setHealthStatus(null);
+    haptics.impactLight();
+    try {
+      const isSupported = await isHealthConnectSupported();
+      if (!isSupported) {
+        setHealthStatus("Available on Android app");
+        return;
+      }
+
+      const hasPerm = await checkHealthConnectPermission();
+      if (!hasPerm) {
+        const granted = await requestHealthConnectPermission();
+        if (!granted) {
+          setHealthStatus("Permission required");
+          return;
+        }
+      }
+
+      const result = await fetchHealthConnectSteps();
+      if (result.success) {
+        haptics.success();
+        await onRefresh();
+      } else {
+        setHealthStatus(result.message || "Sync failed");
+      }
+    } catch {
+      setHealthStatus("Sync error");
+    } finally {
+      setIsHealthSyncing(false);
+    }
+  };
 
   // Quick increment handler
   const handleIncrement = async (delta: number) => {
@@ -102,41 +143,6 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
     }
   };
 
-  const [showSyncModal, setShowSyncModal] = useState(false);
-
-  // Google Health Connect Sync
-  const handleHealthConnectSync = async () => {
-    haptics.impactMedium();
-    setIsSyncing(true);
-    try {
-      const result = await fetchHealthConnectSteps();
-      if (result.success && result.stepCount !== undefined) {
-        // Save to backend
-        await fetch("/api/vitality", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "LOG_STEPS",
-            stepCount: result.stepCount,
-            syncSource: "HEALTH_CONNECT",
-          }),
-        });
-        haptics.success();
-        await onRefresh();
-      } else {
-        haptics.selection();
-        setManualCount(currentSteps.toString());
-        setShowSyncModal(true);
-      }
-    } catch (err) {
-      console.error("Health Connect sync error:", err);
-      setManualCount(currentSteps.toString());
-      setShowSyncModal(true);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Chart data format
   const chartData = stepsData.history.map((h) => ({
     day: format(parseISO(h.date), "EEE"),
@@ -163,38 +169,36 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
             </h2>
             <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
               <span>Target: {targetSteps.toLocaleString()}</span>
-              {stepsData.today.syncSource === "HEALTH_CONNECT" && (
-                <span className="text-brand-red font-bold">• Health Connect</span>
+              {stepsData.today.syncSource === "HEALTH_CONNECT" ? (
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  • <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Health Connect
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleHealthSync}
+                  disabled={isHealthSyncing}
+                  className="text-brand-red hover:underline font-bold flex items-center gap-1"
+                >
+                  • {isHealthSyncing ? "Syncing..." : (healthStatus || "Sync Health")}
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleHealthConnectSync}
-            disabled={isSyncing}
-            className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 gap-1 rounded-md"
-            title="Sync with Google Health Connect"
-          >
-            <RefreshCw className={`w-3 h-3 text-brand-red ${isSyncing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Sync Health</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setManualCount(currentSteps.toString());
-              setShowManualModal(true);
-            }}
-            className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-md"
-          >
-            Edit
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setManualCount(currentSteps.toString());
+            setShowManualModal(true);
+          }}
+          className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle"
+        >
+          <Plus className="w-3 h-3" />
+          <span>Log Steps</span>
+        </Button>
       </div>
 
       <div className="space-y-4">
@@ -273,20 +277,10 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
 
         {/* Quick Increment Buttons (Fallback & on-the-go logging) */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-              Quick Log Steps
+          <div className="mb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-bold">
+              Quick Add Steps
             </span>
-            <button
-              onClick={() => {
-                setManualCount(currentSteps.toString());
-                setShowSyncModal(true);
-              }}
-              className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 transition-colors"
-            >
-              <span>Health Connect Sync</span>
-              <ExternalLink className="w-2.5 h-2.5" />
-            </button>
           </div>
           <div className="grid grid-cols-4 gap-1.5">
             {[500, 1000, 2500, 5000].map((delta) => (
@@ -356,8 +350,8 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
         )}
       </div>
 
-      {/* Health Connect & Manual Steps Modal */}
-      {(showSyncModal || showManualModal) && (
+      {/* Log Daily Steps Modal */}
+      {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-zinc-950 border border-brand-red/30 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative overflow-hidden">
             {/* Ambient Red Glow */}
@@ -370,10 +364,10 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 </div>
                 <div>
                   <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-                    Steps &amp; Health Connect
+                    Log Daily Steps
                   </h3>
                   <p className="text-[10px] text-zinc-400 font-mono">
-                    Log or synchronize today&apos;s activity
+                    Set or adjust your count for today
                   </p>
                 </div>
               </div>
@@ -424,35 +418,11 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 </div>
               </div>
 
-              {/* Health Connect App / Settings link */}
-              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-mono text-zinc-400 uppercase font-bold flex items-center gap-1">
-                    <Smartphone className="w-3 h-3 text-brand-red" />
-                    Google Health Connect
-                  </span>
-                  <button
-                    type="button"
-                    onClick={openHealthConnect}
-                    className="text-[9px] font-mono text-brand-red hover:underline flex items-center gap-1"
-                  >
-                    <span>Open Settings</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-                <p className="text-[9px] text-zinc-500 font-mono leading-relaxed">
-                  Direct background reading connects to Android OS Health Connect. You can set steps manually above or link permissions in system settings.
-                </p>
-              </div>
-
               <div className="flex gap-2 pt-1">
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setShowSyncModal(false);
-                    setShowManualModal(false);
-                  }}
+                  onClick={() => setShowManualModal(false)}
                   className="flex-1 text-xs font-mono border border-white/10"
                 >
                   Cancel
@@ -464,6 +434,33 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
                 >
                   Save Steps
                 </Button>
+              </div>
+
+              <div className="pt-2 border-t border-white/5 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-zinc-500">Google Health Connect</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleHealthSync();
+                      setShowManualModal(false);
+                    }}
+                    disabled={isHealthSyncing}
+                    className="text-brand-red hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isHealthSyncing ? "animate-spin" : ""}`} />
+                    <span>{isHealthSyncing ? "Syncing..." : "Sync Now"}</span>
+                  </button>
+                </div>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => openHealthConnect()}
+                    className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400"
+                  >
+                    Health Connect Permissions ↗
+                  </button>
+                </div>
               </div>
             </form>
           </div>

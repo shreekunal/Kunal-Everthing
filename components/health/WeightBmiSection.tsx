@@ -226,44 +226,26 @@ export function WeightBmiSection({
           </div>
           <div>
             <h2 className="text-xs font-mono uppercase tracking-wider text-white font-bold leading-tight">
-              Weight &amp; Body Metrics
+              Weight &amp; BMI
             </h2>
-            <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5 mt-0.5">
-              <span>Height: {heightCm} cm</span>
-              <span>•</span>
-              <span>Healthy Span: {minIdealWeight}–{maxIdealWeight} kg</span>
-            </div>
+            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+              Body composition &amp; telemetry
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setInputHeight(heightCm.toString());
-              setShowSettingsModal(true);
-            }}
-            className="h-7 px-2 text-[10px] font-mono border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 gap-1 rounded-md"
-            title="Configure Height"
-          >
-            <Sliders className="w-3 h-3 text-zinc-400" />
-            <span className="hidden sm:inline">Height</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (currentWeight) setInputWeight(currentWeight.toString());
-              setShowLogModal(true);
-            }}
-            className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle"
-          >
-            <Plus className="w-3 h-3" />
-            <span>Log Weight</span>
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (currentWeight) setInputWeight(currentWeight.toString());
+            setShowLogModal(true);
+          }}
+          className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle"
+        >
+          <Plus className="w-3 h-3" />
+          <span>Log Weight</span>
+        </Button>
       </div>
 
       <div className="space-y-3.5">
@@ -374,8 +356,20 @@ export function WeightBmiSection({
               </div>
             </div>
 
-            <div className="pt-2 border-t border-white/5 text-[10px] font-mono text-zinc-500 leading-tight">
-              {bmiCat.description}
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 text-[10px] font-mono text-zinc-500 leading-tight">
+              <span className="truncate">{bmiCat.description}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setInputHeight(heightCm.toString());
+                  setShowSettingsModal(true);
+                }}
+                className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded border border-white/10 transition-colors"
+                title="Configure Height"
+              >
+                <Sliders className="w-2.5 h-2.5 text-zinc-400" />
+                <span>{heightCm} cm</span>
+              </button>
             </div>
           </div>
         </div>

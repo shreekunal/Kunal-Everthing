@@ -1,87 +1,146 @@
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+export interface NativeHealthConnectPlugin {
+  checkAvailability(): Promise<{
+    available: boolean;
+    status: "AVAILABLE" | "UPDATE_REQUIRED" | "UNAVAILABLE";
+    error?: string;
+  }>;
+  checkPermissions(): Promise<{
+    granted: boolean;
+    available: boolean;
+    error?: string;
+  }>;
+  requestPermissions(): Promise<{
+    granted: boolean;
+    error?: string;
+  }>;
+  getTodaySteps(): Promise<{
+    success: boolean;
+    status: "OK" | "PERMISSION_REQUIRED" | "UNAVAILABLE" | "ERROR";
+    steps: number;
+    error?: string;
+  }>;
+  openSettings(): Promise<{ success: boolean }>;
+}
+
+export const HealthConnect = registerPlugin<NativeHealthConnectPlugin>("HealthConnect");
 
 export interface HealthSyncResult {
   success: boolean;
   stepCount?: number;
   source: "HEALTH_CONNECT" | "MANUAL";
   message?: string;
+  status?: string;
 }
 
 /**
- * Checks whether native Health Connect is supported and accessible
+ * Checks whether Health Connect is supported on the current device
  */
 export async function isHealthConnectSupported(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
-  return Capacitor.getPlatform() === "android";
+  if (Capacitor.getPlatform() !== "android") return false;
+  try {
+    const res = await HealthConnect.checkAvailability();
+    return !!res.available;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Opens Google Health Connect settings on Android, or web portal as fallback
+ * Checks if Health Connect step reading permission is granted
  */
-export function openHealthConnect(): void {
-  if (typeof window === "undefined") return;
-  
-  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
-    // 1. Try launching modern Health Connect system settings intent (Android 14+)
-    try {
-      window.location.href = "intent:#Intent;action=androidx.health.ACTION_HEALTH_CONNECT_SETTINGS;end";
-      return;
-    } catch {
-      // Intent scheme fallback
-    }
+export async function checkHealthConnectPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return false;
+  try {
+    const res = await HealthConnect.checkPermissions();
+    return !!res.granted;
+  } catch {
+    return false;
+  }
+}
 
-    // 2. Try launching fallback Android settings
+/**
+ * Requests Health Connect step reading permission
+ */
+export async function requestHealthConnectPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return false;
+  try {
+    const res = await HealthConnect.requestPermissions();
+    return !!res.granted;
+  } catch (err: any) {
+    console.error("Health Connect permission request failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Opens Health Connect settings on device
+ */
+export async function openHealthConnect(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
     try {
-      window.location.href = "intent:#Intent;action=android.settings.HEALTH_CONNECT_SETTINGS;end";
+      await HealthConnect.openSettings();
       return;
     } catch {
       // Fallback
     }
   }
-  
-  // Web documentation / info portal fallback
+
+  // Web fallback
   window.open("https://health.google/health-connect-android/", "_blank");
 }
 
 /**
- * Attempt to read today's steps from Health Connect or return fallback
+ * Fetches today's steps from native Health Connect and automatically saves to vitality
  */
 export async function fetchHealthConnectSteps(): Promise<HealthSyncResult> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") {
     return {
       success: false,
       source: "MANUAL",
-      message: "Health Connect auto-sync is available on the Android app.",
+      message: "Health Connect is supported on the Android application.",
     };
   }
 
   try {
-    // Check if dynamic health plugin is installed in native bundle
-    const plugins = (window as any).Capacitor?.Plugins;
-    const Health = plugins?.Health || plugins?.HealthConnect;
+    const res = await HealthConnect.getTodaySteps();
+    if (res.success && typeof res.steps === "number") {
+      // Post to backend API
+      try {
+        await fetch("/api/vitality", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "LOG_STEPS",
+            stepCount: res.steps,
+            syncSource: "HEALTH_CONNECT",
+          }),
+        });
+      } catch (postErr) {
+        console.warn("Failed to persist synced steps to server:", postErr);
+      }
 
-    if (Health && typeof Health.queryAggregated === "function") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const res = await Health.queryAggregated({
-        dataType: "steps",
-        startDate: today.toISOString(),
-        endDate: new Date().toISOString(),
-      });
-
-      const steps = Math.round(Number(res?.value || res?.steps || 0));
       return {
         success: true,
-        stepCount: steps,
+        stepCount: res.steps,
         source: "HEALTH_CONNECT",
+        status: "OK",
       };
     }
 
     return {
       success: false,
       source: "MANUAL",
-      message: "Health Connect plugin not ready. Using manual tracking.",
+      status: res.status,
+      message:
+        res.error ||
+        (res.status === "PERMISSION_REQUIRED"
+          ? "Permission required in Health Connect"
+          : "Health Connect unavailable"),
     };
   } catch (err: any) {
     console.warn("Health Connect sync error:", err);
