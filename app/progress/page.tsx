@@ -39,6 +39,17 @@ import {
   Square,
   Timer,
 } from "lucide-react";
+
+function getCurrentWindowId(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 9) return "EARLY_MORNING";
+  if (hour >= 9 && hour < 12) return "MORNING";
+  if (hour >= 12 && hour < 17) return "AFTERNOON";
+  if (hour >= 17 && hour < 21) return "EVENING";
+  if (hour >= 21 || hour < 1) return "NIGHT";
+  return "LATE_NIGHT";
+}
+
 import { haptics } from "@/lib/haptics";
 import {
   Select,
@@ -611,7 +622,7 @@ function ProgressContent() {
         .filter(Boolean)
     )
   ).slice(0, 4) as string[];
-  const defaultSubjectChips = ["Algorithms", "System Design", "Core CS", "Development"];
+  const defaultSubjectChips = ["History", "Geography", "Polity"];
   const displaySubjectChips = recentSubjectChips.length > 0 ? recentSubjectChips : defaultSubjectChips;
 
   const todayStudyMinutes = today?.studyMinutes || 0;
@@ -990,52 +1001,98 @@ function ProgressContent() {
             </div>
           </div>
 
-          {/* MANUAL / PRE-FILLED LOG FORM */}
-          <form onSubmit={handleManualLog} className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3 shadow-md">
-            {/* Subject Input with Quick Chips */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] font-mono text-zinc-400 uppercase font-bold">
-                  Subject / Focus Area
+          {/* MANUAL / PRE-FILLED LOG FORM - REDESIGNED */}
+          <form onSubmit={handleManualLog} className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3.5 shadow-xl relative overflow-hidden">
+            {/* Ambient Red Glow */}
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-brand-red/10 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Form Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <div className="flex items-center gap-1.5">
+                <Timer className="w-3.5 h-3.5 text-brand-red" />
+                <span className="text-xs font-mono uppercase font-bold tracking-wider text-white">
+                  Log Focus Session
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-brand-red font-bold px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/20 shadow-glow-red-subtle">
+                +{Math.max(2, Math.floor((Number(manualDuration) || 0) / 5))} XP
+              </span>
+            </div>
+
+            {/* 1. AIM TARGETS IN COMPACT PILLS */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-mono text-zinc-400 uppercase font-bold tracking-wider">
+                  Aim Target
                 </label>
                 {selectedTopicId && (
-                  <span className="text-[9px] font-mono text-cyan-400">Linked to Aim Topic</span>
+                  <span className="text-[9px] font-mono text-red-300 font-bold bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-full">
+                    Aim Linked
+                  </span>
                 )}
               </div>
 
-              {/* Quick Chips */}
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {displaySubjectChips.map((subj) => (
+              {/* High-Stakes Aim Pills Only */}
+              {aimsData && aimsData.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {aimsData.map((aim: any) => {
+                    const isSelected = selectedTopicId === aim.id || manualProject === aim.title;
+                    return (
+                      <button
+                        key={aim.id}
+                        type="button"
+                        onClick={() => {
+                          haptics.selection();
+                          if (isSelected) {
+                            setSelectedTopicId("");
+                            setManualProject("");
+                          } else {
+                            setSelectedTopicId(aim.id);
+                            setManualProject(aim.title);
+                          }
+                        }}
+                        className={clsx(
+                          "px-2.5 py-1 rounded-lg text-xs font-mono border transition-all active:scale-95 flex items-center gap-1.5",
+                          isSelected
+                            ? "bg-brand-red text-white border-brand-red shadow-glow-red-subtle font-bold"
+                            : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
+                        )}
+                      >
+                        <Target className="w-3 h-3 text-brand-red" />
+                        <span className="truncate max-w-[140px]">{aim.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Detail Chapter / Focus Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="Focus Topic / Goal Detail..."
+                  value={manualProject}
+                  onChange={(e) => setManualProject(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-mono pr-8"
+                />
+                {manualProject && (
                   <button
-                    key={subj}
                     type="button"
                     onClick={() => {
-                      haptics.selection();
-                      setManualProject(subj);
+                      setManualProject("");
+                      setSelectedTopicId("");
                     }}
-                    className={clsx(
-                      "text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all active:scale-95",
-                      manualProject === subj
-                        ? "bg-brand-red/20 text-brand-red border-brand-red/40 font-bold"
-                        : "bg-white/[0.02] text-zinc-400 border-white/10 hover:border-white/20 hover:text-zinc-200"
-                    )}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5"
+                    title="Clear"
                   >
-                    {subj}
+                    <X className="w-3 h-3" />
                   </button>
-                ))}
+                )}
               </div>
-
-              <input
-                type="text"
-                required
-                placeholder="e.g. Dynamic Programming, System Design, Physics"
-                value={manualProject}
-                onChange={(e) => setManualProject(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
-              />
             </div>
 
-            {/* From & To Time (Wall-Clock Inputs) */}
+            {/* 2. WALL-CLOCK TIME & REAL-TIME EFFICIENCY */}
             <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono text-zinc-400 uppercase font-bold flex items-center gap-1">
@@ -1059,7 +1116,7 @@ function ProgressContent() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Start (From)</span>
+                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Start Time</span>
                   <input
                     type="time"
                     value={startTime}
@@ -1068,7 +1125,7 @@ function ProgressContent() {
                   />
                 </div>
                 <div>
-                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">End (To)</span>
+                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">End Time</span>
                   <input
                     type="time"
                     value={endTime}
@@ -1080,18 +1137,18 @@ function ProgressContent() {
 
               {/* Real-time Efficiency Output */}
               {liveElapsedMinutes && liveElapsedMinutes > 0 && (
-                <div className="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-white/5">
+                <div className="pt-1.5 flex items-center justify-between text-[10px] font-mono border-t border-white/5">
                   <span className="text-zinc-400">
                     Elapsed: <strong className="text-white">{formatDuration(liveElapsedMinutes)}</strong>
                   </span>
                   <span
                     className={clsx(
-                      "font-bold",
+                      "font-bold px-1.5 py-0.2 rounded",
                       liveEfficiency && liveEfficiency >= 80
-                        ? "text-emerald-400"
+                        ? "text-red-300 bg-brand-red/10 border border-brand-red/30 shadow-glow-red-subtle"
                         : liveEfficiency && liveEfficiency >= 60
-                        ? "text-amber-400"
-                        : "text-rose-400"
+                        ? "text-zinc-300 bg-white/5 border border-white/10"
+                        : "text-zinc-500 bg-white/5"
                     )}
                   >
                     Efficiency: {liveEfficiency}%
@@ -1100,10 +1157,10 @@ function ProgressContent() {
               )}
             </div>
 
-            {/* Pure Study Duration & Mode */}
+            {/* 3. PURE STUDY DURATION & STUDY MODE */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
                   Pure Focus Mins *
                 </label>
                 <input
@@ -1117,8 +1174,8 @@ function ProgressContent() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase">
-                  Mode
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
+                  Study Mode
                 </label>
                 <Select value={manualCategory} onValueChange={setManualCategory}>
                   <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
@@ -1156,18 +1213,18 @@ function ProgressContent() {
               ))}
             </div>
 
-            {/* Toggle for Target & Bottleneck Prompts */}
-            <div>
+            {/* 4. INTENTION & BOTTLENECK PROMPTS */}
+            <div className="pt-0.5">
               <button
                 type="button"
                 onClick={() => setShowAdvancedInputs(!showAdvancedInputs)}
-                className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition-colors"
+                className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
               >
                 <span>{showAdvancedInputs ? "− Hide Prompts" : "+ Add Intention & Bottleneck"}</span>
               </button>
 
               {showAdvancedInputs && (
-                <div className="space-y-2.5 pt-2 animate-in fade-in duration-150">
+                <div className="space-y-2 pt-2 animate-in fade-in duration-150">
                   <div>
                     <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
                       <Target className="w-2.5 h-2.5 text-brand-red" />
@@ -1175,7 +1232,7 @@ function ProgressContent() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Solve 3 Medium DP problems"
+                      placeholder="e.g. Solve 3 Medium DP problems / 20 Polity MCQs"
                       value={intention}
                       onChange={(e) => setIntention(e.target.value)}
                       className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
@@ -1184,12 +1241,12 @@ function ProgressContent() {
 
                   <div>
                     <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                      <Sparkles className="w-2.5 h-2.5 text-brand-red" />
                       Bottleneck (Hardest roadblock or concept?)
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Graph topological sort cycle detection"
+                      placeholder="e.g. Article 356 proclamation criteria"
                       value={reflection}
                       onChange={(e) => setReflection(e.target.value)}
                       className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
@@ -1199,7 +1256,7 @@ function ProgressContent() {
               )}
             </div>
 
-            {/* Submit Button */}
+            {/* 5. SUBMIT BUTTON */}
             <Button
               variant="red"
               size="sm"
@@ -1515,56 +1572,124 @@ function ProgressContent() {
             </div>
           </div>
 
-          {/* Peak Cognitive Windows 6-Zone Matrix */}
-          <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
+          {/* REDESIGNED COGNITIVE PRIME WINDOWS COCKPIT */}
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3.5 shadow-xl relative overflow-hidden">
+            {/* Ambient Red Glow */}
+            <div className="absolute -top-12 -right-12 w-44 h-44 bg-brand-red/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Compass className="w-3.5 h-3.5 text-brand-red" />
-                <span className="text-xs font-mono uppercase text-zinc-400 font-bold">
-                  Cognitive Prime Windows
-                </span>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-brand-red/10 border border-brand-red/25 text-brand-red flex-shrink-0">
+                  <Compass className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-mono uppercase font-bold tracking-wider text-white">
+                    Cognitive Prime Windows
+                  </h3>
+                  <p className="text-[10px] font-mono text-zinc-500">
+                    Circadian Focus &amp; Productivity Mapping
+                  </p>
+                </div>
               </div>
-              {primeWindow && (
-                <span className="text-[9px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  {primeWindow.label}
+
+              {primeWindow ? (
+                <span className="text-[10px] font-mono text-red-300 font-bold px-2 py-0.5 rounded-full bg-brand-red/15 border border-brand-red/30 flex items-center gap-1 shadow-glow-red-subtle">
+                  <Sparkles className="w-2.5 h-2.5 text-brand-red animate-pulse" />
+                  <span>{primeWindow.label}</span>
                 </span>
+              ) : (
+                <span className="text-[10px] font-mono text-zinc-500">6 Circadian Zones</span>
               )}
             </div>
 
+
+
+            {/* 6-Zone Chronological Telemetry Matrix */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {(cognitiveWindows?.windows || []).map((w: any) => {
                 const isPrime = primeWindow?.id === w.id;
+                const isCurrent = getCurrentWindowId() === w.id;
+                const maxHours = Math.max(...(cognitiveWindows?.windows || []).map((win: any) => win.studyHours || 0), 1);
+                const volumePercent = Math.min(100, Math.round(((w.studyHours || 0) / maxHours) * 100));
+
                 return (
                   <div
                     key={w.id}
                     className={clsx(
-                      "p-2.5 rounded-xl border text-center font-mono transition-all",
+                      "p-2.5 rounded-xl border font-mono transition-all relative overflow-hidden flex flex-col justify-between",
                       isPrime
                         ? "bg-brand-red/15 border-brand-red/50 shadow-glow-red"
+                        : isCurrent
+                        ? "bg-white/[0.04] border-white/20 shadow-sm"
                         : w.sessionCount > 0
-                        ? "bg-white/[0.03] border-white/10"
-                        : "bg-white/[0.01] border-white/5 opacity-50"
+                        ? "bg-white/[0.02] border-white/10"
+                        : "bg-white/[0.01] border-white/5 opacity-60"
                     )}
                   >
-                    <div className="flex items-center justify-center gap-1 mb-0.5">
-                      {w.id === "EARLY_MORNING" && <Sunrise className="w-3 h-3 text-amber-400" />}
-                      {w.id === "MORNING" && <Sun className="w-3 h-3 text-yellow-400" />}
-                      {w.id === "AFTERNOON" && <Coffee className="w-3 h-3 text-orange-400" />}
-                      {w.id === "EVENING" && <Sunset className="w-3 h-3 text-rose-400" />}
-                      {w.id === "NIGHT" && <Moon className="w-3 h-3 text-indigo-400" />}
-                      {w.id === "LATE_NIGHT" && <Sparkles className="w-3 h-3 text-cyan-400" />}
-                      <span className="text-[10px] font-bold text-zinc-300">{w.label}</span>
+                    {/* Top line: Icon, Label & Status Badge */}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <div className={clsx("p-1 rounded-md", isPrime ? "text-brand-red bg-brand-red/20" : "text-zinc-400 bg-white/5")}>
+                          {w.id === "EARLY_MORNING" && <Sunrise className="w-3 h-3 text-brand-red" />}
+                          {w.id === "MORNING" && <Sun className="w-3 h-3 text-brand-red" />}
+                          {w.id === "AFTERNOON" && <Coffee className="w-3 h-3 text-brand-red" />}
+                          {w.id === "EVENING" && <Sunset className="w-3 h-3 text-brand-red" />}
+                          {w.id === "NIGHT" && <Moon className="w-3 h-3 text-brand-red" />}
+                          {w.id === "LATE_NIGHT" && <Sparkles className="w-3 h-3 text-brand-red" />}
+                        </div>
+                        <span className="text-[10px] font-bold text-white truncate">{w.label}</span>
+                      </div>
+
+                      {isPrime ? (
+                        <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-brand-red text-white shadow-glow-red flex-shrink-0">
+                          PRIME
+                        </span>
+                      ) : isCurrent ? (
+                        <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-white/10 border border-white/20 text-white flex items-center gap-1 flex-shrink-0">
+                          <span className="w-1 h-1 rounded-full bg-brand-red animate-ping" />
+                          NOW
+                        </span>
+                      ) : null}
                     </div>
-                    <span className="text-[9px] text-zinc-500 block">{w.range}</span>
-                    <div className="mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between text-[10px]">
-                      <span className="text-zinc-400">{w.studyHours}h</span>
-                      <span className="text-emerald-400 font-bold">
-                        {w.sessionCount} sess
+
+                    {/* Time Range */}
+                    <div className="text-[9px] text-zinc-500 mb-2">
+                      {w.range}
+                    </div>
+
+                    {/* Mini Energy / Study Level Indicator Bar */}
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-2">
+                      <div
+                        className={clsx(
+                          "h-full rounded-full transition-all duration-500",
+                          isPrime ? "bg-gradient-to-r from-brand-redDark to-brand-red shadow-glow-red" : "bg-zinc-600"
+                        )}
+                        style={{ width: `${Math.max(4, volumePercent)}%` }}
+                      />
+                    </div>
+
+                    {/* Bottom Stats Row */}
+                    <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-white font-bold">{w.studyHours}h</span>
+                      <span className="text-zinc-400 text-[9px]">{w.sessionCount} sess</span>
+                      <span className={clsx("text-[9px] font-bold", isPrime ? "text-red-300" : "text-zinc-400")}>
+                        {w.avgEfficiencyPercent ? `${w.avgEfficiencyPercent}%` : "—"}
                       </span>
                     </div>
                   </div>
                 );
               })}
+            </div>
+
+            {/* Strategic Scheduling Recommendation */}
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-2 text-[11px] font-mono text-zinc-400">
+              <Zap className="w-3.5 h-3.5 text-brand-red flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="text-white font-bold">Circadian Strategy: </span>
+                Schedule core conceptual subjects (Polity Constitutional Articles, History timelines) in your{" "}
+                <span className="text-red-300 font-semibold">{primeWindow?.label || "Morning"}</span> window. Reserve secondary windows for Geography mapping and revision drills.
+              </div>
             </div>
           </div>
         </div>
