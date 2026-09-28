@@ -267,6 +267,16 @@ export async function executeMcpTool(
           ? Number(Math.min(100, Math.max(10, (mins / elapsedMins) * 100)).toFixed(1))
           : null;
 
+        let validTopicId: string | null = null;
+        if (topicId) {
+          const existingTopic = await prisma.studyTopic.findFirst({
+            where: { id: topicId },
+          });
+          if (existingTopic) {
+            validTopicId = existingTopic.id;
+          }
+        }
+
         const session = await prisma.workSession.create({
           data: {
             userId: user.id,
@@ -278,7 +288,7 @@ export async function executeMcpTool(
             efficiencyPercent: efficiencyPct || null,
             intention: intention?.trim() || null,
             reflection: reflection?.trim() || null,
-            topicId: topicId || null,
+            topicId: validTopicId || null,
             type: "STUDY",
             date: format(new Date(), "yyyy-MM-dd"),
             notes: notes || "Deep Study",

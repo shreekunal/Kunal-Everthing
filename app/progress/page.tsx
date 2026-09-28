@@ -350,7 +350,7 @@ function ProgressContent() {
     setSwModalStartTime(startClock);
     setSwModalEndTime(nowClock);
     setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
-    setSwModalTopicId(selectedTopicId || (aimsData && aimsData.length > 0 ? aimsData[0].id : ""));
+    setSwModalTopicId(selectedTopicId || "");
     setSwModalCategory(manualCategory || "Deep Work");
     setSwModalIntention(intention || "");
     setSwModalReflection("");
@@ -556,12 +556,12 @@ function ProgressContent() {
 
     setIsLoggingStudy(true);
     try {
-      await fetch("/api/progress", {
+      const res = await fetch("/api/progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: manualProject.trim(),
-          durationMinutes: Number(manualDuration),
+          durationMinutes: Number(manualDuration) || 1,
           startTime: startTime || null,
           endTime: endTime || null,
           intention: intention.trim() || null,
@@ -572,6 +572,11 @@ function ProgressContent() {
           date: format(new Date(), "yyyy-MM-dd"),
         }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to log focus session");
+      }
+
       haptics.success();
       setManualProject("");
       setStartTime("");
@@ -580,7 +585,7 @@ function ProgressContent() {
       setReflection("");
       setSelectedTopicId("");
       setShowAdvancedInputs(false);
-      fetchProgress();
+      await fetchProgress();
     } catch (err) {
       console.error("Manual study log error:", err);
       haptics.error();
@@ -1344,7 +1349,7 @@ function ProgressContent() {
               {aimsData && aimsData.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {aimsData.map((aim: any) => {
-                    const isSelected = selectedTopicId === aim.id || manualProject === aim.title;
+                    const isSelected = manualProject === aim.title;
                     return (
                       <button
                         key={aim.id}
@@ -1355,7 +1360,7 @@ function ProgressContent() {
                             setSelectedTopicId("");
                             setManualProject("");
                           } else {
-                            setSelectedTopicId(aim.id);
+                            setSelectedTopicId("");
                             setManualProject(aim.title);
                           }
                         }}
@@ -2461,15 +2466,20 @@ function ProgressContent() {
                 {aimsData && aimsData.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-0.5">
                     {aimsData.map((aim: any) => {
-                      const isSelected = swModalProject === aim.title || swModalTopicId === aim.id;
+                      const isSelected = swModalProject === aim.title;
                       return (
                         <button
                           key={aim.id}
                           type="button"
                           onClick={() => {
                             haptics.selection();
-                            setSwModalProject(aim.title);
-                            setSwModalTopicId(aim.id);
+                            if (isSelected) {
+                              setSwModalProject("");
+                              setSwModalTopicId("");
+                            } else {
+                              setSwModalProject(aim.title);
+                              setSwModalTopicId("");
+                            }
                           }}
                           className={clsx(
                             "px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-all active:scale-95 flex items-center gap-1.5",

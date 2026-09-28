@@ -240,6 +240,16 @@ export async function POST(request: Request) {
       efficiencyPct = Number(Math.min(100, Math.max(10, (mins / elapsedMins) * 100)).toFixed(1));
     }
 
+    let validTopicId: string | null = null;
+    if (topicId) {
+      const existingTopic = await prisma.studyTopic.findFirst({
+        where: { id: topicId },
+      });
+      if (existingTopic) {
+        validTopicId = existingTopic.id;
+      }
+    }
+
     const session = await prisma.workSession.create({
       data: {
         userId: user.id,
@@ -251,7 +261,7 @@ export async function POST(request: Request) {
         efficiencyPercent: efficiencyPct || null,
         intention: intention?.trim() || null,
         reflection: reflection?.trim() || null,
-        topicId: topicId || null,
+        topicId: validTopicId || null,
         type: type || "STUDY",
         date: date || format(new Date(), "yyyy-MM-dd"),
         notes: notes || null,
