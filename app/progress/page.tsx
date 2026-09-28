@@ -1429,22 +1429,66 @@ function ProgressContent() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Start Time</span>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
-                  />
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[9px] font-mono text-zinc-400 block font-bold">Start Time</span>
+                    {startTime && (
+                      <button
+                        type="button"
+                        onClick={() => setStartTime("")}
+                        className="text-[9px] font-mono text-zinc-500 hover:text-white"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className={clsx(
+                        "w-full px-2.5 py-2 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red [color-scheme:dark] min-h-[38px]",
+                        !startTime && "opacity-0 absolute inset-0 cursor-pointer w-full h-full z-10"
+                      )}
+                    />
+                    {!startTime && (
+                      <div className="w-full px-2.5 py-2 rounded-lg bg-black border border-white/15 text-xs text-zinc-500 font-mono flex items-center justify-between min-h-[38px]">
+                        <span>--:-- (Start)</span>
+                        <Clock className="w-3.5 h-3.5 text-zinc-600" />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">End Time</span>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
-                  />
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[9px] font-mono text-zinc-400 block font-bold">End Time</span>
+                    {endTime && (
+                      <button
+                        type="button"
+                        onClick={() => setEndTime("")}
+                        className="text-[9px] font-mono text-zinc-500 hover:text-white"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className={clsx(
+                        "w-full px-2.5 py-2 rounded-lg bg-black border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red [color-scheme:dark] min-h-[38px]",
+                        !endTime && "opacity-0 absolute inset-0 cursor-pointer w-full h-full z-10"
+                      )}
+                    />
+                    {!endTime && (
+                      <div className="w-full px-2.5 py-2 rounded-lg bg-black border border-white/15 text-xs text-zinc-500 font-mono flex items-center justify-between min-h-[38px]">
+                        <span>--:-- (End)</span>
+                        <Clock className="w-3.5 h-3.5 text-zinc-600" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -142,4 +142,19 @@ button,
   animation: petWingFlap 1.2s infinite ease-in-out;
 }
 
+/* Ensure native time and date pickers render dark theme on mobile WebKit / Android */
+input[type="time"],
+input[type="date"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
 
