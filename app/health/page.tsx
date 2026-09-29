@@ -15,15 +15,6 @@ export default function HealthPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Auto-sync Health Connect if on native Android
-      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
-        try {
-          await fetchHealthConnectSteps();
-        } catch {
-          // Graceful fallback
-        }
-      }
-
       const res = await fetch("/api/vitality");
       if (res.ok) {
         const json = await res.json();
@@ -36,6 +27,13 @@ export default function HealthPage() {
       console.error("Failed to fetch vitality data:", err);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial auto-sync Health Connect once on native Android if available
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+      fetchHealthConnectSteps().catch(() => {});
     }
   }, []);
 

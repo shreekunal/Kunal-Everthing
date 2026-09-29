@@ -97,7 +97,7 @@ export async function openHealthConnect(): Promise<void> {
 /**
  * Fetches today's steps from native Health Connect and automatically saves to vitality
  */
-export async function fetchHealthConnectSteps(): Promise<HealthSyncResult> {
+export async function fetchHealthConnectSteps(forceSync: boolean = false): Promise<HealthSyncResult> {
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") {
     return {
       success: false,
@@ -109,19 +109,21 @@ export async function fetchHealthConnectSteps(): Promise<HealthSyncResult> {
   try {
     const res = await HealthConnect.getTodaySteps();
     if (res.success && typeof res.steps === "number") {
-      // Post to backend API
-      try {
-        await fetch("/api/vitality", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "LOG_STEPS",
-            stepCount: res.steps,
-            syncSource: "HEALTH_CONNECT",
-          }),
-        });
-      } catch (postErr) {
-        console.warn("Failed to persist synced steps to server:", postErr);
+      // Only persist to server if Health Connect actually found steps (> 0) or user explicitly forced sync
+      if (res.steps > 0 || forceSync) {
+        try {
+          await fetch("/api/vitality", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "LOG_STEPS",
+              stepCount: res.steps,
+              syncSource: "HEALTH_CONNECT",
+            }),
+          });
+        } catch (postErr) {
+          console.warn("Failed to persist synced steps to server:", postErr);
+        }
       }
 
       return {

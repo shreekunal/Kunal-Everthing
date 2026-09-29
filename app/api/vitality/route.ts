@@ -17,7 +17,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const { searchParams } = new URL(request.url);
+    const requestedDate = searchParams.get("date");
+    const todayStr = requestedDate || format(new Date(), "yyyy-MM-dd");
     const sevenDaysAgoStr = format(subDays(new Date(), 6), "yyyy-MM-dd");
     const thirtyDaysAgoStr = format(subDays(new Date(), 29), "yyyy-MM-dd");
 
@@ -87,6 +89,25 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Build complete 7-day rolling window for steps chart
+    const past7DaysKeys = Array.from({ length: 7 }, (_, i) =>
+      format(subDays(new Date(), 6 - i), "yyyy-MM-dd")
+    );
+    const stepLogsMap = new Map(stepLogs7Days.map((l) => [l.date, l]));
+    const complete7DayStepHistory = past7DaysKeys.map((dStr) => {
+      const existing = stepLogsMap.get(dStr);
+      if (existing) return existing;
+      if (dStr === todayStr && todayStepLog) return todayStepLog;
+      return {
+        date: dStr,
+        stepCount: 0,
+        targetSteps: settings.defaultStepGoal ?? 10000,
+        distanceKm: 0,
+        calories: 0,
+        syncSource: "MANUAL",
+      };
+    });
+
     return NextResponse.json({
       todayStr,
       settings: {
@@ -105,7 +126,7 @@ export async function GET(request: Request) {
           calories: 0,
           syncSource: "MANUAL",
         },
-        history: stepLogs7Days,
+        history: complete7DayStepHistory,
       },
       fasting: {
         active: activeFast,
@@ -190,10 +211,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, log });
     }
 
-    // --- ACTION: INCREMENT_STEPS (+500, +1000, etc.) ---
-    if (action === "INCREMENT_STEPS") {
-      const { delta, date = todayStr } = body;
-      const parsedDelta = Math.round(Number(delta) || 0);
+    // --- ACTION: INCREMENT_STEPS / ADD_STEPS (+500, +1000, etc.) ---
+    if (action === "INCREMENT_STEPS" || action === "ADD_STEPS") {
+      const { delta, stepsToAdd, steps, date = todayStr } = body;
+      const rawDelta = delta ?? stepsToAdd ?? steps;
+      const parsedDelta = Math.round(Number(rawDelta) || 0);
 
       const existing = await prisma.dailyStepLog.findUnique({
         where: {
@@ -233,7 +255,7 @@ export async function POST(request: Request) {
         },
       });
 
-      return NextResponse.json({ success: true, log });
+      return NextResponse.json({ success: true, log, newSteps });
     }
 
     // --- ACTION: LOG_WEIGHT ---
