@@ -29,6 +29,11 @@ import {
   Phone,
   Cake,
   Check,
+  Footprints,
+  Scale,
+  TrendingDown,
+  TrendingUp,
+  Activity,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -239,6 +244,32 @@ export default function UnifiedPartnerHubPage() {
   const finalPercent = Math.min(100, Math.round((finalGlasses / Math.max(1, finalTarget)) * 100));
   const isGoalMet = finalGlasses >= finalTarget;
   const weeklyTrack = serverWater.week?.days || [];
+
+  // Steps & Movement Telemetry
+  const serverSteps = data?.steps || {
+    todayCount: 0,
+    targetSteps: 10000,
+    distanceKm: 0,
+    calories: 0,
+    percent: 0,
+    goalMet: false,
+    syncSource: "MANUAL",
+    week: { totalSteps: 0, avgSteps: 0, days: [] },
+  };
+  const stepWeeklyTrack = serverSteps.week?.days || [];
+
+  // Weight & Body Metrics Telemetry
+  const weight = data?.weight || {
+    latestWeightKg: null,
+    targetWeightKg: null,
+    heightCm: null,
+    bmi: null,
+    bmiCategory: "Normal",
+    weightChange: null,
+    date: null,
+    notes: null,
+    history: [],
+  };
 
   // Focus & Study Time
   const focus = data?.focus || {
@@ -455,7 +486,7 @@ export default function UnifiedPartnerHubPage() {
           </form>
         </Card>
 
-        {/* 5 Rich Telemetry Pillars */}
+        {/* Rich Telemetry Pillars */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
           {/* 1. Water Drinking Record with 7-Day Track */}
@@ -553,7 +584,204 @@ export default function UnifiedPartnerHubPage() {
             )}
           </Card>
 
-          {/* 2. Focus & Deep Work Time */}
+          {/* 2. Daily Movement & Steps with 7-Day History */}
+          <Card glow="emerald" className="relative overflow-hidden bg-black/90 border border-emerald-500/30 p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                  <Footprints className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                  Movement &amp; Steps
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full">
+                {serverSteps.goalMet ? "Goal Met 🎉" : `${serverSteps.percent}% Today`}
+              </span>
+            </div>
+
+            <div className="mt-4 flex items-baseline justify-between">
+              <div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                  {serverSteps.todayCount.toLocaleString()}{" "}
+                  <span className="text-xs sm:text-sm font-normal text-zinc-400">
+                    / {serverSteps.targetSteps.toLocaleString()} Steps
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                  {serverSteps.distanceKm} km • {serverSteps.calories} kcal burned today
+                </p>
+              </div>
+
+              {serverSteps.goalMet ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Target Hit</span>
+                </div>
+              ) : (
+                <div className="text-xs font-mono text-zinc-400 text-right">
+                  <span>{Math.max(0, serverSteps.targetSteps - serverSteps.todayCount).toLocaleString()} steps left</span>
+                </div>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mt-3.5 w-full h-2 bg-white/5 border border-white/10 rounded-full overflow-hidden p-0.5">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                style={{ width: `${Math.max(4, serverSteps.percent)}%` }}
+              />
+            </div>
+
+            {/* 7-Day Steps Track History */}
+            {stepWeeklyTrack.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-mono text-zinc-400 uppercase">
+                    Past 7 Days Steps:
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">
+                    Avg: {serverSteps.week?.avgSteps?.toLocaleString() || 0} steps/day
+                  </span>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {stepWeeklyTrack.map((day: any) => {
+                    const isToday = day.date === format(new Date(), "yyyy-MM-dd");
+                    return (
+                      <div
+                        key={day.date}
+                        className={clsx(
+                          "flex flex-col items-center p-1.5 rounded-xl border text-center font-mono transition-all",
+                          isToday
+                            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold"
+                            : day.goalMet
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-zinc-300"
+                            : "bg-white/[0.02] border-white/5 text-zinc-400"
+                        )}
+                      >
+                        <span className="text-[9px] text-zinc-500 block uppercase">
+                          {day.dayLabel}
+                        </span>
+                        <span className="text-xs font-bold text-white my-0.5">
+                          {day.count >= 1000 ? `${(day.count / 1000).toFixed(1)}k` : day.count}
+                        </span>
+                        <span
+                          className={clsx(
+                            "w-2 h-2 rounded-full",
+                            day.goalMet ? "bg-emerald-400" : "bg-zinc-700"
+                          )}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* 3. Weight & Body Metrics */}
+          <Card glow="red" className="relative overflow-hidden bg-black/90 border border-brand-red/30 p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red">
+                  <Scale className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+                  Weight &amp; Body Metrics
+                </h3>
+              </div>
+              {weight.bmi && (
+                <span className={clsx(
+                  "text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border",
+                  weight.bmiCategory === "Normal"
+                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                    : "bg-amber-500/10 border-amber-500/25 text-amber-400"
+                )}>
+                  BMI: {weight.bmi.toFixed(1)} ({weight.bmiCategory})
+                </span>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-baseline justify-between">
+              <div>
+                {weight.latestWeightKg ? (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-black font-mono text-white tracking-tight">
+                      {weight.latestWeightKg.toFixed(1)}{" "}
+                      <span className="text-xs sm:text-sm font-normal text-zinc-400">
+                        kg
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                      {weight.targetWeightKg ? `Target: ${weight.targetWeightKg.toFixed(1)} kg` : "Health & Fitness Goal"}
+                      {weight.heightCm ? ` • Height: ${weight.heightCm} cm` : ""}
+                    </p>
+                  </>
+                ) : (
+                  <div>
+                    <div className="text-lg font-mono text-zinc-400">
+                      No weight logged yet
+                    </div>
+                    <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                      {weight.targetWeightKg ? `Target goal: ${weight.targetWeightKg} kg` : "Awaiting first log"}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {weight.weightChange !== null && (
+                <div className="text-right font-mono text-xs">
+                  <div className={clsx(
+                    "flex items-center justify-end gap-1 font-bold",
+                    weight.weightChange < 0 ? "text-emerald-400" : weight.weightChange > 0 ? "text-amber-400" : "text-zinc-400"
+                  )}>
+                    {weight.weightChange < 0 ? (
+                      <TrendingDown className="w-3.5 h-3.5" />
+                    ) : weight.weightChange > 0 ? (
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    ) : null}
+                    <span>
+                      {weight.weightChange > 0 ? `+${weight.weightChange}` : weight.weightChange} kg
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 block">vs previous log</span>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Weight Logs / Details */}
+            <div className="mt-3.5 pt-3 border-t border-white/5">
+              {weight.history && weight.history.length > 0 ? (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono text-zinc-400 uppercase block mb-1">
+                    Recent Weight Logs:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {weight.history.slice(0, 4).map((log: any) => (
+                      <div
+                        key={log.id}
+                        className="px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/10 text-xs font-mono flex items-center gap-2"
+                      >
+                        <span className="text-zinc-400 text-[10px]">
+                          {log.date ? format(new Date(log.date), "dd MMM") : "Logged"}
+                        </span>
+                        <span className="text-white font-bold">{log.weightKg.toFixed(1)} kg</span>
+                        {log.bmi && (
+                          <span className="text-zinc-500 text-[10px]">BMI {log.bmi.toFixed(1)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[11px] font-mono text-zinc-500">
+                  Partner can log weight anytime in the Vitality tab.
+                </p>
+              )}
+            </div>
+          </Card>
+
+          {/* 4. Focus & Deep Work Time */}
           <Card glow="red" className="relative overflow-hidden bg-black/90 border border-purple-500/30 p-4 sm:p-5">
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">

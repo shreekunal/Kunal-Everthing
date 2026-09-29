@@ -43,6 +43,11 @@ export async function GET() {
       workSessionsWeek,
       waterLogRecordsWeek,
       latestDiary,
+      partnerSettings,
+      partnerTodayStepLog,
+      partnerStepLogsWeek,
+      partnerLatestWeight,
+      partnerWeightHistory,
     ] = await Promise.all([
       // 1. Companion & Karma
       getDisciplineSummary(partnerUser.id, false),
@@ -120,6 +125,43 @@ export async function GET() {
           userId: { in: [user.id, partnerUser.id] },
         },
         orderBy: { date: "desc" },
+      }),
+
+      // 7. Partner Settings (Step goal, Target weight, Height)
+      prisma.userSettings.findUnique({
+        where: { userId: partnerUser.id },
+      }),
+
+      // 8. Partner Today Steps Log
+      prisma.dailyStepLog.findUnique({
+        where: {
+          userId_date: {
+            userId: partnerUser.id,
+            date: todayStr,
+          },
+        },
+      }),
+
+      // 9. Partner Past 7 Days Steps Log
+      prisma.dailyStepLog.findMany({
+        where: {
+          userId: partnerUser.id,
+          date: { in: past7DaysKeys },
+        },
+        orderBy: { date: "asc" },
+      }),
+
+      // 10. Partner Latest Weight Log
+      prisma.weightLog.findFirst({
+        where: { userId: partnerUser.id },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      }),
+
+      // 11. Partner Weight History
+      prisma.weightLog.findMany({
+        where: { userId: partnerUser.id },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        take: 10,
       }),
     ]);
 
@@ -209,6 +251,56 @@ export async function GET() {
         ? Math.round((completedRoutinesToday / routines.length) * 100)
         : 0;
 
+    // Process Partner Steps Telemetry
+    const stepTarget = partnerTodayStepLog?.targetSteps || partnerSettings?.defaultStepGoal || 10000;
+    const todayStepCount = partnerTodayStepLog?.stepCount || 0;
+    const distanceKm = partnerTodayStepLog?.distanceKm || (todayStepCount > 0 ? Number(((todayStepCount * 0.75) / 1000).toFixed(2)) : 0);
+    const calories = partnerTodayStepLog?.calories || (todayStepCount > 0 ? Math.round(todayStepCount * 0.04) : 0);
+    const stepPercent = Math.min(100, Math.round((todayStepCount / Math.max(1, stepTarget)) * 100));
+    const stepGoalMet = todayStepCount >= stepTarget;
+
+    const weeklyStepDays = past7DaysKeys.map((dStr) => {
+      const found = partnerStepLogsWeek.find((s) => s.date === dStr);
+      const count = found?.stepCount || 0;
+      const target = found?.targetSteps || stepTarget;
+      const dayDate = new Date(dStr);
+      return {
+        date: dStr,
+        dayLabel: format(dayDate, "EEE"),
+        dayNumber: format(dayDate, "d"),
+        count,
+        target,
+        goalMet: count >= target,
+        percent: Math.min(100, Math.round((count / Math.max(1, target)) * 100)),
+      };
+    });
+    const totalWeeklySteps = weeklyStepDays.reduce((acc, d) => acc + d.count, 0);
+    const avgDailySteps = Math.round(totalWeeklySteps / 7);
+
+    // Process Partner Weight & BMI Telemetry
+    const currentWeightKg = partnerLatestWeight?.weightKg || null;
+    const targetWeightKg = partnerSettings?.targetWeightKg || null;
+    const heightCm = partnerSettings?.heightCm || 175;
+    let calculatedBmi: number | null = partnerLatestWeight?.bmi || null;
+    if (!calculatedBmi && currentWeightKg && heightCm) {
+      const heightM = heightCm / 100;
+      calculatedBmi = Number((currentWeightKg / (heightM * heightM)).toFixed(1));
+    }
+
+    let bmiCategory = "Normal";
+    if (calculatedBmi) {
+      if (calculatedBmi < 18.5) bmiCategory = "Underweight";
+      else if (calculatedBmi < 25) bmiCategory = "Normal";
+      else if (calculatedBmi < 30) bmiCategory = "Overweight";
+      else bmiCategory = "Obese";
+    }
+
+    let weightChange: number | null = null;
+    if (partnerWeightHistory.length > 1 && currentWeightKg) {
+      const prevWeight = partnerWeightHistory[1].weightKg;
+      weightChange = Number((currentWeightKg - prevWeight).toFixed(1));
+    }
+
     return NextResponse.json({
       partner: {
         id: partnerUser.id,
@@ -235,6 +327,37 @@ export async function GET() {
           daysMetGoal: weeklyDaysMetGoal,
           days: weeklyWaterDays,
         },
+      },
+      steps: {
+        todayCount: todayStepCount,
+        targetSteps: stepTarget,
+        distanceKm,
+        calories,
+        percent: stepPercent,
+        goalMet: stepGoalMet,
+        syncSource: partnerTodayStepLog?.syncSource || "MANUAL",
+        week: {
+          totalSteps: totalWeeklySteps,
+          avgSteps: avgDailySteps,
+          days: weeklyStepDays,
+        },
+      },
+      weight: {
+        latestWeightKg: currentWeightKg,
+        targetWeightKg,
+        heightCm,
+        bmi: calculatedBmi,
+        bmiCategory,
+        weightChange,
+        date: partnerLatestWeight?.date || null,
+        notes: partnerLatestWeight?.notes || null,
+        history: partnerWeightHistory.map((w) => ({
+          id: w.id,
+          weightKg: w.weightKg,
+          bmi: w.bmi,
+          date: w.date,
+          notes: w.notes,
+        })),
       },
       focus: {
         todayTotalMinutes: todayTotalFocusMins,

@@ -383,7 +383,7 @@ export default function DashboardPage() {
 
   const greeting = getGreeting(currentUserName);
 
-  const { todayTasks, routines, financials, weeklySummary, upcomingDues, discipline, steps } =
+  const { todayTasks, routines, financials, weeklySummary, discipline, steps } =
     data || {};
 
   return (
@@ -426,40 +426,6 @@ export default function DashboardPage() {
             <span>{format(new Date(), "EEE, dd MMM")}</span>
           </div>
         </div>
-
-        {/* Upcoming Credit Card Due Alert Banner */}
-        {(() => {
-          const urgentCard = upcomingDues?.find(
-            (c: any) => c.daysRemaining <= 3 && c.daysRemaining >= 0
-          );
-          if (!urgentCard) return null;
-
-          return (
-            <div className="p-3.5 rounded-2xl bg-brand-red/10 border border-brand-red/30 flex items-center justify-between gap-3 text-xs font-mono shadow-glow-red-subtle">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-xl bg-brand-red text-white flex items-center justify-center flex-shrink-0 animate-pulse">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-white text-xs truncate">
-                    Due Soon: {urgentCard.bank ? `${urgentCard.bank} ` : ""}{urgentCard.name}
-                  </p>
-                  <p className="text-red-300 text-[10px] mt-0.5">
-                    {urgentCard.daysRemaining <= 0
-                      ? "Statement DUE TODAY!"
-                      : `Due in ${urgentCard.daysRemaining} days`} • Due Day {urgentCard.dueDate || 30}
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/money"
-                className="px-2.5 py-1 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-bold transition-all shadow-glow-red whitespace-nowrap active:scale-95 flex-shrink-0"
-              >
-                View Cards
-              </Link>
-            </div>
-          );
-        })()}
 
         {/* 4 Hero KPI Metric Cards - Unified Brand Red Theme */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">

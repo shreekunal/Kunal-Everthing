@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { getNextCardDueDate } from "@/lib/formatters";
 import { format, subDays } from "date-fns";
 
 export async function GET() {
@@ -12,27 +11,16 @@ export async function GET() {
     }
     const todayStr = format(new Date(), "yyyy-MM-dd");
 
-    // Dynamic Notifications Generator
-    const dynamicNotifs: any[] = [];
-
-    // 1. Check Credit Card Dues
-    const cards = await prisma.creditCard.findMany({
-      where: { userId: user.id, isArchived: false },
+    // Clean up any historical credit card due notifications
+    await prisma.notification.deleteMany({
+      where: {
+        userId: user.id,
+        category: "CARD_DUE",
+      },
     });
 
-    for (const card of cards) {
-      const dueInfo = getNextCardDueDate(card.dueDate);
-      if (dueInfo.daysRemaining <= 3 && dueInfo.daysRemaining >= 0) {
-        dynamicNotifs.push({
-          id: `card-${card.id}-${dueInfo.daysRemaining}`,
-          title: `Credit Card Due: ${card.bank ? `${card.bank} ` : ""}${card.name}`,
-          message: `Payment statement due date is ${dueInfo.label}.`,
-          category: "CARD_DUE",
-          priority: dueInfo.daysRemaining === 0 ? "URGENT" : "HIGH",
-          isRead: false,
-        });
-      }
-    }
+    // Dynamic Notifications Generator
+    const dynamicNotifs: any[] = [];
 
     // 2. Check Overdue Tasks & Triggered Reminders
     const now = new Date();
