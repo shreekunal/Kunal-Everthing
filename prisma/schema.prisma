@@ -39,6 +39,7 @@ model User {
   weightLogs        WeightLog[]
   fastingSessions   FastingSession[]
   dailyStepLogs     DailyStepLog[]
+  activityLogs      ActivityLog[]
 }
 
 model UserSettings {
@@ -408,5 +409,19 @@ model DailyStepLog {
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model ActivityLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            String   // "Home Workout" | "Gym"
+  durationMinutes Int
+  caloriesBurned  Int
+  notes           String?
+  date            String   // YYYY-MM-DD
+  createdAt       DateTime @default(now())
+
   @@index([userId, date])
 }

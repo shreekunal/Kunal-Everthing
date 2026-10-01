@@ -8,7 +8,6 @@ import {
   Footprints,
   Timer,
   Scale,
-  Plus,
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,24 +36,6 @@ export function VitalityWidgetCard() {
     fetchSummary();
   }, []);
 
-  const handleQuickAddSteps = async (delta: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    haptics.impactLight();
-    try {
-      const res = await fetch("/api/vitality", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "INCREMENT_STEPS", delta }),
-      });
-      if (res.ok) {
-        haptics.selection();
-        await fetchSummary();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   if (loading && !data) {
     return null;
@@ -125,23 +106,13 @@ export function VitalityWidgetCard() {
             </div>
           </div>
 
-          {/* Quick Add Pills */}
-          <div className="flex gap-1 pt-1">
-            <button
-              onClick={(e) => handleQuickAddSteps(500, e)}
-              className="flex-1 py-1 bg-white/5 hover:bg-blue-950/40 border border-white/10 hover:border-blue-500/40 rounded text-[10px] font-mono text-zinc-300 transition-colors flex items-center justify-center gap-0.5 active:scale-95"
-            >
-              <Plus className="w-2.5 h-2.5 text-blue-400" />
-              500
-            </button>
-            <button
-              onClick={(e) => handleQuickAddSteps(1000, e)}
-              className="flex-1 py-1 bg-white/5 hover:bg-blue-950/40 border border-white/10 hover:border-blue-500/40 rounded text-[10px] font-mono text-zinc-300 transition-colors flex items-center justify-center gap-0.5 active:scale-95"
-            >
-              <Plus className="w-2.5 h-2.5 text-blue-400" />
-              1k
-            </button>
-          </div>
+          <Link
+            href="/health"
+            onClick={() => haptics.selection()}
+            className="w-full py-1 text-center bg-white/5 hover:bg-blue-950/30 border border-white/10 hover:border-blue-500/40 rounded text-[10px] font-mono text-zinc-300 transition-colors block"
+          >
+            View Activity
+          </Link>
         </div>
 
         {/* Pillar 2: Fasting */}

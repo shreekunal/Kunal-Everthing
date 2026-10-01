@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { format, subDays } from "date-fns";
+import { awardPoints } from "@/lib/rewards";
 
 export async function GET(request: Request) {
   try {
@@ -32,6 +33,8 @@ export async function GET(request: Request) {
       fastHistory,
       latestWeight,
       weightLogs30Days,
+      todayActivities,
+      recentActivities,
     ] = await Promise.all([
       prisma.userSettings.upsert({
         where: { userId: user.id },
@@ -87,6 +90,21 @@ export async function GET(request: Request) {
         orderBy: { date: "asc" },
         take: 30,
       }),
+      prisma.activityLog.findMany({
+        where: {
+          userId: user.id,
+          date: todayStr,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.activityLog.findMany({
+        where: {
+          userId: user.id,
+          date: { gte: sevenDaysAgoStr },
+        },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        take: 20,
+      }),
     ]);
 
     // Build complete 7-day rolling window for steps chart
@@ -135,6 +153,12 @@ export async function GET(request: Request) {
       weight: {
         latest: latestWeight,
         history: weightLogs30Days,
+      },
+      activities: {
+        today: todayActivities,
+        history: recentActivities,
+        todayTotalMinutes: todayActivities.reduce((acc, a) => acc + a.durationMinutes, 0),
+        todayTotalCalories: todayActivities.reduce((acc, a) => acc + a.caloriesBurned, 0),
       },
     });
   } catch (error) {
@@ -211,52 +235,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, log });
     }
 
-    // --- ACTION: INCREMENT_STEPS / ADD_STEPS (+500, +1000, etc.) ---
-    if (action === "INCREMENT_STEPS" || action === "ADD_STEPS") {
-      const { delta, stepsToAdd, steps, date = todayStr } = body;
-      const rawDelta = delta ?? stepsToAdd ?? steps;
-      const parsedDelta = Math.round(Number(rawDelta) || 0);
-
-      const existing = await prisma.dailyStepLog.findUnique({
-        where: {
-          userId_date: {
-            userId: user.id,
-            date,
-          },
-        },
-      });
-
-      const currentSteps = existing?.stepCount || 0;
-      const newSteps = Math.max(0, currentSteps + parsedDelta);
-      const distanceKm = Number((newSteps * 0.00078).toFixed(2));
-      const calories = Math.round(newSteps * (weightKg * 0.0005));
-
-      const log = await prisma.dailyStepLog.upsert({
-        where: {
-          userId_date: {
-            userId: user.id,
-            date,
-          },
-        },
-        update: {
-          stepCount: newSteps,
-          distanceKm,
-          calories,
-          syncSource: "MANUAL",
-        },
-        create: {
-          userId: user.id,
-          date,
-          stepCount: newSteps,
-          targetSteps,
-          distanceKm,
-          calories,
-          syncSource: "MANUAL",
-        },
-      });
-
-      return NextResponse.json({ success: true, log, newSteps });
-    }
 
     // --- ACTION: LOG_WEIGHT ---
     if (action === "LOG_WEIGHT") {
@@ -327,6 +305,44 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({ success: true, session });
+    }
+
+    // --- ACTION: LOG_ACTIVITY (Home Workout & Gym) ---
+    if (action === "LOG_ACTIVITY") {
+      const { type, durationMinutes, caloriesBurned, notes, date = todayStr } = body;
+      const parsedDuration = Math.max(1, Math.round(Number(durationMinutes) || 0));
+      const parsedCalories = Math.max(0, Math.round(Number(caloriesBurned) || 0));
+      const activityType =
+        type === "Gym" || type === "GYM" ? "Gym" : "Home Workout";
+
+      const log = await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          type: activityType,
+          durationMinutes: parsedDuration,
+          caloriesBurned: parsedCalories,
+          notes: notes?.trim() || null,
+          date,
+        },
+      });
+
+      // Award XP
+      const earnedXP = Math.max(5, Math.floor(parsedDuration / 3));
+      try {
+        await awardPoints({
+          userId: user.id,
+          points: earnedXP,
+          type: "REWARD_CUSTOM",
+          title: `${activityType} (${parsedDuration}m)`,
+          reason: `Logged ${parsedDuration}m ${activityType}, burnt ${parsedCalories} kcal (+${earnedXP} XP)`,
+          category: "HEALTH",
+          referenceId: log.id,
+        });
+      } catch (err) {
+        console.error("Failed to award workout XP:", err);
+      }
+
+      return NextResponse.json({ success: true, log, earnedXP });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -480,6 +496,18 @@ export async function DELETE(request: Request) {
       await prisma.dailyStepLog.deleteMany({
         where: { id, userId: user.id },
       });
+      return NextResponse.json({ success: true });
+    }
+
+    if (type === "activity") {
+      await prisma.activityLog.deleteMany({
+        where: { id, userId: user.id },
+      });
+      try {
+        await prisma.rewardLog.deleteMany({
+          where: { referenceId: id, userId: user.id },
+        });
+      } catch {}
       return NextResponse.json({ success: true });
     }
 

@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Activity, Footprints, Timer, Scale } from "lucide-react";
+import { Activity, Footprints, Timer, Scale, Dumbbell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { FastingSection } from "@/components/health/FastingSection";
 import { StepsSection } from "@/components/health/StepsSection";
+import { ActivitySection } from "@/components/health/ActivitySection";
 import { WeightBmiSection } from "@/components/health/WeightBmiSection";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { fetchHealthConnectSteps } from "@/lib/healthSync";
@@ -74,6 +75,7 @@ export default function HealthPage() {
   const activeProtocol = data?.fasting?.active?.protocol || data?.settings?.fastingProtocol || "16:8";
 
   const latestWeight = data?.weight?.latest?.weightKg;
+  const todayWorkoutMins = data?.activities?.todayTotalMinutes || 0;
 
   return (
     <PullToRefresh onRefresh={fetchData}>
@@ -108,6 +110,13 @@ export default function HealthPage() {
               </div>
             ) : null}
 
+            {todayWorkoutMins > 0 && (
+              <div className="px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/25 text-[10px] font-mono text-red-300 flex items-center gap-1">
+                <Dumbbell className="w-2.5 h-2.5 text-brand-red" />
+                <span>{todayWorkoutMins}m</span>
+              </div>
+            )}
+
             {latestWeight && (
               <div className="px-2 py-0.5 rounded-full bg-zinc-950 border border-white/10 text-[10px] font-mono text-zinc-300">
                 {latestWeight.toFixed(1)} kg
@@ -119,10 +128,9 @@ export default function HealthPage() {
         {/* Unified Health Feed (Zero Redundant Tabs) */}
         {data && (
           <div className="space-y-4">
-            {/* 1. Intermittent Fasting Hero Module */}
-            <FastingSection
-              fastingData={data.fasting}
-              preferredProtocol={data.settings.fastingProtocol}
+            {/* 1. Physical Activity & Workout Module */}
+            <ActivitySection
+              activityData={data.activities}
               onRefresh={fetchData}
             />
 
@@ -132,7 +140,14 @@ export default function HealthPage() {
               onRefresh={fetchData}
             />
 
-            {/* 3. Weight & Body Mass Index Module */}
+            {/* 3. Intermittent Fasting Hero Module */}
+            <FastingSection
+              fastingData={data.fasting}
+              preferredProtocol={data.settings.fastingProtocol}
+              onRefresh={fetchData}
+            />
+
+            {/* 4. Weight & Body Mass Index Module */}
             <WeightBmiSection
               weightData={data.weight}
               settings={data.settings}

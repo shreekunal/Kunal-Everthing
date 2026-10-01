@@ -33,19 +33,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface NavbarProps {
-  onOpenQuickAdd?: () => void;
   onOpenSearch?: () => void;
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
-  onOpenQuickAddRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function Navbar({
-  onOpenQuickAdd,
   onOpenSearch,
   onOpenProfileSwitcher,
   onOpenPartnerRadial,
-  onOpenQuickAddRadial,
 }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();

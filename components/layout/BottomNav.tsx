@@ -7,17 +7,13 @@ import {
   LayoutDashboard,
   CheckSquare,
   Wallet,
-  Plus,
   Menu,
   X,
   Flame,
-  BarChart3,
   Heart,
-  Users,
   Calendar,
   Settings,
   Lock,
-  Trophy,
   BookOpen,
   Target,
   GraduationCap,
@@ -26,21 +22,15 @@ import {
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { backButton } from "@/lib/backButton";
-import { ProfileAvatar } from "../ui/ProfileAvatar";
-import { ProfileSwitcherModal } from "../profile/ProfileSwitcherModal";
 
 interface BottomNavProps {
-  onOpenQuickAdd: () => void;
   onOpenProfileSwitcher?: () => void;
   onOpenPartnerRadial?: (origin?: { x: number; y: number }) => void;
-  onOpenQuickAddRadial?: (origin?: { x: number; y: number }) => void;
 }
 
 export function BottomNav({
-  onOpenQuickAdd,
   onOpenProfileSwitcher,
   onOpenPartnerRadial,
-  onOpenQuickAddRadial,
 }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -51,56 +41,6 @@ export function BottomNav({
   // Love Radial Hold State
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
-
-  // Quick Add (+) Radial Hold State
-  const quickAddHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isQuickAddLongPressRef = useRef(false);
-
-  const handleQuickAddPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return;
-    isQuickAddLongPressRef.current = false;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const origin = {
-      x: Math.round(rect.left + rect.width / 2),
-      y: Math.round(rect.top + rect.height / 2),
-    };
-
-    quickAddHoldTimerRef.current = setTimeout(() => {
-      isQuickAddLongPressRef.current = true;
-      haptics.impactMedium();
-      if (isDrawerOpen) setIsDrawerOpen(false);
-      if (onOpenQuickAddRadial) {
-        onOpenQuickAddRadial(origin);
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("open-quickadd-radial", { detail: { origin } })
-        );
-      }
-    }, 200);
-  };
-
-  const handleQuickAddPointerUp = () => {
-    if (quickAddHoldTimerRef.current) {
-      clearTimeout(quickAddHoldTimerRef.current);
-      quickAddHoldTimerRef.current = null;
-    }
-
-    if (isQuickAddLongPressRef.current) {
-      return;
-    }
-
-    haptics.impactMedium();
-    if (isDrawerOpen) setIsDrawerOpen(false);
-    onOpenQuickAdd();
-  };
-
-  const handleQuickAddPointerCancel = () => {
-    if (quickAddHoldTimerRef.current) {
-      clearTimeout(quickAddHoldTimerRef.current);
-      quickAddHoldTimerRef.current = null;
-    }
-  };
 
   const handleLovePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -180,8 +120,7 @@ export function BottomNav({
   const extendedNav = [
     { name: "Health", href: "/health", icon: Activity },
     { name: "Habits", href: "/routines", icon: Flame },
-    { name: "Study", href: "/progress", icon: GraduationCap },
-    { name: "Discipline", href: "/rewards", icon: Target },
+    { name: "Discipline", href: "/Trophy", icon: Target },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Dates", href: "/dates", icon: Calendar },
@@ -258,7 +197,7 @@ export function BottomNav({
             </button>
           </div>
 
-          {/* 4x2 App Launcher Buttons Grid - Sleek Single-Tile Design */}
+          {/* 4x2 App Launcher Buttons Grid - 7 App Tiles + 1 Lock Button */}
           <div className="grid grid-cols-4 gap-2.5 py-2">
             {extendedNav.map((item) => {
               const Icon = item.icon;
@@ -285,10 +224,8 @@ export function BottomNav({
                 </Link>
               );
             })}
-          </div>
 
-          {/* Dedicated Full-Width Security Action Bar */}
-          <div className="pt-1.5 pb-1">
+            {/* 8. Lock Everything Tile Button */}
             <button
               type="button"
               title="Lock Everything"
@@ -297,10 +234,9 @@ export function BottomNav({
                 haptics.warning();
                 handleLockPortal();
               }}
-              className="w-full h-11 rounded-2xl border border-red-500/25 bg-red-950/20 hover:bg-red-950/40 text-red-400 font-mono text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
+              className="h-12 sm:h-13 rounded-2xl border border-red-500/30 bg-red-950/25 hover:bg-red-950/50 text-red-400 hover:text-red-300 flex items-center justify-center transition-all active:scale-90 shadow-sm"
             >
-              <Lock className="w-3.5 h-3.5 text-red-400" />
-              <span className="uppercase tracking-wider font-semibold">Lock Everything</span>
+              <Lock className="w-5 h-5 text-red-400" />
             </button>
           </div>
         </div>
@@ -347,20 +283,26 @@ export function BottomNav({
             <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/tasks" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
-          {/* 3. Floating Quick Add Button (Tap for Modal, Hold for Radial Wheel) */}
+          {/* 3. Study & Focus Hero Button (Replaces '+') */}
           <div className="flex-1 flex justify-center -mt-5">
-            <button
-              type="button"
-              onPointerDown={handleQuickAddPointerDown}
-              onPointerUp={handleQuickAddPointerUp}
-              onPointerCancel={handleQuickAddPointerCancel}
-              onContextMenu={(e) => e.preventDefault()}
-              onClick={(e) => e.preventDefault()}
-              className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-redDark text-white flex items-center justify-center shadow-glow-red border border-red-400/40 active:scale-90 transition-transform touch-none select-none"
-              aria-label="Quick Add"
+            <Link
+              href="/progress"
+              prefetch={true}
+              onClick={() => {
+                haptics.impactMedium();
+                if (isDrawerOpen) setIsDrawerOpen(false);
+              }}
+              className={clsx(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 select-none shadow-glow-red",
+                pathname === "/progress"
+                  ? "bg-brand-red text-white border-2 border-white/50 scale-105"
+                  : "bg-brand-red hover:bg-brand-redDark text-white border border-red-400/40"
+              )}
+              aria-label="Study & Focus"
+              title="Study & Focus"
             >
-              <Plus className="w-6 h-6 stroke-[2.5]" />
-            </button>
+              <GraduationCap className="w-6 h-6" />
+            </Link>
           </div>
 
           {/* 4. Relationship Hub / Traditional Radial Bloom (Hold to bloom, slide to petals, release to dispatch) */}

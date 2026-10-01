@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Footprints, Flame, MapPin, Clock, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { Footprints, Flame, MapPin, Clock, RefreshCw } from "lucide-react";
+import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
 import { formatDuration } from "@/lib/formatters";
 import {
@@ -10,7 +10,6 @@ import {
   requestHealthConnectPermission,
   checkHealthConnectPermission,
   isHealthConnectSupported,
-  openHealthConnect,
 } from "@/lib/healthSync";
 import {
   BarChart,
@@ -45,26 +44,22 @@ interface StepsSectionProps {
 }
 
 export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
-  const [isIncrementing, setIsIncrementing] = useState(false);
-  const [optimisticDelta, setOptimisticDelta] = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [stepsToAdd, setStepsToAdd] = useState("");
   const [isHealthSyncing, setIsHealthSyncing] = useState(false);
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
 
   const baseSteps = stepsData?.today?.stepCount ?? 0;
-  const currentSteps = Math.max(0, baseSteps + optimisticDelta);
+  const currentSteps = Math.max(0, baseSteps);
   const targetSteps = stepsData?.today?.targetSteps || 10000;
   const progressPercent = Math.min(100, Math.round((currentSteps / targetSteps) * 100));
   const activeMinutes = Math.floor(currentSteps / 100);
 
   const distanceKm =
-    stepsData?.today?.distanceKm !== undefined && optimisticDelta === 0
+    stepsData?.today?.distanceKm !== undefined
       ? Number(stepsData.today.distanceKm)
       : Number((currentSteps * 0.00078).toFixed(2));
 
   const calories =
-    stepsData?.today?.calories !== undefined && optimisticDelta === 0
+    stepsData?.today?.calories !== undefined
       ? stepsData.today.calories
       : Math.round(currentSteps * 0.035);
 
@@ -102,50 +97,6 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
     }
   };
 
-  // Quick increment / Add steps handler
-  const handleIncrement = async (delta: number) => {
-    if (delta <= 0 || isIncrementing) return;
-    haptics.selection();
-    setIsIncrementing(true);
-    setOptimisticDelta((prev) => prev + delta);
-
-    try {
-      const res = await fetch("/api/vitality", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "INCREMENT_STEPS",
-          delta,
-          date: stepsData?.today?.date,
-        }),
-      });
-
-      if (res.ok) {
-        haptics.success();
-        await onRefresh();
-        setOptimisticDelta(0);
-      } else {
-        setOptimisticDelta((prev) => Math.max(0, prev - delta));
-      }
-    } catch (err) {
-      console.error("Increment steps error:", err);
-      setOptimisticDelta((prev) => Math.max(0, prev - delta));
-    } finally {
-      setIsIncrementing(false);
-    }
-  };
-
-  // Modal form submit handler
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const count = parseInt(stepsToAdd, 10);
-    if (isNaN(count) || count <= 0) return;
-
-    setShowAddModal(false);
-    setStepsToAdd("");
-    await handleIncrement(count);
-  };
-
   // Chart data format
   const chartData = (stepsData?.history || []).map((h) => {
     let dayLabel = "Day";
@@ -154,8 +105,7 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
     } catch {
       dayLabel = h.date || "";
     }
-    const isToday = h.date === stepsData?.today?.date;
-    const barSteps = isToday ? h.stepCount + optimisticDelta : h.stepCount;
+    const barSteps = h.stepCount;
 
     return {
       day: dayLabel,
@@ -168,9 +118,6 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
-
-  const parsedModalAdd = parseInt(stepsToAdd, 10) || 0;
-  const projectedTotal = currentSteps + (parsedModalAdd > 0 ? parsedModalAdd : 0);
 
   return (
     <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-zinc-950 via-black to-black p-4 sm:p-5 shadow-2xl relative overflow-hidden space-y-4">
@@ -186,36 +133,24 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
             </h2>
             <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
               <span>Target: {targetSteps.toLocaleString()}</span>
-              {stepsData?.today?.syncSource === "HEALTH_CONNECT" ? (
+              {stepsData?.today?.syncSource === "HEALTH_CONNECT" && (
                 <span className="text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
-                  Health Connect
+                  • Health Connect
                 </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleHealthSync}
-                  disabled={isHealthSyncing}
-                  className="text-brand-red hover:underline font-bold flex items-center gap-1"
-                >
-                  • {isHealthSyncing ? "Syncing..." : healthStatus || "Sync Health"}
-                </button>
               )}
             </div>
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setStepsToAdd("");
-            setShowAddModal(true);
-          }}
-          className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle"
+        <button
+          type="button"
+          onClick={handleHealthSync}
+          disabled={isHealthSyncing}
+          className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle flex items-center transition-all disabled:opacity-50"
         >
-          <Plus className="w-3 h-3" />
-          <span>Add Steps</span>
-        </Button>
+          <RefreshCw className={clsx("w-3 h-3", isHealthSyncing && "animate-spin")} />
+          <span>{isHealthSyncing ? "Syncing..." : healthStatus || "Sync Health"}</span>
+        </button>
       </div>
 
       <div className="space-y-4">
@@ -292,33 +227,6 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
           </div>
         </div>
 
-        {/* Quick Increment Buttons (Fallback & on-the-go logging) */}
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-bold">
-              Quick Add Steps
-            </span>
-            {optimisticDelta > 0 && (
-              <span className="text-[10px] font-mono text-emerald-400 animate-pulse">
-                +{optimisticDelta.toLocaleString()} added
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[500, 1000, 2500, 5000].map((delta) => (
-              <button
-                key={delta}
-                type="button"
-                disabled={isIncrementing}
-                onClick={() => handleIncrement(delta)}
-                className="py-2 px-2 bg-black/60 hover:bg-brand-red/10 border border-white/10 hover:border-brand-red/30 rounded-lg text-xs font-mono text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-1 active:scale-95 disabled:opacity-50"
-              >
-                <Plus className="w-3 h-3 text-brand-red" />
-                <span>{delta >= 1000 ? `+${delta / 1000}k` : `+${delta}`}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* 7-Day History Movement Chart */}
         {chartData.length > 0 && (
@@ -372,159 +280,6 @@ export function StepsSection({ stepsData, onRefresh }: StepsSectionProps) {
         )}
       </div>
 
-      {/* Add Daily Steps Modal (Pure Addition - No Direct Overwrite) */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-zinc-950 border border-brand-red/30 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative overflow-hidden">
-            {/* Ambient Red Glow */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-red/10 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-brand-red/10 border border-brand-red/20 flex items-center justify-center text-brand-red shadow-glow-red-subtle">
-                  <Footprints className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-                    Add Daily Steps
-                  </h3>
-                  <p className="text-[10px] text-zinc-400 font-mono">
-                    Add walked steps to today&apos;s activity
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Today Summary */}
-            <div className="bg-black/60 border border-white/5 rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                  Current Today
-                </span>
-                <span className="text-base font-bold font-mono text-white">
-                  {currentSteps.toLocaleString()} <span className="text-xs font-normal text-zinc-400">steps</span>
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
-                  Target
-                </span>
-                <span className="text-xs font-mono text-zinc-400">
-                  {targetSteps.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleAddSubmit} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-                  Steps to Add
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    autoFocus
-                    min="1"
-                    max="50000"
-                    value={stepsToAdd}
-                    onChange={(e) => setStepsToAdd(e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-xl px-3 py-2.5 text-base font-mono text-white focus:outline-none focus:border-brand-red pr-16 placeholder:text-zinc-700"
-                    placeholder="e.g. 1500"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono text-zinc-500 pointer-events-none">
-                    steps
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Add Increment Chips within modal */}
-              <div>
-                <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-500 block mb-1">
-                  Quick Amount Presets
-                </span>
-                <div className="grid grid-cols-5 gap-1">
-                  {[250, 500, 1000, 2500, 5000].map((delta) => (
-                    <button
-                      key={delta}
-                      type="button"
-                      onClick={() => {
-                        haptics.selection();
-                        const current = parseInt(stepsToAdd, 10) || 0;
-                        setStepsToAdd(String(current + delta));
-                      }}
-                      className="py-1 px-1 bg-white/[0.04] hover:bg-brand-red/10 border border-white/10 hover:border-brand-red/30 rounded-lg text-[10px] font-mono text-zinc-300 hover:text-white transition-all text-center active:scale-95"
-                    >
-                      +{delta >= 1000 ? `${delta / 1000}k` : delta}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dynamic New Total Preview */}
-              {parsedModalAdd > 0 && (
-                <div className="bg-brand-red/5 border border-brand-red/20 rounded-xl p-2.5 flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-zinc-400 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-brand-red" />
-                    New Total:
-                  </span>
-                  <span className="text-brand-red font-bold">
-                    {projectedTotal.toLocaleString()} steps
-                  </span>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 text-xs font-mono border border-white/10"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isIncrementing || parsedModalAdd <= 0}
-                  className="flex-1 text-xs font-mono bg-brand-red hover:bg-brand-redDark text-white font-bold shadow-glow-red disabled:opacity-50"
-                >
-                  {isIncrementing
-                    ? "Adding..."
-                    : parsedModalAdd > 0
-                    ? `+${parsedModalAdd.toLocaleString()} Steps`
-                    : "Add Steps"}
-                </Button>
-              </div>
-
-              <div className="pt-2 border-t border-white/5 space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-mono">
-                  <span className="text-zinc-500">Google Health Connect</span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await handleHealthSync();
-                      setShowAddModal(false);
-                    }}
-                    disabled={isHealthSyncing}
-                    className="text-brand-red hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isHealthSyncing ? "animate-spin" : ""}`} />
-                    <span>{isHealthSyncing ? "Syncing..." : "Sync Now"}</span>
-                  </button>
-                </div>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => openHealthConnect()}
-                    className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400"
-                  >
-                    Health Connect Permissions ↗
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
