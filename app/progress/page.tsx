@@ -53,13 +53,6 @@ function getCurrentWindowId(): string {
 
 import { haptics } from "@/lib/haptics";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   BarChart,
   Bar,
   XAxis,
@@ -134,13 +127,10 @@ function ProgressContent() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isLoggingStudy, setIsLoggingStudy] = useState(false);
 
-  // From/To Time, Intention, Reflection, Topic Linking
+  // From/To Time, Topic Linking
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
-  const [intention, setIntention] = useState<string>("");
-  const [reflection, setReflection] = useState<string>("");
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
-  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
 
   // ----------------------------------------------------
   // Phone-Lock Resilient Live Focus Stopwatch State
@@ -352,7 +342,7 @@ function ProgressContent() {
     setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
     setSwModalTopicId(selectedTopicId || "");
     setSwModalCategory(manualCategory || "Deep Work");
-    setSwModalIntention(intention || "");
+    setSwModalIntention("");
     setSwModalReflection("");
 
     setShowStopwatchModal(true);
@@ -564,8 +554,6 @@ function ProgressContent() {
           durationMinutes: Number(manualDuration) || 1,
           startTime: startTime || null,
           endTime: endTime || null,
-          intention: intention.trim() || null,
-          reflection: reflection.trim() || null,
           topicId: selectedTopicId || null,
           type: "STUDY",
           notes: manualCategory,
@@ -581,10 +569,7 @@ function ProgressContent() {
       setManualProject("");
       setStartTime("");
       setEndTime("");
-      setIntention("");
-      setReflection("");
       setSelectedTopicId("");
-      setShowAdvancedInputs(false);
       await fetchProgress();
     } catch (err) {
       console.error("Manual study log error:", err);
@@ -1514,38 +1499,19 @@ function ProgressContent() {
               )}
             </div>
 
-            {/* 3. PURE STUDY DURATION & STUDY MODE */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
-                  Pure Focus Mins *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={manualDuration}
-                  onChange={(e) => setManualDuration(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
-                  Study Mode
-                </label>
-                <Select value={manualCategory} onValueChange={setManualCategory}>
-                  <SelectTrigger className="w-full h-9 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
-                    <SelectValue placeholder="Mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Deep Study">Deep Study</SelectItem>
-                    <SelectItem value="Problem Practice">Problem Practice</SelectItem>
-                    <SelectItem value="Revision & Flashcards">Revision</SelectItem>
-                    <SelectItem value="Theory & Reading">Theory / Reading</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* 3. PURE STUDY DURATION */}
+            <div>
+              <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
+                Pure Focus Mins *
+              </label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={manualDuration}
+                onChange={(e) => setManualDuration(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
+              />
             </div>
 
             {/* Quick Pomodoro Duration Chips */}
@@ -1570,50 +1536,7 @@ function ProgressContent() {
               ))}
             </div>
 
-            {/* 4. INTENTION & BOTTLENECK PROMPTS */}
-            <div className="pt-0.5">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedInputs(!showAdvancedInputs)}
-                className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
-              >
-                <span>{showAdvancedInputs ? "− Hide Prompts" : "+ Add Intention & Bottleneck"}</span>
-              </button>
-
-              {showAdvancedInputs && (
-                <div className="space-y-2 pt-2 animate-in fade-in duration-150">
-                  <div>
-                    <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
-                      <Target className="w-2.5 h-2.5 text-brand-red" />
-                      Target (What ONE problem must be solved?)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Solve 3 Medium DP problems / 20 Polity MCQs"
-                      value={intention}
-                      onChange={(e) => setIntention(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[9px] font-mono text-zinc-400 uppercase mb-0.5 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 text-brand-red" />
-                      Bottleneck (Hardest roadblock or concept?)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Article 356 proclamation criteria"
-                      value={reflection}
-                      onChange={(e) => setReflection(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-red font-sans"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 5. SUBMIT BUTTON */}
+            {/* 4. SUBMIT BUTTON */}
             <Button
               variant="red"
               size="sm"
