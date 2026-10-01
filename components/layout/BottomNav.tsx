@@ -120,7 +120,7 @@ export function BottomNav({
   const extendedNav = [
     { name: "Health", href: "/health", icon: Activity },
     { name: "Habits", href: "/routines", icon: Flame },
-    { name: "Discipline", href: "/Trophy", icon: Target },
+    { name: "Discipline", href: "/rewards", icon: Target },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
     { name: "Dates", href: "/dates", icon: Calendar },
@@ -283,27 +283,25 @@ export function BottomNav({
             <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/tasks" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
           </Link>
 
-          {/* 3. Study & Focus Hero Button (Replaces '+') */}
-          <div className="flex-1 flex justify-center -mt-5">
-            <Link
-              href="/progress"
-              prefetch={true}
-              onClick={() => {
-                haptics.impactMedium();
-                if (isDrawerOpen) setIsDrawerOpen(false);
-              }}
-              className={clsx(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 select-none shadow-glow-red",
-                pathname === "/progress"
-                  ? "bg-brand-red text-white border-2 border-white/50 scale-105"
-                  : "bg-brand-red hover:bg-brand-redDark text-white border border-red-400/40"
-              )}
-              aria-label="Study & Focus"
-              title="Study & Focus"
-            >
-              <GraduationCap className="w-6 h-6" />
-            </Link>
-          </div>
+          {/* 3. Study & Focus */}
+          <Link
+            href="/progress"
+            prefetch={true}
+            aria-label="Study & Focus"
+            onClick={() => {
+              haptics.selection();
+              if (isDrawerOpen) setIsDrawerOpen(false);
+            }}
+            className={clsx(
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group",
+              pathname === "/progress" ? "text-brand-red" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            <div className={clsx("p-1.5 rounded-xl transition-all", pathname === "/progress" && "bg-brand-red/15")}>
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <span className={clsx("w-1 h-1 rounded-full mt-0.5 transition-all", pathname === "/progress" ? "bg-brand-red shadow-glow-red" : "bg-transparent opacity-0")} />
+          </Link>
 
           {/* 4. Relationship Hub / Traditional Radial Bloom (Hold to bloom, slide to petals, release to dispatch) */}
           <button

@@ -59,7 +59,7 @@ export default function HealthPage() {
         <div className="flex flex-col items-center gap-3">
           <Activity className="w-8 h-8 text-brand-red animate-pulse" />
           <span className="text-xs font-mono tracking-widest uppercase text-zinc-500">
-            Loading Vitality...
+            Loading Health & Fitness...
           </span>
         </div>
       </div>
@@ -88,27 +88,27 @@ export default function HealthPage() {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-bold font-mono tracking-wider uppercase text-white leading-tight">
-                Vitality
+                Health & Fitness
               </h1>
               <span className="text-[10px] text-zinc-500 font-mono block -mt-0.5">
-                Bio-telemetry, fasting & movement
+                Intermittent fasting, steps, activity & body metrics
               </span>
             </div>
           </div>
 
           {/* Quick Header Badges */}
           <div className="flex items-center gap-1.5">
-            <div className="px-2 py-0.5 rounded-full bg-zinc-950 border border-white/10 text-[10px] font-mono flex items-center gap-1">
-              <Footprints className="w-2.5 h-2.5 text-brand-red" />
-              <span className="text-zinc-300 font-bold">{stepProgress}%</span>
-            </div>
-
             {hasActiveFast ? (
               <div className="px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/25 text-[10px] font-mono text-red-300 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse" />
                 <span>{activeProtocol}</span>
               </div>
             ) : null}
+
+            <div className="px-2 py-0.5 rounded-full bg-zinc-950 border border-white/10 text-[10px] font-mono flex items-center gap-1">
+              <Footprints className="w-2.5 h-2.5 text-brand-red" />
+              <span className="text-zinc-300 font-bold">{stepProgress}%</span>
+            </div>
 
             {todayWorkoutMins > 0 && (
               <div className="px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/25 text-[10px] font-mono text-red-300 flex items-center gap-1">
@@ -128,9 +128,10 @@ export default function HealthPage() {
         {/* Unified Health Feed (Zero Redundant Tabs) */}
         {data && (
           <div className="space-y-4">
-            {/* 1. Physical Activity & Workout Module */}
-            <ActivitySection
-              activityData={data.activities}
+            {/* 1. Intermittent Fasting Hero Module */}
+            <FastingSection
+              fastingData={data.fasting}
+              preferredProtocol={data.settings.fastingProtocol}
               onRefresh={fetchData}
             />
 
@@ -140,10 +141,9 @@ export default function HealthPage() {
               onRefresh={fetchData}
             />
 
-            {/* 3. Intermittent Fasting Hero Module */}
-            <FastingSection
-              fastingData={data.fasting}
-              preferredProtocol={data.settings.fastingProtocol}
+            {/* 3. Physical Activity & Workout Module */}
+            <ActivitySection
+              activityData={data.activities}
               onRefresh={fetchData}
             />
 

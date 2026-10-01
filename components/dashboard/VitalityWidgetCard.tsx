@@ -65,10 +65,10 @@ export function VitalityWidgetCard() {
           </div>
           <div>
             <span className="text-xs font-mono uppercase tracking-wider text-white font-bold block">
-              Vitality & Health
+              Health & Fitness
             </span>
             <span className="text-[10px] text-zinc-500 font-mono">
-              Movement • Fasting • Bio-metrics
+              Fasting • Steps • Activity • Weight
             </span>
           </div>
         </div>

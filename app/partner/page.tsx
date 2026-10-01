@@ -775,7 +775,7 @@ export default function UnifiedPartnerHubPage() {
                 </div>
               ) : (
                 <p className="text-[11px] font-mono text-zinc-500">
-                  Partner can log weight anytime in the Vitality tab.
+                  Partner can log weight anytime in the Health tab.
                 </p>
               )}
             </div>
