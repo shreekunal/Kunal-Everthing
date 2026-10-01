@@ -371,7 +371,6 @@ export async function GET() {
           project: s.project,
           durationMinutes: s.durationMinutes,
           type: s.type,
-          notes: s.notes,
           createdAt: s.createdAt,
         })),
       },

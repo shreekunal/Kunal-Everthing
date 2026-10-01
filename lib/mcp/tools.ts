@@ -58,7 +58,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   },
   {
     name: "study_summary",
-    description: "Retrieve comprehensive study, cognitive window, focus efficiency, and aim mastery telemetry (daily, weekly, monthly, or all-time) including wall-clock efficiency, peak cognitive prime windows, pre-session intentions, and high-stakes aim syllabus progress.",
+    description: "Retrieve comprehensive study, cognitive window, focus efficiency, and aim mastery telemetry (daily, weekly, monthly, or all-time) including wall-clock efficiency, peak cognitive prime windows, and high-stakes aim syllabus progress.",
     inputSchema: {
       type: "object",
       properties: {
@@ -76,7 +76,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
   },
   {
     name: "log_study_session",
-    description: "Log a completed study session with pure study focus duration, From/To wall-clock timestamps, pre-session intention, and bottleneck reflection.",
+    description: "Log a completed study session with pure study focus duration, From/To wall-clock timestamps, and optional linked aim topic.",
     inputSchema: {
       type: "object",
       properties: {
@@ -96,21 +96,9 @@ export const MCP_TOOLS: McpToolDefinition[] = [
           type: "string",
           description: "Wall-clock end time in HH:mm format (optional, e.g. '12:30')",
         },
-        intention: {
-          type: "string",
-          description: "Pre-session intention prompt: What ONE problem or concept must be solved?",
-        },
-        reflection: {
-          type: "string",
-          description: "Post-session interrogation prompt: What was the hardest bottleneck or concept?",
-        },
         topicId: {
           type: "string",
           description: "Optional linked StudyTopic ID from an Aim syllabus",
-        },
-        notes: {
-          type: "string",
-          description: "Optional category/mode (e.g. 'Deep Study', 'Problem Practice', 'Revision')",
         },
       },
       required: ["project", "durationMinutes"],
@@ -248,10 +236,7 @@ export async function executeMcpTool(
           durationMinutes,
           startTime,
           endTime,
-          intention,
-          reflection,
           topicId,
-          notes,
         } = args;
 
         if (!project || !durationMinutes) {
@@ -286,12 +271,9 @@ export async function executeMcpTool(
             endTime: endTime || null,
             elapsedMinutes: elapsedMins || null,
             efficiencyPercent: efficiencyPct || null,
-            intention: intention?.trim() || null,
-            reflection: reflection?.trim() || null,
             topicId: validTopicId || null,
             type: "STUDY",
             date: format(new Date(), "yyyy-MM-dd"),
-            notes: notes || "Deep Study",
           },
         });
 
@@ -313,8 +295,6 @@ export async function executeMcpTool(
           `- **Pure Focus Duration:** ${mins} mins (+${earnedXP} XP)`,
           ...(startTime && endTime ? [`- **Wall-Clock Time:** ${startTime} → ${endTime} (${elapsedMins}m elapsed)`] : []),
           ...(efficiencyPct ? [`- **Focus Efficiency:** **${efficiencyPct}%**`] : []),
-          ...(intention ? [`- **Target Focus:** "${intention}"`] : []),
-          ...(reflection ? [`- **Bottleneck Review:** "${reflection}"`] : []),
         ];
 
         return {
@@ -538,9 +518,7 @@ export async function executeMcpTool(
         const recentLines = studySessions.slice(0, 6).map((s) => {
           const effStr = s.efficiencyPercent ? ` [⚡ ${s.efficiencyPercent}% Eff]` : "";
           const timeStr = s.startTime && s.endTime ? ` (${s.startTime} → ${s.endTime})` : "";
-          const intentStr = s.intention ? `\n    - 🎯 *Target:* "${s.intention}"` : "";
-          const reflectStr = s.reflection ? `\n    - 🧠 *Bottleneck:* "${s.reflection}"` : "";
-          return `- **${s.project}** (${formatDuration(s.durationMinutes)})${timeStr}${effStr} on ${s.date}${intentStr}${reflectStr}`;
+          return `- **${s.project}** (${formatDuration(s.durationMinutes)})${timeStr}${effStr} on ${s.date}`;
         });
 
         const aimSummaries = aims.map((aim) => {

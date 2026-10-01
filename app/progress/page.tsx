@@ -123,7 +123,6 @@ function ProgressContent() {
   // Study session entry (always logs for today)
   const [manualProject, setManualProject] = useState("");
   const [manualDuration, setManualDuration] = useState("60");
-  const [manualCategory, setManualCategory] = useState("Deep Study");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isLoggingStudy, setIsLoggingStudy] = useState(false);
 
@@ -147,9 +146,6 @@ function ProgressContent() {
   const [swModalDuration, setSwModalDuration] = useState<string>("60");
   const [swModalProject, setSwModalProject] = useState<string>("");
   const [swModalTopicId, setSwModalTopicId] = useState<string>("");
-  const [swModalCategory, setSwModalCategory] = useState<string>("Deep Work");
-  const [swModalIntention, setSwModalIntention] = useState<string>("");
-  const [swModalReflection, setSwModalReflection] = useState<string>("");
   const [swModalStartTime, setSwModalStartTime] = useState<string>("");
   const [swModalEndTime, setSwModalEndTime] = useState<string>("");
   const [isSavingSwSession, setIsSavingSwSession] = useState<boolean>(false);
@@ -341,9 +337,6 @@ function ProgressContent() {
     setSwModalEndTime(nowClock);
     setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
     setSwModalTopicId(selectedTopicId || "");
-    setSwModalCategory(manualCategory || "Deep Work");
-    setSwModalIntention("");
-    setSwModalReflection("");
 
     setShowStopwatchModal(true);
   };
@@ -362,11 +355,8 @@ function ProgressContent() {
           durationMinutes: Number(swModalDuration) || 1,
           startTime: swModalStartTime || null,
           endTime: swModalEndTime || null,
-          intention: swModalIntention.trim() || null,
-          reflection: swModalReflection.trim() || null,
           topicId: swModalTopicId || null,
           type: "STUDY",
-          notes: swModalCategory,
           date: format(new Date(), "yyyy-MM-dd"),
         }),
       });
@@ -556,7 +546,6 @@ function ProgressContent() {
           endTime: endTime || null,
           topicId: selectedTopicId || null,
           type: "STUDY",
-          notes: manualCategory,
           date: format(new Date(), "yyyy-MM-dd"),
         }),
       });
@@ -582,7 +571,6 @@ function ProgressContent() {
   const handleRepeatSession = (session: any) => {
     haptics.selection();
     setManualProject(session.project || "");
-    if (session.notes) setManualCategory(session.notes);
     if (session.durationMinutes) setManualDuration(String(session.durationMinutes));
     if (session.startTime) setStartTime(session.startTime);
     if (session.endTime) setEndTime(session.endTime);
@@ -1584,11 +1572,6 @@ function ProgressContent() {
                         <span>•</span>
                         <span>{formatDuration(s.durationMinutes)}</span>
                       </div>
-                      {(s.intention || s.reflection) && (
-                        <div className="text-[10px] text-zinc-400 font-sans truncate pt-0.5">
-                          {s.intention ? `Target: ${s.intention}` : `Bottleneck: ${s.reflection}`}
-                        </div>
-                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -2485,47 +2468,6 @@ function ProgressContent() {
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* Focus Category Selector */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold block">
-                  Focus Type
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {["Deep Work", "Revision", "Practice", "Lecture", "Reading"].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => {
-                        haptics.selection();
-                        setSwModalCategory(cat);
-                      }}
-                      className={clsx(
-                        "px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all",
-                        swModalCategory === cat
-                          ? "bg-brand-red/25 text-red-300 border-brand-red font-bold shadow-glow-red-subtle"
-                          : "bg-white/[0.03] text-zinc-400 border-white/10 hover:border-white/20 hover:text-white"
-                      )}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Accomplishment / Notes */}
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-                  Session Notes / Checkpoint <span className="text-zinc-600">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Key concepts mastered or problems solved..."
-                  value={swModalReflection}
-                  onChange={(e) => setSwModalReflection(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-brand-red"
-                />
               </div>
 
               {/* Save & Cancel Actions */}

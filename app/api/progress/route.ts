@@ -218,12 +218,9 @@ export async function POST(request: Request) {
       durationMinutes,
       startTime,
       endTime,
-      intention,
-      reflection,
       topicId,
       type,
       date,
-      notes,
     } = body;
 
     if (!project || !durationMinutes) {
@@ -259,12 +256,9 @@ export async function POST(request: Request) {
         endTime: endTime || null,
         elapsedMinutes: elapsedMins || null,
         efficiencyPercent: efficiencyPct || null,
-        intention: intention?.trim() || null,
-        reflection: reflection?.trim() || null,
         topicId: validTopicId || null,
         type: type || "STUDY",
         date: date || format(new Date(), "yyyy-MM-dd"),
-        notes: notes || null,
       },
       include: {
         topic: {
