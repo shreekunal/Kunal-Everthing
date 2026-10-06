@@ -230,8 +230,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const mins = parseInt(durationMinutes, 10);
+    const rawMins = parseInt(durationMinutes, 10);
     const elapsedMins = calculateElapsedMinutes(startTime, endTime);
+    // Rule: Pure focus mins cannot be larger than elapsed time
+    const mins = elapsedMins && elapsedMins > 0 ? Math.min(rawMins, elapsedMins) : rawMins;
     let efficiencyPct: number | null = null;
     if (elapsedMins && elapsedMins > 0) {
       efficiencyPct = Number(Math.min(100, Math.max(10, (mins / elapsedMins) * 100)).toFixed(1));

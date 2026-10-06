@@ -39,8 +39,8 @@ export function PixelPet({
   // Monk quotes based on state
   const wisdomQuotes = isPetDead
     ? [
-        "Your infractions broke the protocol... I need positive XP to revive! 💀",
-        "Discipline collapsed into the void. Log work or habits to bring me back!",
+        "Breaking purity or diet broke the pact... Re-establish your streak to revive me! 💀",
+        "Discipline collapsed into the void. Verify your daily purity and diet to bring me back!",
         "R.I.P. Monk Spirit. Redeem yourself with clean focus today.",
       ]
     : isSlumped
@@ -83,7 +83,7 @@ export function PixelPet({
     if (isPetDead) {
       return {
         name: "Resting Soul",
-        sub: "Deceased (Negative XP)",
+        sub: "Deceased (Streak Broken)",
         color: "#EF4444",
         type: "TOMBSTONE",
       };

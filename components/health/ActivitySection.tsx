@@ -147,46 +147,42 @@ export function ActivitySection({ activityData, onRefresh }: ActivitySectionProp
           </div>
           <div>
             <h2 className="text-xs font-mono uppercase tracking-wider text-white font-bold">
-              Physical Activity & Workouts
+              Workout &amp; Activity
             </h2>
-            <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-2">
-              <span>Home Workout &amp; Gym Tracker</span>
-              {todayTotalMins > 0 && (
-                <span className="text-emerald-400 font-bold">
-                  • {todayTotalMins}m today ({todayTotalCalories} kcal)
-                </span>
-              )}
-            </div>
+            <span className="text-[10px] text-zinc-500 font-mono block -mt-0.5">
+              Gym &amp; Home Training
+            </span>
           </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={() => {
             haptics.selection();
             setShowLogModal(true);
           }}
-          className="h-7 px-2.5 text-[10px] font-mono border border-brand-red/30 bg-brand-red/10 hover:bg-brand-red/20 text-brand-red gap-1 rounded-md shadow-glow-red-subtle"
+          className="h-7 px-3 text-[10px] font-mono font-bold border border-brand-red/30 bg-brand-red/15 hover:bg-brand-red/25 text-red-300 gap-1 rounded-lg shadow-glow-red-subtle flex items-center transition-all active:scale-95"
         >
-          <Plus className="w-3 h-3" />
-          <span>Log Activity</span>
-        </Button>
+          <Plus className="w-3.5 h-3.5 text-brand-red" />
+          <span>Log</span>
+        </button>
       </div>
 
       {/* Quick Today Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         <div className="bg-black/50 border border-white/5 p-3 rounded-2xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-zinc-500">
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Workout Time</span>
             <Clock className="w-3.5 h-3.5 text-brand-red" />
           </div>
-          <div className="pt-2">
+          <div className="pt-1.5">
             <div className="text-xl font-bold font-mono text-white">
               {todayTotalMins} <span className="text-xs text-zinc-400 font-normal">mins</span>
             </div>
             <div className="text-[9px] font-mono text-zinc-500">
-              {todayActivities.length} {todayActivities.length === 1 ? "session" : "sessions"} logged today
+              {todayActivities.length > 0
+                ? `${todayActivities.length} ${todayActivities.length === 1 ? "session" : "sessions"} today`
+                : "No workouts today"}
             </div>
           </div>
         </div>
@@ -196,28 +192,13 @@ export function ActivitySection({ activityData, onRefresh }: ActivitySectionProp
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Active Calories</span>
             <Flame className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <div className="pt-2">
+          <div className="pt-1.5">
             <div className="text-xl font-bold font-mono text-white">
               {todayTotalCalories.toLocaleString()} <span className="text-xs text-zinc-400 font-normal">kcal</span>
             </div>
             <div className="text-[9px] font-mono text-zinc-500">
-              Burnt in workout sessions
+              {todayTotalCalories > 0 ? "Burned in sessions" : "Target: 300+ kcal"}
             </div>
-          </div>
-        </div>
-
-        <div className="bg-black/50 border border-white/5 p-3 rounded-2xl hidden sm:flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Activity Types</span>
-            <Dumbbell className="w-3.5 h-3.5 text-blue-400" />
-          </div>
-          <div className="pt-2 flex flex-wrap gap-1">
-            <span className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-zinc-300">
-              Home Workout
-            </span>
-            <span className="px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-zinc-300">
-              Gym
-            </span>
           </div>
         </div>
       </div>
@@ -230,12 +211,37 @@ export function ActivitySection({ activityData, onRefresh }: ActivitySectionProp
         </div>
 
         {todayActivities.length === 0 ? (
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center space-y-1">
-            <Dumbbell className="w-5 h-5 text-zinc-600 mx-auto" />
-            <p className="text-xs font-mono text-zinc-400">No workout activities logged today</p>
-            <p className="text-[10px] font-mono text-zinc-600">
-              Tap &quot;Log Activity&quot; to record your Home Workout or Gym session
-            </p>
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center space-y-2.5">
+            <div className="flex items-center justify-center gap-2">
+              <Dumbbell className="w-4 h-4 text-zinc-600" />
+              <span className="text-xs font-mono text-zinc-400">No workout logged today</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setWorkoutType("Home Workout");
+                  setShowLogModal(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Home className="w-3.5 h-3.5 text-blue-400" />
+                <span>+ Home Workout</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setWorkoutType("Gym");
+                  setShowLogModal(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-mono text-zinc-300 flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Dumbbell className="w-3.5 h-3.5 text-brand-red" />
+                <span>+ Gym</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-1.5">

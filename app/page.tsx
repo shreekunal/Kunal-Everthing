@@ -610,7 +610,7 @@ export default function DashboardPage() {
               <div className="mb-3 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 flex items-center justify-between gap-2 text-xs font-mono text-zinc-300">
                 <div className="flex items-center gap-2">
                   <Skull className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                  <span><strong className="text-white">COMPANION DECEASED</strong> (XP below 0). Complete habits to resurrect!</span>
+                  <span><strong className="text-white">COMPANION DECEASED</strong>. Purity or Diet streak broken. Verify streaks to resurrect!</span>
                 </div>
               </div>
             )}

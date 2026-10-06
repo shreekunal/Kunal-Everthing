@@ -30,7 +30,10 @@ export interface DeductParams {
  * Level 6: 1000 XP
  * Formula: Base level progression
  */
-export function calculateLevel(totalXP: number): {
+export function calculateLevel(
+  totalXP: number,
+  options?: { isStreakBroken?: boolean }
+): {
   level: number;
   title: string;
   currentLevelXP: number;
@@ -38,7 +41,7 @@ export function calculateLevel(totalXP: number): {
   progressPercent: number;
   isPetDead: boolean;
 } {
-  const isPetDead = totalXP < 0;
+  const isPetDead = totalXP < 0 || Boolean(options?.isStreakBroken);
   const safeXP = Math.max(0, totalXP);
 
   // Approximate formula: Level = floor(sqrt(XP / 25)) + 1
@@ -434,9 +437,6 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     todayLogs.filter((l: any) => l.points < 0).reduce((sum: number, l: any) => sum + l.points, 0)
   );
 
-  // Character level and Pet evolution derive from genuine Karma XP (spending coins does NOT demote level or kill pet)
-  const levelInfo = calculateLevel(lifetimeKarmaXP);
-
   const purityStreak = streaks.find((s: any) => s.type === "PURITY_NOFAP") || {
     currentStreak: 0,
     bestStreak: 0,
@@ -451,6 +451,12 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     currentStreak: 0,
     bestStreak: 0,
   };
+
+  // Rule: On breaking purity or diet streak (streak at 0), the pet dies
+  const isStreakBroken = (purityStreak.currentStreak || 0) === 0 || (dietStreak.currentStreak || 0) === 0;
+
+  // Character level and Pet evolution derive from genuine Karma XP and intact discipline streaks
+  const levelInfo = calculateLevel(lifetimeKarmaXP, { isStreakBroken });
 
   const todayStr = format(now, "yyyy-MM-dd");
   const hasPurityCheckedIn = todayLogs.some(

@@ -246,8 +246,9 @@ export async function executeMcpTool(
           };
         }
 
-        const mins = Number(durationMinutes);
+        const rawMins = Number(durationMinutes);
         const elapsedMins = calculateElapsedMinutes(startTime, endTime);
+        const mins = elapsedMins && elapsedMins > 0 ? Math.min(rawMins, elapsedMins) : rawMins;
         const efficiencyPct = elapsedMins && elapsedMins > 0
           ? Number(Math.min(100, Math.max(10, (mins / elapsedMins) * 100)).toFixed(1))
           : null;

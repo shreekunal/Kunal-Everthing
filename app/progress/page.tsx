@@ -628,6 +628,10 @@ function ProgressContent() {
     if (e) e.preventDefault();
     if (!swModalProject.trim() || isSavingSwSession) return;
 
+    const rawDur = Number(swModalDuration) || 1;
+    const modalElapsed = computeElapsed(swModalStartTime, swModalEndTime);
+    const finalDur = modalElapsed && modalElapsed > 0 ? Math.min(rawDur, modalElapsed) : rawDur;
+
     setIsSavingSwSession(true);
     try {
       const res = await fetch("/api/progress", {
@@ -635,7 +639,7 @@ function ProgressContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: swModalProject.trim(),
-          durationMinutes: Number(swModalDuration) || 1,
+          durationMinutes: finalDur,
           startTime: swModalStartTime || null,
           endTime: swModalEndTime || null,
           topicId: swModalTopicId || null,
@@ -825,18 +829,30 @@ function ProgressContent() {
       ? Math.min(100, Math.round((Number(manualDuration) / liveElapsedMinutes) * 100))
       : null;
 
+  // Auto-cap manual duration when elapsed time is defined
+  useEffect(() => {
+    if (liveElapsedMinutes && liveElapsedMinutes > 0) {
+      if (Number(manualDuration) > liveElapsedMinutes) {
+        setManualDuration(String(liveElapsedMinutes));
+      }
+    }
+  }, [liveElapsedMinutes, manualDuration]);
+
   const handleManualLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProject.trim() || isLoggingStudy) return;
 
     setIsLoggingStudy(true);
     try {
+      const rawDur = Number(manualDuration) || 1;
+      const finalDur = liveElapsedMinutes && liveElapsedMinutes > 0 ? Math.min(rawDur, liveElapsedMinutes) : rawDur;
+
       const res = await fetch("/api/progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: manualProject.trim(),
-          durationMinutes: Number(manualDuration) || 1,
+          durationMinutes: finalDur,
           startTime: startTime || null,
           endTime: endTime || null,
           topicId: selectedTopicId || null,
@@ -2007,39 +2023,60 @@ function ProgressContent() {
 
             {/* 3. PURE STUDY DURATION */}
             <div>
-              <label className="block text-[10px] font-mono text-zinc-400 mb-1 uppercase font-bold">
-                Pure Focus Mins *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[10px] font-mono text-zinc-400 uppercase font-bold">
+                  Pure Focus Mins *
+                </label>
+                {liveElapsedMinutes && liveElapsedMinutes > 0 && (
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    Max: <span className="text-zinc-300 font-bold">{liveElapsedMinutes}m</span> (elapsed)
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 min="1"
+                max={liveElapsedMinutes && liveElapsedMinutes > 0 ? liveElapsedMinutes : undefined}
                 required
                 value={manualDuration}
-                onChange={(e) => setManualDuration(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (liveElapsedMinutes && liveElapsedMinutes > 0 && Number(val) > liveElapsedMinutes) {
+                    setManualDuration(String(liveElapsedMinutes));
+                  } else {
+                    setManualDuration(val);
+                  }
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
               />
             </div>
 
             {/* Quick Pomodoro Duration Chips */}
             <div className="grid grid-cols-4 gap-1.5">
-              {[25, 45, 60, 120].map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  onClick={() => {
-                    haptics.selection();
-                    setManualDuration(String(mins));
-                  }}
-                  className={clsx(
-                    "py-1.5 rounded-lg text-xs font-mono transition-all border text-center font-medium",
-                    Number(manualDuration) === mins
-                      ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
-                      : "bg-white/[0.02] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
-                  )}
-                >
-                  {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
-                </button>
-              ))}
+              {[25, 45, 60, 120].map((mins) => {
+                const isExceeding = Boolean(liveElapsedMinutes && liveElapsedMinutes > 0 && mins > liveElapsedMinutes);
+                return (
+                  <button
+                    key={mins}
+                    type="button"
+                    disabled={isExceeding}
+                    onClick={() => {
+                      haptics.selection();
+                      setManualDuration(String(mins));
+                    }}
+                    className={clsx(
+                      "py-1.5 rounded-lg text-xs font-mono transition-all border text-center font-medium",
+                      Number(manualDuration) === mins
+                        ? "bg-brand-red text-white border-brand-red font-bold shadow-glow-red"
+                        : isExceeding
+                        ? "bg-white/[0.01] text-zinc-600 border-white/5 opacity-40 cursor-not-allowed"
+                        : "bg-white/[0.02] text-zinc-400 border-white/5 hover:border-white/20 hover:text-white"
+                    )}
+                  >
+                    {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+                  </button>
+                );
+              })}
             </div>
 
             {/* 4. SUBMIT BUTTON */}
@@ -2894,16 +2931,30 @@ function ProgressContent() {
                     >
                       -5m
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        haptics.selection();
-                        setSwModalDuration(String(Number(swModalDuration) + 5));
-                      }}
-                      className="px-2 py-0.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-md text-[10px] font-mono text-zinc-300"
-                    >
-                      +5m
-                    </button>
+                    {(() => {
+                      const modalElapsed = computeElapsed(swModalStartTime, swModalEndTime);
+                      const isAtMax = Boolean(modalElapsed && Number(swModalDuration) >= modalElapsed);
+                      return (
+                        <button
+                          type="button"
+                          disabled={isAtMax}
+                          onClick={() => {
+                            haptics.selection();
+                            const current = Number(swModalDuration) || 1;
+                            const next = current + 5;
+                            setSwModalDuration(String(modalElapsed && modalElapsed > 0 ? Math.min(next, modalElapsed) : next));
+                          }}
+                          className={clsx(
+                            "px-2 py-0.5 border rounded-md text-[10px] font-mono",
+                            isAtMax
+                              ? "bg-white/[0.01] border-white/5 text-zinc-600 opacity-40 cursor-not-allowed"
+                              : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-zinc-300"
+                          )}
+                        >
+                          +5m
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2913,6 +2964,10 @@ function ProgressContent() {
                   </div>
                   <div className="text-xs font-mono text-zinc-400">
                     <span>{swModalStartTime}</span> → <span className="text-white font-bold">{swModalEndTime}</span>
+                    {(() => {
+                      const modalElapsed = computeElapsed(swModalStartTime, swModalEndTime);
+                      return modalElapsed ? <span className="text-zinc-500 ml-1.5">({modalElapsed}m elapsed)</span> : null;
+                    })()}
                   </div>
                 </div>
               </div>
