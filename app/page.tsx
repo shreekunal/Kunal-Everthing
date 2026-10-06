@@ -40,6 +40,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { backButton } from "@/lib/backButton";
 import { offlineCache } from "@/lib/offlineCache";
 import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
+import { Capacitor } from "@capacitor/core";
+import { fetchHealthConnectSteps } from "@/lib/healthSync";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -115,6 +117,9 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+        await fetchHealthConnectSteps(true).catch(() => {});
+      }
       await offlineCache.swr(
         "dashboard",
         async () => {
@@ -174,6 +179,11 @@ export default function DashboardPage() {
     loadStudyGoal();
     const handleOnline = () => fetchDashboardData();
     const handleOffline = () => setIsOffline(true);
+    const handleVisibilitySync = () => {
+      if (document.visibilityState === "visible") {
+        fetchDashboardData();
+      }
+    };
     window.addEventListener("kunal-os-refresh", fetchDashboardData);
     window.addEventListener("kunal-os-refresh", loadWaterStats);
     window.addEventListener("kunal-os-refresh", loadStudyGoal);
@@ -181,6 +191,8 @@ export default function DashboardPage() {
     window.addEventListener("storage", loadStudyGoal);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("visibilitychange", handleVisibilitySync);
+    window.addEventListener("focus", handleVisibilitySync);
     return () => {
       window.removeEventListener("kunal-os-refresh", fetchDashboardData);
       window.removeEventListener("kunal-os-refresh", loadWaterStats);
@@ -189,6 +201,8 @@ export default function DashboardPage() {
       window.removeEventListener("storage", loadStudyGoal);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("visibilitychange", handleVisibilitySync);
+      window.removeEventListener("focus", handleVisibilitySync);
     };
   }, []);
 

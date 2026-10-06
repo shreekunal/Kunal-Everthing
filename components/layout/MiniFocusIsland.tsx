@@ -6,12 +6,16 @@ import { Target, Zap } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import clsx from "clsx";
 
-interface StopwatchPersistedState {
-  status: "IDLE" | "RUNNING" | "PAUSED";
+interface FocusPersistedState {
+  mode?: "STOPWATCH" | "TIMER";
+  status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
   startTimeMs: number | null;
   lastResumeTimeMs: number | null;
   accumulatedSeconds: number;
   startClock: string;
+  timerTotalSeconds?: number;
+  timerRemainingSeconds?: number;
+  targetEndTimeMs?: number | null;
 }
 
 const STOPWATCH_STORAGE_KEY = "everything_study_stopwatch";
@@ -29,28 +33,43 @@ function formatStopwatchTime(totalSeconds: number): string {
 
 export function MiniFocusIsland() {
   const router = useRouter();
-  const [swState, setSwState] = useState<StopwatchPersistedState | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [swState, setSwState] = useState<FocusPersistedState | null>(null);
+  const [displaySeconds, setDisplaySeconds] = useState<number>(0);
 
   const syncState = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STOPWATCH_STORAGE_KEY);
       if (raw) {
-        const parsed: StopwatchPersistedState = JSON.parse(raw);
+        const parsed: FocusPersistedState = JSON.parse(raw);
         setSwState(parsed);
-        if (parsed.status === "RUNNING" && parsed.lastResumeTimeMs) {
-          const now = Date.now();
-          const chunk = Math.max(0, Math.floor((now - parsed.lastResumeTimeMs) / 1000));
-          setElapsedSeconds((parsed.accumulatedSeconds || 0) + chunk);
-        } else if (parsed.status === "PAUSED") {
-          setElapsedSeconds(parsed.accumulatedSeconds || 0);
+        if (parsed.mode === "TIMER") {
+          if (parsed.status === "RUNNING" && parsed.targetEndTimeMs) {
+            const now = Date.now();
+            const rem = Math.max(0, Math.ceil((parsed.targetEndTimeMs - now) / 1000));
+            setDisplaySeconds(rem);
+          } else if (parsed.status === "PAUSED") {
+            setDisplaySeconds(parsed.timerRemainingSeconds || 0);
+          } else if (parsed.status === "COMPLETED") {
+            setDisplaySeconds(0);
+          } else {
+            setDisplaySeconds(0);
+          }
         } else {
-          setElapsedSeconds(0);
+          // Stopwatch mode
+          if (parsed.status === "RUNNING" && parsed.lastResumeTimeMs) {
+            const now = Date.now();
+            const chunk = Math.max(0, Math.floor((now - parsed.lastResumeTimeMs) / 1000));
+            setDisplaySeconds((parsed.accumulatedSeconds || 0) + chunk);
+          } else if (parsed.status === "PAUSED") {
+            setDisplaySeconds(parsed.accumulatedSeconds || 0);
+          } else {
+            setDisplaySeconds(0);
+          }
         }
       } else {
         setSwState(null);
-        setElapsedSeconds(0);
+        setDisplaySeconds(0);
       }
     } catch {
       setSwState(null);
@@ -80,12 +99,22 @@ export function MiniFocusIsland() {
     };
   }, [swState?.status, syncState]);
 
-  if (!swState || swState.status === "IDLE" || elapsedSeconds === 0) {
+  if (!swState || swState.status === "IDLE") {
     return null;
   }
 
+  const isTimer = swState.mode === "TIMER";
+  const isCompleted = swState.status === "COMPLETED" || (isTimer && displaySeconds === 0);
   const isRunning = swState.status === "RUNNING";
-  const earnedXP = Math.floor(elapsedSeconds / 300); // 1 XP per 5 mins
+
+  if (!isTimer && displaySeconds === 0) {
+    return null;
+  }
+
+  const elapsedFocus = isTimer
+    ? Math.max(0, (swState.timerTotalSeconds || 0) - displaySeconds)
+    : displaySeconds;
+  const earnedXP = Math.floor(elapsedFocus / 300); // 1 XP per 5 mins
 
   return (
     <button
@@ -96,11 +125,13 @@ export function MiniFocusIsland() {
       }}
       className={clsx(
         "flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-mono font-bold transition-all active:scale-95 select-none",
-        isRunning
+        isCompleted
+          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse"
+          : isRunning
           ? "bg-red-500/10 border-red-500/40 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
           : "bg-white/[0.04] border-white/10 text-zinc-400"
       )}
-      title="Focus Stopwatch Active • Tap to view session"
+      title={isTimer ? "Focus Timer Active • Tap to view session" : "Focus Stopwatch Active • Tap to view session"}
     >
       <span className="relative flex h-2 w-2">
         {isRunning && (
@@ -109,13 +140,13 @@ export function MiniFocusIsland() {
         <span
           className={clsx(
             "relative inline-flex rounded-full h-2 w-2",
-            isRunning ? "bg-brand-red" : "bg-zinc-500"
+            isCompleted ? "bg-emerald-400" : isRunning ? "bg-brand-red" : "bg-zinc-500"
           )}
         />
       </span>
 
       <span className="text-white tracking-wider">
-        {formatStopwatchTime(elapsedSeconds)}
+        {isCompleted ? "Timer Done!" : formatStopwatchTime(displaySeconds)}
       </span>
 
       {earnedXP > 0 && (

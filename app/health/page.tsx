@@ -16,6 +16,9 @@ export default function HealthPage() {
 
   const fetchData = useCallback(async () => {
     try {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+        await fetchHealthConnectSteps(true).catch(() => {});
+      }
       const res = await fetch("/api/vitality");
       if (res.ok) {
         const json = await res.json();

@@ -92,12 +92,16 @@ function formatStopwatchTime(totalSeconds: number): string {
   return `${pad(mins)}:${pad(secs)}`;
 }
 
-interface StopwatchPersistedState {
-  status: "IDLE" | "RUNNING" | "PAUSED";
+interface FocusPersistedState {
+  mode?: "STOPWATCH" | "TIMER";
+  status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
   startTimeMs: number | null;
   lastResumeTimeMs: number | null;
   accumulatedSeconds: number;
   startClock: string;
+  timerTotalSeconds?: number;
+  timerRemainingSeconds?: number;
+  targetEndTimeMs?: number | null;
 }
 
 const STOPWATCH_STORAGE_KEY = "everything_study_stopwatch";
@@ -132,14 +136,23 @@ function ProgressContent() {
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
 
   // ----------------------------------------------------
-  // Phone-Lock Resilient Live Focus Stopwatch State
+  // Phone-Lock Resilient Live Focus Stopwatch & Timer State
   // ----------------------------------------------------
-  const [swStatus, setSwStatus] = useState<"IDLE" | "RUNNING" | "PAUSED">("IDLE");
+  const [focusMode, setFocusMode] = useState<"STOPWATCH" | "TIMER">("STOPWATCH");
+  const [swStatus, setSwStatus] = useState<"IDLE" | "RUNNING" | "PAUSED" | "COMPLETED">("IDLE");
   const [swActiveSeconds, setSwActiveSeconds] = useState<number>(0);
   const [swStartTimeMs, setSwStartTimeMs] = useState<number | null>(null);
   const [swLastResumeTimeMs, setSwLastResumeTimeMs] = useState<number | null>(null);
   const [swAccumulatedSecs, setSwAccumulatedSecs] = useState<number>(0);
   const [swStartClock, setSwStartClock] = useState<string>("");
+
+  // Timer Specific State
+  const [timerPreset, setTimerPreset] = useState<number>(25);
+  const [timerTotalSeconds, setTimerTotalSeconds] = useState<number>(25 * 60);
+  const [timerRemainingSeconds, setTimerRemainingSeconds] = useState<number>(25 * 60);
+  const [timerTargetEndTimeMs, setTimerTargetEndTimeMs] = useState<number | null>(null);
+  const [isCustomTimer, setIsCustomTimer] = useState<boolean>(false);
+  const [customTimerMins, setCustomTimerMins] = useState<string>("");
 
   // Stopwatch Completion & Direct Save Modal State
   const [showStopwatchModal, setShowStopwatchModal] = useState<boolean>(false);
@@ -191,62 +204,141 @@ function ProgressContent() {
   const shareCardRef = useRef<HTMLDivElement>(null);
 
   // ----------------------------------------------------
-  // Stopwatch Storage & Hardware Clock Sync
+  // Focus & Timer Storage & Hardware Clock Sync
   // ----------------------------------------------------
+  const saveUnifiedState = (next: Partial<FocusPersistedState>) => {
+    if (typeof window === "undefined") return;
+    const current: FocusPersistedState = {
+      mode: next.mode !== undefined ? next.mode : focusMode,
+      status: next.status !== undefined ? next.status : swStatus,
+      startTimeMs: next.startTimeMs !== undefined ? next.startTimeMs : swStartTimeMs,
+      lastResumeTimeMs: next.lastResumeTimeMs !== undefined ? next.lastResumeTimeMs : swLastResumeTimeMs,
+      accumulatedSeconds: next.accumulatedSeconds !== undefined ? next.accumulatedSeconds : swAccumulatedSecs,
+      startClock: next.startClock !== undefined ? next.startClock : swStartClock,
+      timerTotalSeconds: next.timerTotalSeconds !== undefined ? next.timerTotalSeconds : timerTotalSeconds,
+      timerRemainingSeconds: next.timerRemainingSeconds !== undefined ? next.timerRemainingSeconds : timerRemainingSeconds,
+      targetEndTimeMs: next.targetEndTimeMs !== undefined ? next.targetEndTimeMs : timerTargetEndTimeMs,
+    };
+    localStorage.setItem(STOPWATCH_STORAGE_KEY, JSON.stringify(current));
+    window.dispatchEvent(new CustomEvent("everything-stopwatch-update"));
+  };
+
   const saveStopwatchState = (
-    status: "IDLE" | "RUNNING" | "PAUSED",
+    status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED",
     startTimeMs: number | null,
     lastResumeTimeMs: number | null,
     accumulatedSeconds: number,
     startClock: string
   ) => {
-    if (typeof window === "undefined") return;
-    const payload: StopwatchPersistedState = {
+    saveUnifiedState({
+      mode: "STOPWATCH",
       status,
       startTimeMs,
       lastResumeTimeMs,
       accumulatedSeconds,
       startClock,
-    };
-    localStorage.setItem(STOPWATCH_STORAGE_KEY, JSON.stringify(payload));
-    window.dispatchEvent(new CustomEvent("everything-stopwatch-update"));
+      targetEndTimeMs: null,
+    });
   };
 
   const syncStopwatchTick = useCallback(() => {
-    if (swStatus === "RUNNING" && swLastResumeTimeMs) {
-      const now = Date.now();
-      const currentChunkSecs = Math.max(0, Math.floor((now - swLastResumeTimeMs) / 1000));
-      setSwActiveSeconds(swAccumulatedSecs + currentChunkSecs);
-    } else if (swStatus === "PAUSED") {
-      setSwActiveSeconds(swAccumulatedSecs);
-    } else if (swStatus === "IDLE") {
-      setSwActiveSeconds(0);
+    if (focusMode === "TIMER") {
+      if (swStatus === "RUNNING" && timerTargetEndTimeMs) {
+        const now = Date.now();
+        const rem = Math.max(0, Math.ceil((timerTargetEndTimeMs - now) / 1000));
+        setTimerRemainingSeconds(rem);
+        const elapsed = Math.max(0, timerTotalSeconds - rem);
+        setSwActiveSeconds(elapsed);
+        if (rem <= 0) {
+          setSwStatus("COMPLETED");
+          setTimerRemainingSeconds(0);
+          setSwActiveSeconds(timerTotalSeconds);
+          haptics.success();
+          saveUnifiedState({
+            mode: "TIMER",
+            status: "COMPLETED",
+            startTimeMs: swStartTimeMs,
+            lastResumeTimeMs: null,
+            accumulatedSeconds: timerTotalSeconds,
+            startClock: swStartClock,
+            timerTotalSeconds,
+            timerRemainingSeconds: 0,
+            targetEndTimeMs: null,
+          });
+        }
+      } else if (swStatus === "PAUSED") {
+        setTimerRemainingSeconds((prev) => prev);
+      } else if (swStatus === "IDLE") {
+        setTimerRemainingSeconds(timerTotalSeconds);
+        setSwActiveSeconds(0);
+      }
+    } else {
+      if (swStatus === "RUNNING" && swLastResumeTimeMs) {
+        const now = Date.now();
+        const currentChunkSecs = Math.max(0, Math.floor((now - swLastResumeTimeMs) / 1000));
+        setSwActiveSeconds(swAccumulatedSecs + currentChunkSecs);
+      } else if (swStatus === "PAUSED") {
+        setSwActiveSeconds(swAccumulatedSecs);
+      } else if (swStatus === "IDLE") {
+        setSwActiveSeconds(0);
+      }
     }
-  }, [swStatus, swLastResumeTimeMs, swAccumulatedSecs]);
+  }, [focusMode, swStatus, timerTargetEndTimeMs, timerTotalSeconds, swLastResumeTimeMs, swAccumulatedSecs, swStartTimeMs, swStartClock]);
 
-  // Load stopwatch state on mount & add visibility sync listener
+  // Load focus state on mount & add visibility sync listener
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STOPWATCH_STORAGE_KEY);
       if (raw) {
-        const parsed: StopwatchPersistedState = JSON.parse(raw);
-        setSwStatus(parsed.status);
+        const parsed: FocusPersistedState = JSON.parse(raw);
+        const mode = parsed.mode || "STOPWATCH";
+        setFocusMode(mode);
+        setSwStatus(parsed.status || "IDLE");
         setSwStartTimeMs(parsed.startTimeMs);
         setSwLastResumeTimeMs(parsed.lastResumeTimeMs);
         setSwAccumulatedSecs(parsed.accumulatedSeconds || 0);
         setSwStartClock(parsed.startClock || "");
 
-        if (parsed.status === "RUNNING" && parsed.lastResumeTimeMs) {
-          const now = Date.now();
-          const currentChunk = Math.max(0, Math.floor((now - parsed.lastResumeTimeMs) / 1000));
-          setSwActiveSeconds((parsed.accumulatedSeconds || 0) + currentChunk);
+        const totalSecs = parsed.timerTotalSeconds || 25 * 60;
+        setTimerTotalSeconds(totalSecs);
+        setTimerPreset(Math.round(totalSecs / 60));
+
+        if (mode === "TIMER") {
+          setTimerTargetEndTimeMs(parsed.targetEndTimeMs || null);
+          if (parsed.status === "RUNNING" && parsed.targetEndTimeMs) {
+            const now = Date.now();
+            const rem = Math.max(0, Math.ceil((parsed.targetEndTimeMs - now) / 1000));
+            setTimerRemainingSeconds(rem);
+            setSwActiveSeconds(Math.max(0, totalSecs - rem));
+            if (rem <= 0) {
+              setSwStatus("COMPLETED");
+              setTimerRemainingSeconds(0);
+              setSwActiveSeconds(totalSecs);
+            }
+          } else if (parsed.status === "PAUSED") {
+            const rem = parsed.timerRemainingSeconds ?? totalSecs;
+            setTimerRemainingSeconds(rem);
+            setSwActiveSeconds(Math.max(0, totalSecs - rem));
+          } else if (parsed.status === "COMPLETED") {
+            setTimerRemainingSeconds(0);
+            setSwActiveSeconds(totalSecs);
+          } else {
+            setTimerRemainingSeconds(totalSecs);
+            setSwActiveSeconds(0);
+          }
         } else {
-          setSwActiveSeconds(parsed.accumulatedSeconds || 0);
+          if (parsed.status === "RUNNING" && parsed.lastResumeTimeMs) {
+            const now = Date.now();
+            const currentChunk = Math.max(0, Math.floor((now - parsed.lastResumeTimeMs) / 1000));
+            setSwActiveSeconds((parsed.accumulatedSeconds || 0) + currentChunk);
+          } else {
+            setSwActiveSeconds(parsed.accumulatedSeconds || 0);
+          }
         }
       }
     } catch (e) {
-      console.warn("Failed to load stopwatch state:", e);
+      console.warn("Failed to load focus state:", e);
     }
   }, []);
 
@@ -275,6 +367,197 @@ function ProgressContent() {
       window.removeEventListener("pageshow", handleFocus);
     };
   }, [swStatus, syncStopwatchTick]);
+
+  // Mode Switch
+  const handleSwitchFocusMode = (newMode: "STOPWATCH" | "TIMER") => {
+    if (newMode === focusMode) return;
+    haptics.selection();
+    setSwStatus("IDLE");
+    setSwActiveSeconds(0);
+    setSwAccumulatedSecs(0);
+    setSwStartTimeMs(null);
+    setSwLastResumeTimeMs(null);
+    setSwStartClock("");
+    setFocusMode(newMode);
+    if (newMode === "TIMER") {
+      setTimerRemainingSeconds(timerTotalSeconds);
+      setTimerTargetEndTimeMs(null);
+    }
+    saveUnifiedState({
+      mode: newMode,
+      status: "IDLE",
+      startTimeMs: null,
+      lastResumeTimeMs: null,
+      accumulatedSeconds: 0,
+      startClock: "",
+      timerTotalSeconds,
+      timerRemainingSeconds: timerTotalSeconds,
+      targetEndTimeMs: null,
+    });
+  };
+
+  // Timer Selection Controls
+  const handleSelectTimerPreset = (mins: number) => {
+    if (swStatus !== "IDLE") return;
+    haptics.selection();
+    const secs = mins * 60;
+    setTimerPreset(mins);
+    setIsCustomTimer(false);
+    setCustomTimerMins("");
+    setTimerTotalSeconds(secs);
+    setTimerRemainingSeconds(secs);
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "IDLE",
+      timerTotalSeconds: secs,
+      timerRemainingSeconds: secs,
+      targetEndTimeMs: null,
+    });
+  };
+
+  const handleSetCustomTimer = (minsStr: string) => {
+    setCustomTimerMins(minsStr);
+    const parsed = parseInt(minsStr, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 360) {
+      const secs = parsed * 60;
+      setTimerPreset(parsed);
+      setTimerTotalSeconds(secs);
+      setTimerRemainingSeconds(secs);
+      saveUnifiedState({
+        mode: "TIMER",
+        status: "IDLE",
+        timerTotalSeconds: secs,
+        timerRemainingSeconds: secs,
+        targetEndTimeMs: null,
+      });
+    }
+  };
+
+  // Timer Run Controls
+  const handleStartTimer = () => {
+    haptics.impactMedium();
+    const now = Date.now();
+    const nowClock = format(new Date(), "HH:mm");
+    const totalSecs = timerTotalSeconds || 25 * 60;
+    const targetEnd = now + totalSecs * 1000;
+    setSwStatus("RUNNING");
+    setSwStartTimeMs(now);
+    setSwLastResumeTimeMs(now);
+    setSwAccumulatedSecs(0);
+    setSwActiveSeconds(0);
+    setSwStartClock(nowClock);
+    setTimerRemainingSeconds(totalSecs);
+    setTimerTargetEndTimeMs(targetEnd);
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "RUNNING",
+      startTimeMs: now,
+      lastResumeTimeMs: now,
+      accumulatedSeconds: 0,
+      startClock: nowClock,
+      timerTotalSeconds: totalSecs,
+      timerRemainingSeconds: totalSecs,
+      targetEndTimeMs: targetEnd,
+    });
+  };
+
+  const handlePauseTimer = () => {
+    haptics.selection();
+    if (swStatus !== "RUNNING") return;
+    const now = Date.now();
+    const rem = timerTargetEndTimeMs ? Math.max(0, Math.ceil((timerTargetEndTimeMs - now) / 1000)) : timerRemainingSeconds;
+    const elapsed = Math.max(0, timerTotalSeconds - rem);
+    setSwStatus("PAUSED");
+    setTimerRemainingSeconds(rem);
+    setSwActiveSeconds(elapsed);
+    setSwAccumulatedSecs(elapsed);
+    setTimerTargetEndTimeMs(null);
+    setSwLastResumeTimeMs(null);
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "PAUSED",
+      startTimeMs: swStartTimeMs,
+      lastResumeTimeMs: null,
+      accumulatedSeconds: elapsed,
+      startClock: swStartClock,
+      timerTotalSeconds,
+      timerRemainingSeconds: rem,
+      targetEndTimeMs: null,
+    });
+  };
+
+  const handleResumeTimer = () => {
+    haptics.selection();
+    if (swStatus !== "PAUSED") return;
+    const now = Date.now();
+    const targetEnd = now + timerRemainingSeconds * 1000;
+    setSwStatus("RUNNING");
+    setSwLastResumeTimeMs(now);
+    setTimerTargetEndTimeMs(targetEnd);
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "RUNNING",
+      startTimeMs: swStartTimeMs,
+      lastResumeTimeMs: now,
+      accumulatedSeconds: swAccumulatedSecs,
+      startClock: swStartClock,
+      timerTotalSeconds,
+      timerRemainingSeconds,
+      targetEndTimeMs: targetEnd,
+    });
+  };
+
+  const handleResetTimer = () => {
+    haptics.warning();
+    setSwStatus("IDLE");
+    setTimerRemainingSeconds(timerTotalSeconds);
+    setSwActiveSeconds(0);
+    setSwAccumulatedSecs(0);
+    setSwStartTimeMs(null);
+    setSwLastResumeTimeMs(null);
+    setTimerTargetEndTimeMs(null);
+    setSwStartClock("");
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "IDLE",
+      startTimeMs: null,
+      lastResumeTimeMs: null,
+      accumulatedSeconds: 0,
+      startClock: "",
+      timerTotalSeconds,
+      timerRemainingSeconds: timerTotalSeconds,
+      targetEndTimeMs: null,
+    });
+  };
+
+  const handleOpenTimerSaveModal = () => {
+    haptics.impactMedium();
+    const now = Date.now();
+    const pureSecs = swStatus === "COMPLETED" ? timerTotalSeconds : Math.max(1, timerTotalSeconds - timerRemainingSeconds);
+    const pureMins = Math.max(1, Math.round(pureSecs / 60));
+    const nowClock = format(new Date(), "HH:mm");
+    const startClock = swStartClock || format(new Date(now - pureMins * 60000), "HH:mm");
+
+    setSwStatus("PAUSED");
+    saveUnifiedState({
+      mode: "TIMER",
+      status: "PAUSED",
+      startTimeMs: swStartTimeMs,
+      lastResumeTimeMs: null,
+      accumulatedSeconds: pureSecs,
+      startClock: swStartClock,
+      timerTotalSeconds,
+      timerRemainingSeconds,
+      targetEndTimeMs: null,
+    });
+
+    setSwModalDuration(String(pureMins));
+    setSwModalStartTime(startClock);
+    setSwModalEndTime(nowClock);
+    setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
+    setSwModalTopicId(selectedTopicId || "");
+    setShowStopwatchModal(true);
+  };
 
   // Stopwatch Controls
   const handleStartStopwatch = () => {
@@ -367,14 +650,26 @@ function ProgressContent() {
 
       haptics.success();
 
-      // Reset stopwatch to IDLE
+      // Reset focus session to IDLE
       setSwStatus("IDLE");
       setSwActiveSeconds(0);
       setSwAccumulatedSecs(0);
       setSwStartTimeMs(null);
       setSwLastResumeTimeMs(null);
       setSwStartClock("");
-      saveStopwatchState("IDLE", null, null, 0, "");
+      setTimerRemainingSeconds(timerTotalSeconds);
+      setTimerTargetEndTimeMs(null);
+      saveUnifiedState({
+        mode: focusMode,
+        status: "IDLE",
+        startTimeMs: null,
+        lastResumeTimeMs: null,
+        accumulatedSeconds: 0,
+        startClock: "",
+        timerTotalSeconds,
+        timerRemainingSeconds: timerTotalSeconds,
+        targetEndTimeMs: null,
+      });
 
       // Close modal
       setShowStopwatchModal(false);
@@ -1183,27 +1478,57 @@ function ProgressContent() {
       {/* TAB 1: Live Stopwatch + Minimalist Study Logger */}
       {activeTab === "LOG" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          {/* PHONE-LOCK RESILIENT LIVE FOCUS STOPWATCH */}
+          {/* PHONE-LOCK RESILIENT LIVE FOCUS STOPWATCH & TIMER */}
           <div className="p-4 rounded-2xl bg-gradient-to-b from-zinc-900/90 via-zinc-950 to-black border border-brand-red/30 shadow-2xl relative overflow-hidden">
             {/* Status Top Bar */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
-              <div className="flex items-center gap-1.5">
-                <Timer className="w-4 h-4 text-brand-red animate-pulse" />
-                <span className="text-[11px] font-bold text-white font-mono uppercase tracking-wider">
-                  Live Focus Stopwatch
-                </span>
+              {/* Minimal Mode Toggle */}
+              <div className="flex items-center gap-1 bg-black/60 p-0.5 rounded-lg border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchFocusMode("STOPWATCH")}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition-all flex items-center gap-1",
+                    focusMode === "STOPWATCH"
+                      ? "bg-brand-red text-white shadow-glow-red"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  <Clock className="w-3 h-3" />
+                  <span>Stopwatch</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchFocusMode("TIMER")}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition-all flex items-center gap-1",
+                    focusMode === "TIMER"
+                      ? "bg-brand-red text-white shadow-glow-red"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  <Timer className="w-3 h-3" />
+                  <span>Timer</span>
+                </button>
               </div>
 
+              {/* Status Badges */}
               <div className="flex items-center gap-1.5">
                 {swStatus === "RUNNING" && (
                   <span className="flex items-center gap-1 text-[10px] font-mono text-red-300 font-bold bg-brand-red/15 px-2 py-0.5 rounded-full border border-brand-red/30">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping inline-block" />
-                    FLOW STATE
+                    {focusMode === "TIMER" ? "FOCUSING" : "FLOW STATE"}
                   </span>
                 )}
                 {swStatus === "PAUSED" && (
                   <span className="text-[10px] font-mono text-zinc-300 font-bold bg-white/[0.05] px-2 py-0.5 rounded-full border border-white/10">
                     PAUSED
+                  </span>
+                )}
+                {swStatus === "COMPLETED" && (
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-300 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30 animate-pulse">
+                    <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+                    GOAL MET!
                   </span>
                 )}
                 {swStatus === "IDLE" && (
@@ -1214,75 +1539,268 @@ function ProgressContent() {
               </div>
             </div>
 
+            {/* Timer Preset Quick Selector (Timer Mode & IDLE) */}
+            {focusMode === "TIMER" && swStatus === "IDLE" && (
+              <div className="space-y-2 mb-2 animate-in fade-in duration-150">
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  {[15, 25, 45, 50, 60, 90].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => handleSelectTimerPreset(mins)}
+                      className={clsx(
+                        "px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border active:scale-95",
+                        !isCustomTimer && timerPreset === mins
+                          ? "bg-brand-red text-white border-brand-red shadow-glow-red"
+                          : "bg-white/[0.04] text-zinc-400 border-white/10 hover:text-white hover:bg-white/[0.08]"
+                      )}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomTimer(true);
+                      setCustomTimerMins(String(timerPreset));
+                    }}
+                    className={clsx(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border active:scale-95",
+                      isCustomTimer
+                        ? "bg-brand-red text-white border-brand-red shadow-glow-red"
+                        : "bg-white/[0.04] text-zinc-400 border-white/10 hover:text-white hover:bg-white/[0.08]"
+                    )}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                {isCustomTimer && (
+                  <div className="flex items-center justify-center gap-2 pt-1 animate-in fade-in duration-150">
+                    <span className="text-[10px] font-mono text-zinc-400">Duration:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="360"
+                      value={customTimerMins}
+                      onChange={(e) => handleSetCustomTimer(e.target.value)}
+                      className="w-16 px-2 py-0.5 bg-black/60 border border-white/15 rounded-md text-center text-xs font-mono text-white focus:outline-none focus:border-brand-red"
+                      placeholder="Mins"
+                    />
+                    <span className="text-[10px] font-mono text-zinc-400">minutes</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Glowing Big Digital Counter */}
             <div className="text-center py-2">
-              <div className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white select-none">
-                {formatStopwatchTime(swActiveSeconds)}
+              <div
+                className={clsx(
+                  "text-4xl sm:text-5xl font-black font-mono tracking-tight text-white select-none transition-colors",
+                  swStatus === "COMPLETED" && "text-emerald-400"
+                )}
+              >
+                {focusMode === "TIMER"
+                  ? formatStopwatchTime(timerRemainingSeconds)
+                  : formatStopwatchTime(swActiveSeconds)}
               </div>
 
-              {/* Real-Time Session Telemetry */}
-              {swStatus !== "IDLE" && swStartClock && (
-                <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-mono text-zinc-400 flex-wrap">
-                  <span>Started: <strong className="text-white">{swStartClock}</strong></span>
-                  <span>•</span>
-                  <span>Elapsed: <strong className="text-white">{formatDuration(Math.round(swElapsedWallSecs / 60))}</strong></span>
-                  <span>•</span>
-                  <span className="text-red-300 font-bold">Eff: {swEfficiencyPercent}%</span>
+              {/* Progress Bar for Timer Mode */}
+              {focusMode === "TIMER" && (
+                <div className="w-full max-w-xs mx-auto h-1.5 bg-white/10 rounded-full overflow-hidden mt-3">
+                  <div
+                    className={clsx(
+                      "h-full transition-all duration-300",
+                      swStatus === "COMPLETED" ? "bg-emerald-400" : "bg-brand-red shadow-glow-red"
+                    )}
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(
+                          0,
+                          ((timerTotalSeconds - timerRemainingSeconds) / Math.max(1, timerTotalSeconds)) * 100
+                        )
+                      )}%`,
+                    }}
+                  />
                 </div>
+              )}
+
+              {/* Real-Time Session Telemetry */}
+              {focusMode === "TIMER" ? (
+                <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-mono text-zinc-400 flex-wrap">
+                  {swStatus === "COMPLETED" ? (
+                    <span className="text-emerald-300 font-bold flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-emerald-400" />
+                      {Math.round(timerTotalSeconds / 60)}m focus goal completed! Click Finish &amp; Save.
+                    </span>
+                  ) : swStatus !== "IDLE" ? (
+                    <>
+                      <span>
+                        Target: <strong className="text-white">{Math.round(timerTotalSeconds / 60)}m</strong>
+                      </span>
+                      <span>•</span>
+                      <span>
+                        Focused: <strong className="text-white">{formatDuration(Math.round(swActiveSeconds / 60))}</strong>
+                      </span>
+                      <span>•</span>
+                      <span className="text-red-300 font-bold">
+                        {Math.round(
+                          ((timerTotalSeconds - timerRemainingSeconds) / Math.max(1, timerTotalSeconds)) * 100
+                        )}
+                        % done
+                      </span>
+                    </>
+                  ) : (
+                    <span>
+                      Focus Goal: <strong className="text-white">{Math.round(timerTotalSeconds / 60)} minutes</strong>
+                    </span>
+                  )}
+                </div>
+              ) : (
+                swStatus !== "IDLE" &&
+                swStartClock && (
+                  <div className="mt-2.5 flex items-center justify-center gap-3 text-[10px] font-mono text-zinc-400 flex-wrap">
+                    <span>
+                      Started: <strong className="text-white">{swStartClock}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Elapsed:{" "}
+                      <strong className="text-white">{formatDuration(Math.round(swElapsedWallSecs / 60))}</strong>
+                    </span>
+                    <span>•</span>
+                    <span className="text-red-300 font-bold">Eff: {swEfficiencyPercent}%</span>
+                  </div>
+                )
               )}
             </div>
 
             {/* Touch Controls Grid */}
             <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10">
-              {swStatus === "IDLE" ? (
-                <button
-                  type="button"
-                  onClick={handleStartStopwatch}
-                  className="col-span-3 py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-glow-red active:scale-95 transition-all"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Start Focus Stopwatch</span>
-                </button>
+              {focusMode === "TIMER" ? (
+                swStatus === "IDLE" ? (
+                  <button
+                    type="button"
+                    onClick={handleStartTimer}
+                    className="col-span-3 py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-glow-red active:scale-95 transition-all"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>Start Timer ({Math.round(timerTotalSeconds / 60)}m)</span>
+                  </button>
+                ) : swStatus === "COMPLETED" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleOpenTimerSaveModal}
+                      className="col-span-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-emerald active:scale-95 transition-all"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Finish &amp; Save ({Math.round(timerTotalSeconds / 60)}m)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetTimer}
+                      className="py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {swStatus === "RUNNING" ? (
+                      <button
+                        type="button"
+                        onClick={handlePauseTimer}
+                        className="py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                      >
+                        <Pause className="w-3.5 h-3.5 fill-white" />
+                        <span>Pause</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResumeTimer}
+                        className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-white" />
+                        <span>Resume</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleOpenTimerSaveModal}
+                      className="py-2.5 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-white" />
+                      <span>Finish &amp; Save</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResetTimer}
+                      className="py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  </>
+                )
               ) : (
-                <>
-                  {swStatus === "RUNNING" ? (
-                    <button
-                      type="button"
-                      onClick={handlePauseStopwatch}
-                      className="py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
-                    >
-                      <Pause className="w-3.5 h-3.5 fill-white" />
-                      <span>Pause</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResumeStopwatch}
-                      className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-white" />
-                      <span>Resume</span>
-                    </button>
-                  )}
-
+                /* Stopwatch Controls */
+                swStatus === "IDLE" ? (
                   <button
                     type="button"
-                    onClick={handleOpenStopwatchSaveModal}
-                    className="py-2.5 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                    onClick={handleStartStopwatch}
+                    className="col-span-3 py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-glow-red active:scale-95 transition-all"
                   >
-                    <Square className="w-3.5 h-3.5 fill-white" />
-                    <span>Finish &amp; Save</span>
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>Start Focus Stopwatch</span>
                   </button>
+                ) : (
+                  <>
+                    {swStatus === "RUNNING" ? (
+                      <button
+                        type="button"
+                        onClick={handlePauseStopwatch}
+                        className="py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                      >
+                        <Pause className="w-3.5 h-3.5 fill-white" />
+                        <span>Pause</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResumeStopwatch}
+                        className="py-2.5 rounded-xl bg-brand-red text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-white" />
+                        <span>Resume</span>
+                      </button>
+                    )}
 
-                  <button
-                    type="button"
-                    onClick={handleResetStopwatch}
-                    className="py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset</span>
-                  </button>
-                </>
+                    <button
+                      type="button"
+                      onClick={handleOpenStopwatchSaveModal}
+                      className="py-2.5 rounded-xl bg-brand-red hover:bg-brand-redDark text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-glow-red active:scale-95 transition-all"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-white" />
+                      <span>Finish &amp; Save</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResetStopwatch}
+                      className="py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-zinc-400 hover:text-white text-xs font-mono font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  </>
+                )
               )}
             </div>
           </div>
