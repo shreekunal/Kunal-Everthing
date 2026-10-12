@@ -38,7 +38,7 @@ interface QuickAddModalProps {
   initialTab?: TabType;
 }
 
-type TabType = "task" | "expense" | "routine" | "session" | "date" | "message" | "discipline";
+type TabType = "task" | "expense" | "session" | "date" | "message" | "discipline";
 
 export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: QuickAddModalProps) {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab || "task");
@@ -52,10 +52,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
   const [taskCategory, setTaskCategory] = useState("Work");
   const [taskReminderPreset, setTaskReminderPreset] = useState("NONE");
   const [taskCustomRemindAt, setTaskCustomRemindAt] = useState("");
-
-  const [routineName, setRoutineName] = useState("");
-  const [routineCategory, setRoutineCategory] = useState("Health");
-  const [routineDays, setRoutineDays] = useState("DAILY");
 
   const [sessionProject, setSessionProject] = useState("");
   const [sessionDuration, setSessionDuration] = useState("30");
@@ -147,7 +143,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
     setTaskTitle("");
     setTaskReminderPreset("NONE");
     setTaskCustomRemindAt("");
-    setRoutineName("");
     setSessionProject("");
     setMessageText("");
     setDateTitle("");
@@ -186,34 +181,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
 
         haptics.success();
         setSuccessMessage("Task created successfully!");
-        setTimeout(() => {
-          resetForms();
-          onClose();
-          if (onItemAdded) onItemAdded();
-        }, 500);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateRoutine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!routineName) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/routines", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: routineName,
-          category: routineCategory,
-          targetDays: routineDays,
-        }),
-      });
-      if (res.ok) {
-        haptics.success();
-        setSuccessMessage("Routine created successfully!");
         setTimeout(() => {
           resetForms();
           onClose();
@@ -391,7 +358,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
   const tabs = [
     { id: "task", label: "Task", icon: CheckSquare },
     { id: "expense", label: "Expense", icon: Wallet },
-    { id: "routine", label: "Routine", icon: Flame },
     { id: "discipline", label: "Discipline", icon: Trophy },
     { id: "session", label: "Work/Study", icon: BarChart3 },
     { id: "date", label: "Date", icon: Calendar },
@@ -647,72 +613,6 @@ export function QuickAddModal({ isOpen, onClose, onItemAdded, initialTab }: Quic
             >
               <Wallet className="w-3.5 h-3.5 mr-1.5" />
               <span>Log Expense</span>
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {/* Routine Form */}
-      {activeTab === "routine" && (
-        <form onSubmit={handleCreateRoutine} className="space-y-4">
-          <div>
-            <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-              Routine / Habit Name *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Gym, Read 20 mins, Study"
-              value={routineName}
-              onChange={(e) => setRoutineName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
-              autoFocus
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-                Category
-              </label>
-              <Select value={routineCategory} onValueChange={setRoutineCategory}>
-                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Health">Health</SelectItem>
-                  <SelectItem value="Study">Study</SelectItem>
-                  <SelectItem value="Work">Work</SelectItem>
-                  <SelectItem value="Mindset">Mindset</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-                Frequency
-              </label>
-              <Select value={routineDays} onValueChange={setRoutineDays}>
-                <SelectTrigger className="w-full h-10 rounded-xl bg-black border-white/10 text-xs text-white font-mono">
-                  <SelectValue placeholder="Frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DAILY">Daily</SelectItem>
-                  <SelectItem value="MON_SAT">Mon - Sat</SelectItem>
-                  <SelectItem value="WEEKDAYS">Weekdays only</SelectItem>
-                  <SelectItem value="WEEKENDS">Weekends</SelectItem>
-                  <SelectItem value="SUNDAY">Every Sunday</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-col sm:flex-row justify-end gap-2">
-            <Button variant="glass" size="sm" type="button" onClick={onClose} className="order-2 sm:order-1">
-              Cancel
-            </Button>
-            <Button variant="red" size="sm" type="submit" isLoading={loading} className="order-1 sm:order-2 py-2.5 font-bold shadow-glow-red">
-              Create Routine
             </Button>
           </div>
         </form>

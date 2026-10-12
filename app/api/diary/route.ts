@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const todayStart = startOfDay(new Date());
 
-    const [studySessions, waterLogs, completedTasks, completedHabits] = await Promise.all([
+    const [studySessions, waterLogs, completedTasks] = await Promise.all([
       prisma.workSession.findMany({
         where: { userId: user.id, date: todayStr },
       }),
@@ -51,13 +51,6 @@ export async function GET(request: Request) {
       }),
       prisma.task.count({
         where: { userId: user.id, status: "DONE", updatedAt: { gte: todayStart } },
-      }),
-      prisma.routineCompletion.count({
-        where: {
-          completed: true,
-          date: todayStr,
-          routine: { userId: user.id },
-        },
       }),
     ]);
 
@@ -84,7 +77,6 @@ export async function GET(request: Request) {
       workMinutes,
       waterGlasses,
       tasksCompleted: completedTasks,
-      habitsDone: completedHabits,
     };
 
     return NextResponse.json({ entries, todayTelemetry });

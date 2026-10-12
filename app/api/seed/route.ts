@@ -136,26 +136,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Routines (comma or newline separated)
-    if (routineNames && typeof routineNames === "string") {
-      const routines = routineNames
-        .split(/[\n,]+/)
-        .map((r) => r.trim())
-        .filter(Boolean);
-
-      for (const r of routines) {
-        await prisma.routine.create({
-          data: {
-            userId: user.id,
-            name: r,
-            category: "Health",
-            targetDays: "DAILY",
-            targetDurationMinutes: 30,
-          },
-        });
-      }
-    }
-
     return NextResponse.json({
       success: true,
       message: "Custom setup successfully fed into portal!",

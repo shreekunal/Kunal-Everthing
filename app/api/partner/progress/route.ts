@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser, ensureDualProfiles } from "@/lib/auth";
 import { getDisciplineSummary } from "@/lib/rewards";
 import { format, startOfWeek, endOfWeek, startOfDay, subDays } from "date-fns";
-import { calculateRoutineStreak } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +37,6 @@ export async function GET() {
       discipline,
       pendingTasks,
       completedTasksToday,
-      routines,
       workSessionsToday,
       workSessionsWeek,
       waterLogRecordsWeek,
@@ -72,22 +70,7 @@ export async function GET() {
         orderBy: { updatedAt: "desc" },
       }),
 
-      // 3. Habits / Routines (with all completed completions for dynamic streak)
-      prisma.routine.findMany({
-        where: {
-          userId: partnerUser.id,
-          isArchived: false,
-        },
-        include: {
-          completions: {
-            where: { completed: true },
-            select: { date: true, completed: true },
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-
-      // 4. Focus Time Sessions Today
+      // 3. Focus Time Sessions Today
       prisma.workSession.findMany({
         where: {
           userId: partnerUser.id,
@@ -230,27 +213,6 @@ export async function GET() {
     const todayTotalFocusMins = todayWorkMins + todayStudyMins + todayPersonalMins;
     const weekTotalFocusMins = workSessionsWeek.reduce((sum, s) => sum + s.durationMinutes, 0);
 
-    // Process Habits with live dynamic streak calculation
-    const routinesWithStatus = routines.map((r) => {
-      const completedDatesSet = new Set(r.completions.map((c) => c.date));
-      const { currentStreak, bestStreak } = calculateRoutineStreak(completedDatesSet, todayStr);
-
-      return {
-        id: r.id,
-        name: r.name,
-        category: r.category,
-        currentStreak,
-        bestStreak: Math.max(bestStreak, r.bestStreak || 0),
-        completedToday: completedDatesSet.has(todayStr),
-      };
-    });
-
-    const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
-    const routineCompletionRate =
-      routines.length > 0
-        ? Math.round((completedRoutinesToday / routines.length) * 100)
-        : 0;
-
     // Process Partner Steps Telemetry
     const stepTarget = partnerTodayStepLog?.targetSteps || partnerSettings?.defaultStepGoal || 10000;
     const todayStepCount = partnerTodayStepLog?.stepCount || 0;
@@ -391,12 +353,6 @@ export async function GET() {
           title: t.title,
           category: t.category,
         })),
-      },
-      habits: {
-        totalCount: routines.length,
-        completedTodayCount: completedRoutinesToday,
-        completionRate: routineCompletionRate,
-        list: routinesWithStatus,
       },
       discipline,
       latestDiary,

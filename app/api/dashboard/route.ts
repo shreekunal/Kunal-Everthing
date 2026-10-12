@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDisciplineSummary } from "@/lib/rewards";
 import { format, startOfWeek, endOfWeek, isPast, parseISO } from "date-fns";
 import { getNextCardDueDate } from "@/lib/formatters";
-import { calculateRoutineStreak } from "@/lib/utils";
 import { decryptCardField } from "@/lib/crypto/cardEncryption";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +22,6 @@ export async function GET() {
     const [
       discipline,
       allTasks,
-      routines,
       creditCards,
       accounts,
       weekSessions,
@@ -39,16 +37,6 @@ export async function GET() {
           isArchived: false,
         },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-      }),
-      prisma.routine.findMany({
-        where: { userId: user.id, isArchived: false },
-        include: {
-          completions: {
-            where: { completed: true },
-            select: { date: true, completed: true },
-          },
-        },
-        orderBy: { createdAt: "asc" },
       }),
       prisma.creditCard.findMany({
         where: { userId: user.id, isArchived: false },
@@ -92,23 +80,6 @@ export async function GET() {
 
     const completedTasksCount = allTasks.filter((t) => t.status === "DONE").length;
     const totalTasksCount = allTasks.length;
-
-    const routinesWithStatus = routines.map((r) => {
-      const completedDatesSet = new Set(r.completions.map((c) => c.date));
-      const { currentStreak, bestStreak } = calculateRoutineStreak(completedDatesSet, todayStr);
-
-      return {
-        id: r.id,
-        name: r.name,
-        category: r.category,
-        targetDays: r.targetDays,
-        currentStreak,
-        bestStreak: Math.max(bestStreak, r.bestStreak || 0),
-        completedToday: completedDatesSet.has(todayStr),
-      };
-    });
-
-    const completedRoutinesToday = routinesWithStatus.filter((r) => r.completedToday).length;
 
     const totalCardOutstanding = 0;
 
@@ -162,7 +133,6 @@ export async function GET() {
       },
       discipline,
       todayTasks,
-      routines: routinesWithStatus,
       financials: {
         netWorth,
         totalAssets,
@@ -176,10 +146,6 @@ export async function GET() {
         studyMinutesToday,
         tasksCompleted: completedTasksCount,
         tasksTotal: totalTasksCount,
-        routineCompletionRate:
-          routines.length > 0
-            ? Math.round((completedRoutinesToday / routines.length) * 100)
-            : 0,
       },
       upcomingDues: upcomingCardDues.slice(0, 3),
       importantDates,

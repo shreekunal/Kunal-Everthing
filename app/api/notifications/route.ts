@@ -51,43 +51,7 @@ export async function GET() {
       });
     }
 
-    // 3. Check Daily Routines & Streaks
-    const routines = await prisma.routine.findMany({
-      where: { userId: user.id, isArchived: false },
-      include: {
-        completions: {
-          where: { date: todayStr, completed: true },
-        },
-      },
-    });
-
-    const incompleteRoutines = routines.filter((r) => r.completions.length === 0);
-    const atRiskRoutines = incompleteRoutines.filter((r) => r.currentStreak >= 2);
-
-    for (const r of atRiskRoutines) {
-      dynamicNotifs.push({
-        id: `routine-at-risk-${r.id}-${todayStr}`,
-        title: `⚡ Streak at Risk: ${r.name}`,
-        message: `Your ${r.currentStreak}-day streak will reset at midnight if not logged today!`,
-        category: "ROUTINE",
-        priority: "URGENT",
-        isRead: false,
-      });
-    }
-
-    const currentHour = now.getHours();
-    if (currentHour >= 17 && incompleteRoutines.length > 0 && atRiskRoutines.length === 0) {
-      dynamicNotifs.push({
-        id: `routine-pending-${todayStr}`,
-        title: `Daily Habits: ${incompleteRoutines.length} Pending`,
-        message: `You have ${incompleteRoutines.length} routine${incompleteRoutines.length > 1 ? "s" : ""} left to complete today. Defend your streaks!`,
-        category: "ROUTINE",
-        priority: "HIGH",
-        isRead: false,
-      });
-    }
-
-    // 4. Check Important Dates (Birthdays, Anniversaries, Bill dues)
+    // 3. Check Important Dates (Birthdays, Anniversaries, Bill dues)
     const importantDates = await prisma.importantDate.findMany({
       where: { userId: user.id },
     });

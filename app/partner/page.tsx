@@ -290,14 +290,6 @@ export default function UnifiedPartnerHubPage() {
     completedToday: [],
   };
 
-  // Habits & Streaks
-  const habits = data?.habits || {
-    totalCount: 0,
-    completedTodayCount: 0,
-    completionRate: 0,
-    list: [],
-  };
-
   // Discipline & Pet
   const discipline = data?.discipline;
   const latestDiary = data?.latestDiary;
@@ -888,74 +880,9 @@ export default function UnifiedPartnerHubPage() {
               )}
             </div>
           </Card>
-
-          {/* 4. Daily Habits & Dynamic Streaks */}
-          <Card glow="red" className="relative overflow-hidden bg-black/90 border border-amber-500/30 p-4 sm:p-5">
-            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                  <Flame className="w-4 h-4 fill-amber-400/20" />
-                </div>
-                <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
-                  Habits &amp; Streaks
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full font-bold">
-                {habits.completedTodayCount}/{habits.totalCount} Done ({habits.completionRate}%)
-              </span>
-            </div>
-
-            <div className="mt-3.5 space-y-2 max-h-56 overflow-y-auto">
-              {habits.list.length === 0 ? (
-                <div className="text-center py-6 text-xs text-zinc-500 font-mono">
-                  No habits registered yet.
-                </div>
-              ) : (
-                habits.list.map((routine: any) => (
-                  <div
-                    key={routine.id}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                      routine.completedToday
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-white"
-                        : "bg-white/[0.02] border-white/5 text-zinc-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] font-bold ${
-                          routine.completedToday
-                            ? "bg-emerald-500 text-black"
-                            : "border border-zinc-700 text-transparent"
-                        }`}
-                      >
-                        ✓
-                      </span>
-                      <span className="text-xs font-medium truncate">{routine.name}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0 font-mono text-xs">
-                      <span className="text-red-400 font-bold flex items-center gap-0.5">
-                        <Flame className="w-3 h-3 fill-red-400" />
-                        {routine.currentStreak}d
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          routine.completedToday
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-zinc-800 text-zinc-400"
-                        }`}
-                      >
-                        {routine.completedToday ? "Done" : "Pending"}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
         </div>
 
-        {/* 5. Companion & Karma Hub */}
+        {/* 4. Companion & Karma Hub */}
         {discipline ? (
           <Card
             glow={isFemale ? "rose" : "red"}

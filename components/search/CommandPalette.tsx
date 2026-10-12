@@ -39,13 +39,6 @@ interface SearchResults {
     category: string;
     dueDate?: string | null;
   }>;
-  routines: Array<{
-    id: string;
-    name: string;
-    category: string;
-    currentStreak: number;
-    targetDays: string;
-  }>;
   accounts: Array<{
     id: string;
     name: string;
@@ -94,7 +87,6 @@ export function CommandPalette({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [results, setResults] = useState<SearchResults>({
     tasks: [],
-    routines: [],
     accounts: [],
     creditCards: [],
     debitCards: [],
@@ -126,7 +118,6 @@ export function CommandPalette({
     if (!query.trim()) {
       setResults({
         tasks: [],
-        routines: [],
         accounts: [],
         creditCards: [],
         debitCards: [],
@@ -338,22 +329,6 @@ export function CommandPalette({
         action: () => {
           onClose();
           router.push("/money");
-        },
-      })
-    );
-
-    // Routines
-    results.routines.forEach((r) =>
-      flatItems.push({
-        id: `routine-${r.id}`,
-        title: r.name,
-        subtitle: `${r.category}`,
-        category: "Routines",
-        icon: Flame,
-        badge: `${r.currentStreak} 🔥`,
-        action: () => {
-          onClose();
-          router.push("/routines");
         },
       })
     );

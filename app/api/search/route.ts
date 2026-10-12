@@ -18,7 +18,6 @@ export async function GET(request: Request) {
       return NextResponse.json({
         query: "",
         tasks: [],
-        routines: [],
         accounts: [],
         creditCards: [],
         debitCards: [],
@@ -30,7 +29,6 @@ export async function GET(request: Request) {
     // Execute parallel searches scoped strictly to current user
     const [
       tasks,
-      routines,
       accounts,
       creditCards,
       debitCards,
@@ -57,26 +55,6 @@ export async function GET(request: Request) {
           status: true,
           category: true,
           dueDate: true,
-        },
-      }),
-
-      // Routines
-      prisma.routine.findMany({
-        where: {
-          userId: user.id,
-          isArchived: false,
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { category: { contains: q, mode: "insensitive" } },
-          ],
-        },
-        take: 6,
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          currentStreak: true,
-          bestStreak: true,
         },
       }),
 
@@ -182,7 +160,6 @@ export async function GET(request: Request) {
     return NextResponse.json({
       query: q,
       tasks,
-      routines,
       accounts,
       creditCards,
       debitCards,

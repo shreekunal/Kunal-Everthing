@@ -225,20 +225,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleToggleRoutine = async (routineId: string) => {
-    haptics.success();
-    try {
-      await fetch(`/api/routines/${routineId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      fetchDashboardData();
-    } catch (err) {
-      console.error("Routine toggle error:", err);
-    }
-  };
-
   const handleQuickDeduct = (type: "UNHEALTHY_FOOD" | "FAP") => {
     setConfirmDeductType(type);
   };
@@ -397,7 +383,7 @@ export default function DashboardPage() {
 
   const greeting = getGreeting(currentUserName);
 
-  const { todayTasks, routines, financials, weeklySummary, discipline, steps } =
+  const { todayTasks, financials, weeklySummary, discipline, steps } =
     data || {};
 
   return (
@@ -849,9 +835,9 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* Main Grid: Priorities & Habits */}
+        {/* Main Grid: Priorities & Hydration */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left 2 Cols: Priorities & Habits */}
+          {/* Left 2 Cols: Priorities */}
           <div className="lg:col-span-2 space-y-4">
             {/* Today's Tasks */}
             <div className="rounded-2xl bg-zinc-950 border border-white/10 p-3.5 sm:p-4 space-y-3">
@@ -951,73 +937,6 @@ export default function DashboardPage() {
                     );
                   })
                 )}
-              </div>
-            </div>
-
-            {/* Daily Routines */}
-            <div className="rounded-2xl bg-zinc-950 border border-white/10 p-3.5 sm:p-4 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                <Link
-                  href="/routines"
-                  onClick={() => haptics.selection()}
-                  className="flex items-center gap-2 group cursor-pointer"
-                >
-                  <Flame className="w-4 h-4 text-brand-red fill-brand-red/20" />
-                  <span className="text-xs font-bold text-white uppercase font-mono tracking-wider group-hover:text-brand-red transition-colors flex items-center gap-1.5">
-                    Daily Habits &amp; Streaks
-                    <ArrowRight className="w-3 h-3 text-zinc-500 group-hover:text-brand-red group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                </Link>
-                <Link
-                  href="/routines"
-                  className="text-[10px] text-zinc-400 hover:text-white transition-colors font-mono"
-                >
-                  Matrix
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {routines?.map((routine: any) => {
-                  const isCompleted = routine.completedToday;
-
-                  return (
-                    <div
-                      key={routine.id}
-                      onClick={() => handleToggleRoutine(routine.id)}
-                      className={clsx(
-                        "flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer",
-                        isCompleted
-                          ? "bg-brand-red/10 border-brand-red/30 text-white shadow-glow-red-subtle"
-                          : "bg-white/[0.02] hover:bg-white/[0.05] border-white/10 text-zinc-300"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <button
-                          type="button"
-                          className={clsx(
-                            "w-4 h-4 rounded-md flex items-center justify-center border transition-colors flex-shrink-0",
-                            isCompleted
-                              ? "bg-brand-red border-brand-red text-white font-bold text-xs"
-                              : "border-zinc-700 hover:border-zinc-500"
-                          )}
-                        >
-                          {isCompleted && "✓"}
-                        </button>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold truncate leading-tight">{routine.name}</p>
-                          <p className="text-[9px] text-zinc-500 font-mono mt-0.5">
-                            {routine.category}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 flex-shrink-0 text-red-400 font-mono text-[10px] font-bold">
-                        <Flame className="w-3 h-3 fill-brand-red text-brand-red" />
-                        <span>{routine.currentStreak}d</span>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           </div>

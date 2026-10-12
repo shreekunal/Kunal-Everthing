@@ -274,41 +274,6 @@ export async function POST(req: NextRequest) {
         referenceId,
       });
 
-      // Auto-complete any active hydration routine in the user's habits
-      try {
-        const hydrationRoutine = await prisma.routine.findFirst({
-          where: {
-            userId: user.id,
-            isArchived: false,
-            OR: [
-              { name: { contains: "Hydration", mode: "insensitive" } },
-              { name: { contains: "Water", mode: "insensitive" } },
-            ],
-          },
-        });
-        if (hydrationRoutine) {
-          await prisma.routineCompletion.upsert({
-            where: {
-              routineId_date: {
-                routineId: hydrationRoutine.id,
-                date: todayKey,
-              },
-            },
-            create: {
-              userId: user.id,
-              routineId: hydrationRoutine.id,
-              date: todayKey,
-              completed: true,
-            },
-            update: {
-              completed: true,
-            },
-          });
-        }
-      } catch (e) {
-        console.error("Routine auto-complete error for water:", e);
-      }
-
       return NextResponse.json({
         success: true,
         log,

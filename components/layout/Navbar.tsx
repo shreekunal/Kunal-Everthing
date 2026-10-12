@@ -64,7 +64,6 @@ export function Navbar({
   const navigation = [
     { name: "Home", href: "/", icon: LayoutDashboard },
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
-    { name: "Routines", href: "/routines", icon: Flame },
     { name: "Health", href: "/health", icon: Activity },
     { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Focus", href: "/progress?tab=LOG", icon: Target },

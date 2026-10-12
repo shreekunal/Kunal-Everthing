@@ -164,7 +164,7 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
   if (!granted) return false;
 
   try {
-    // Clear any existing core alarms before re-registering
+    // Clear any existing core alarms before re-registering (cancels legacy streak and habit alarms)
     await LocalNotifications.cancel({
       notifications: [
         { id: NOTIFICATION_IDS.MORNING_BRIEFING },
@@ -178,7 +178,7 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
         {
           id: NOTIFICATION_IDS.MORNING_BRIEFING,
           title: "Everything • Morning Priorities",
-          body: "Rise and execute. Review your daily habits, deep work targets, and priorities.",
+          body: "Rise and execute. Review your daily priorities, deep work targets, and schedule.",
           schedule: {
             on: { hour: 8, minute: 0 },
             repeats: true,
@@ -188,42 +188,8 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
           smallIcon: "ic_stat_notification",
           iconColor: "#EF4444",
           extra: {
-            route: "/routines",
+            route: "/",
             type: "MORNING_BRIEFING",
-          },
-        },
-        {
-          id: NOTIFICATION_IDS.MIDDAY_HABIT_CHECK,
-          title: "Everything • Midday Habits Check",
-          body: "Keep the momentum going! Check in on your afternoon habits and focus targets.",
-          schedule: {
-            on: { hour: 14, minute: 0 },
-            repeats: true,
-            allowWhileIdle: true,
-          },
-          channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
-          smallIcon: "ic_stat_notification",
-          iconColor: "#F59E0B",
-          extra: {
-            route: "/routines",
-            type: "MIDDAY_HABIT_CHECK",
-          },
-        },
-        {
-          id: NOTIFICATION_IDS.STREAK_DEFENDER,
-          title: "Monk Protocol • Streak Defender",
-          body: "Protect your streak! Complete your daily routines and lock in your evening karma.",
-          schedule: {
-            on: { hour: 21, minute: 0 },
-            repeats: true,
-            allowWhileIdle: true,
-          },
-          channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
-          smallIcon: "ic_stat_notification",
-          iconColor: "#EF4444",
-          extra: {
-            route: "/routines",
-            type: "STREAK_DEFENDER",
           },
         },
       ],
@@ -240,63 +206,10 @@ export async function scheduleCoreDailyNotifications(): Promise<boolean> {
 }
 
 /**
- * Synchronize daily habit notifications dynamically.
- * Adjusts tonight's Streak Defender notification based on whether habits are completed or pending.
+ * Legacy habit sync stub (no-op now that habits are removed)
  */
-export async function syncHabitNotifications(params: {
-  incompleteCount: number;
-  totalCount: number;
-  atRiskStreakNames?: string[];
-}): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
-
-  const granted = await requestNotificationPermission();
-  if (!granted) return false;
-
-  try {
-    const isAllDone = params.totalCount > 0 && params.incompleteCount === 0;
-    const atRiskTitle =
-      params.atRiskStreakNames && params.atRiskStreakNames.length > 0
-        ? `⚡ Streak at Risk: ${params.atRiskStreakNames[0]}`
-        : `⚡ ${params.incompleteCount} Habit${params.incompleteCount > 1 ? "s" : ""} Pending`;
-
-    const body = isAllDone
-      ? "All daily habits completed! Your streak is defended. Rest well."
-      : "Complete your remaining daily habits before midnight to protect your streaks!";
-
-    // Reschedule tonight's Streak Defender with real context
-    await LocalNotifications.cancel({
-      notifications: [{ id: NOTIFICATION_IDS.STREAK_DEFENDER }],
-    });
-
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: NOTIFICATION_IDS.STREAK_DEFENDER,
-          title: isAllDone ? "Everything • Streaks Defended! 🔥" : atRiskTitle,
-          body,
-          schedule: {
-            on: { hour: 21, minute: 0 },
-            repeats: true,
-            allowWhileIdle: true,
-          },
-          channelId: NOTIFICATION_CHANNELS.DAILY_BRIEFING,
-          smallIcon: "ic_stat_notification",
-          iconColor: isAllDone ? "#10B981" : "#EF4444",
-          extra: {
-            route: "/routines",
-            type: "STREAK_DEFENDER",
-            incompleteCount: params.incompleteCount,
-          },
-        },
-      ],
-    });
-
-    return true;
-  } catch (err) {
-    console.error("Failed to sync habit notifications:", err);
-    return false;
-  }
+export async function syncHabitNotifications(_params?: any): Promise<boolean> {
+  return true;
 }
 
 /**
@@ -477,7 +390,7 @@ export async function getLiveNotificationDiagnostics(): Promise<LiveNotification
   if (!isNative) {
     const waterActive = typeof window !== "undefined" && localStorage.getItem("kunal_os_water_notifications_enabled") === "true";
     return {
-      totalPending: (coreActive ? 2 : 0) + (waterActive ? 7 : 0),
+      totalPending: (coreActive ? 1 : 0) + (waterActive ? 7 : 0),
       coreAlarmsActive: coreActive,
       waterAlarmsCount: waterActive ? 7 : 0,
       taskAlarmsCount: 0,
@@ -487,7 +400,6 @@ export async function getLiveNotificationDiagnostics(): Promise<LiveNotification
         ...(coreActive
           ? [
               { id: 1001, title: "Morning Priorities (8:00 AM)", scheduleDesc: "Daily at 8:00 AM" },
-              { id: 1002, title: "Streak Defender (9:00 PM)", scheduleDesc: "Daily at 9:00 PM" },
             ]
           : []),
         ...(waterActive
@@ -520,9 +432,6 @@ export async function getLiveNotificationDiagnostics(): Promise<LiveNotification
         if (n.id === NOTIFICATION_IDS.MORNING_BRIEFING) {
           title = "Morning Priorities (8:00 AM)";
           scheduleDesc = "Daily at 8:00 AM (daily-briefing channel)";
-        } else if (n.id === NOTIFICATION_IDS.STREAK_DEFENDER) {
-          title = "Streak Defender (9:00 PM)";
-          scheduleDesc = "Daily at 9:00 PM (daily-briefing channel)";
         } else if (n.id >= NOTIFICATION_IDS.WATER_REMINDER_BASE && n.id <= NOTIFICATION_IDS.WATER_REMINDER_BASE + 20) {
           const offset = n.id - NOTIFICATION_IDS.WATER_REMINDER_BASE;
           const hour = 9 + offset * 2;

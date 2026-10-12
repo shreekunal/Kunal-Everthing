@@ -39,7 +39,9 @@ import {
   Pause,
   Square,
   Timer,
+  Radio,
 } from "lucide-react";
+import { ZenModeOverlay } from "@/components/progress/ZenModeOverlay";
 
 function getCurrentWindowId(): string {
   const hour = new Date().getHours();
@@ -116,13 +118,23 @@ function ProgressContent() {
 
   // Active View Tab on Mobile
   const [activeTab, setActiveTab] = useState<"LOG" | "AIMS" | "ANALYTICS">("LOG");
+  const [isZenModeOpen, setIsZenModeOpen] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam === "AIMS" || tabParam === "LOG" || tabParam === "ANALYTICS") {
       setActiveTab(tabParam as any);
     }
+    if (searchParams.get("zen") === "1" || searchParams.get("zen") === "true") {
+      setIsZenModeOpen(true);
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    const handleOpenZen = () => setIsZenModeOpen(true);
+    window.addEventListener("kunal-os-open-zen", handleOpenZen);
+    return () => window.removeEventListener("kunal-os-open-zen", handleOpenZen);
+  }, []);
 
   // Study session entry (always logs for today)
   const [manualProject, setManualProject] = useState("");
@@ -557,6 +569,25 @@ function ProgressContent() {
     setSwModalProject(manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : ""));
     setSwModalTopicId(selectedTopicId || "");
     setShowStopwatchModal(true);
+  };
+
+  const handleAddTimerMinutes = (mins: number) => {
+    haptics.impactLight();
+    const addSecs = mins * 60;
+    const newTotal = timerTotalSeconds + addSecs;
+    const newRemaining = timerRemainingSeconds + addSecs;
+    setTimerTotalSeconds(newTotal);
+    setTimerRemainingSeconds(newRemaining);
+    let newEndMs = timerTargetEndTimeMs;
+    if (timerTargetEndTimeMs) {
+      newEndMs = timerTargetEndTimeMs + addSecs * 1000;
+      setTimerTargetEndTimeMs(newEndMs);
+    }
+    saveUnifiedState({
+      timerTotalSeconds: newTotal,
+      timerRemainingSeconds: newRemaining,
+      targetEndTimeMs: newEndMs,
+    });
   };
 
   // Stopwatch Controls
@@ -1528,8 +1559,21 @@ function ProgressContent() {
                 </button>
               </div>
 
-              {/* Status Badges */}
+              {/* Status Badges & Zen Mode Button */}
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.impactLight();
+                    setIsZenModeOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/30 text-red-300 hover:text-white font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-glow-red-subtle active:scale-95"
+                  title="Enter Fullscreen Zen Focus Mode"
+                >
+                  <Radio className="w-3 h-3 text-brand-red animate-pulse" />
+                  <span>Zen Mode</span>
+                </button>
+
                 {swStatus === "RUNNING" && (
                   <span className="flex items-center gap-1 text-[10px] font-mono text-red-300 font-bold bg-brand-red/15 px-2 py-0.5 rounded-full border border-brand-red/30">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping inline-block" />
@@ -3110,6 +3154,31 @@ function ProgressContent() {
         confirmText="Delete Milestone"
         confirmVariant="red"
         iconType="danger"
+      />
+
+      {/* FULLSCREEN OLED ZEN FOCUS MODE OVERLAY */}
+      <ZenModeOverlay
+        isOpen={isZenModeOpen}
+        onClose={() => setIsZenModeOpen(false)}
+        focusMode={focusMode}
+        status={swStatus}
+        displayTime={
+          focusMode === "TIMER"
+            ? formatStopwatchTime(timerRemainingSeconds)
+            : formatStopwatchTime(swActiveSeconds)
+        }
+        totalSeconds={timerTotalSeconds}
+        remainingSeconds={timerRemainingSeconds}
+        activeSeconds={swActiveSeconds}
+        onStart={focusMode === "TIMER" ? handleStartTimer : handleStartStopwatch}
+        onPause={focusMode === "TIMER" ? handlePauseTimer : handlePauseStopwatch}
+        onResume={focusMode === "TIMER" ? handleResumeTimer : handleResumeStopwatch}
+        onReset={focusMode === "TIMER" ? handleResetTimer : handleResetStopwatch}
+        onFinishSave={
+          focusMode === "TIMER" ? handleOpenTimerSaveModal : handleOpenStopwatchSaveModal
+        }
+        onAddMinutes={handleAddTimerMinutes}
+        projectOrTopic={manualProject || (selectedTopicId ? "Study Session" : "")}
       />
     </div>
   );
