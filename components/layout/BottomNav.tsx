@@ -43,8 +43,20 @@ export function BottomNav({
   // Swipe gesture handling refs
   const touchStartY = useRef<number | null>(null);
   const touchStartX = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
+  const wasSwipingRef = useRef(false);
   const gestureHandledRef = useRef(false);
+  const touchStartedInScrollableContentRef = useRef(false);
+  const swipeResetTimerRef = useRef<NodeJS.Timeout | null>(null);
   const drawerContentRef = useRef<HTMLDivElement | null>(null);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (swipeResetTimerRef.current) clearTimeout(swipeResetTimerRef.current);
+    };
+  }, []);
 
   const handleLovePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -78,6 +90,12 @@ export function BottomNav({
 
     // If long press triggered, radial wheel manages pointerup to release-launch
     if (isLongPressRef.current) {
+      isLongPressRef.current = false;
+      return;
+    }
+
+    // If user was swiping / dragging, suppress tap navigation
+    if (wasSwipingRef.current || isSwipingRef.current || gestureHandledRef.current) {
       return;
     }
 
@@ -92,17 +110,46 @@ export function BottomNav({
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
+    isLongPressRef.current = false;
+  };
+
+  const handleLoveContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = {
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
+    };
+    if (onOpenPartnerRadial) {
+      onOpenPartnerRadial(origin);
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("open-partner-radial", { detail: { origin } })
+      );
+    }
   };
 
   // Touch gesture listeners for dock swipe-up / drawer swipe-down
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 1) return;
+
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
+    isSwipingRef.current = false;
     gestureHandledRef.current = false;
+    wasSwipingRef.current = false;
+
+    // Check if touch started inside the scrollable drawer content vs non-scrollable shell
+    const target = e.target as HTMLElement | null;
+    const isInsideContent = drawerContentRef.current && drawerContentRef.current.contains(target);
+    const isDragHandle = Boolean(target?.closest('[data-drag-handle="true"]'));
+    touchStartedInScrollableContentRef.current = Boolean(isInsideContent && !isDragHandle);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (gestureHandledRef.current) return;
+    // When partner radial wheel is active, let radial wheel track touch movements
+    if (isLongPressRef.current) return;
     if (touchStartY.current === null || touchStartX.current === null) return;
 
     const currentY = e.touches[0].clientY;
@@ -110,35 +157,66 @@ export function BottomNav({
     const deltaY = currentY - touchStartY.current;
     const deltaX = Math.abs(currentX - touchStartX.current);
 
-    // Cancel partner radial hold timer if finger moves vertically
-    if (holdTimerRef.current && Math.abs(deltaY) > 10) {
+    // Cancel partner radial hold timer if finger moves beyond slop (20px)
+    if (holdTimerRef.current && Math.hypot(deltaX, deltaY) > 20) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
 
+    // Mark as swiping if moved beyond 10px
+    if (Math.hypot(deltaX, deltaY) > 10) {
+      isSwipingRef.current = true;
+    }
+
     // Swipe UP to open drawer (when collapsed)
-    if (!isDrawerOpen && deltaY < -35 && Math.abs(deltaY) > deltaX * 1.2) {
+    if (!isDrawerOpen && deltaY < -30 && Math.abs(deltaY) > deltaX * 1.1) {
       gestureHandledRef.current = true;
+      wasSwipingRef.current = true;
       haptics.impactLight();
       setIsDrawerOpen(true);
       return;
     }
 
-    // Swipe DOWN to close drawer (when open and scrolled to top)
-    if (isDrawerOpen && deltaY > 35 && deltaY > deltaX * 1.2) {
-      if (!drawerContentRef.current || drawerContentRef.current.scrollTop <= 0) {
-        gestureHandledRef.current = true;
-        haptics.impactLight();
-        setIsDrawerOpen(false);
-        return;
+    // Swipe DOWN to close drawer (when open)
+    if (isDrawerOpen && deltaY > 30 && deltaY > deltaX * 1.1) {
+      // If touch started inside scrollable drawer content, only close if user is at the top
+      if (touchStartedInScrollableContentRef.current) {
+        if (drawerContentRef.current && drawerContentRef.current.scrollTop > 5) {
+          return; // Let native scrolling take over
+        }
       }
+      gestureHandledRef.current = true;
+      wasSwipingRef.current = true;
+      haptics.impactLight();
+      setIsDrawerOpen(false);
+      return;
     }
   };
 
   const handleTouchEnd = () => {
     touchStartY.current = null;
     touchStartX.current = null;
+    touchStartedInScrollableContentRef.current = false;
+
+    if (isSwipingRef.current || gestureHandledRef.current) {
+      wasSwipingRef.current = true;
+      if (swipeResetTimerRef.current) {
+        clearTimeout(swipeResetTimerRef.current);
+      }
+      swipeResetTimerRef.current = setTimeout(() => {
+        wasSwipingRef.current = false;
+      }, 200);
+    }
+    isSwipingRef.current = false;
     gestureHandledRef.current = false;
+  };
+
+  // Intercept synthetic click events resulting from touch swipes
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (wasSwipingRef.current || isSwipingRef.current || gestureHandledRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   useEffect(() => {
@@ -158,6 +236,19 @@ export function BottomNav({
       setIsDrawerOpen(false);
       return true;
     });
+  }, [isDrawerOpen]);
+
+  // Keyboard Escape listener
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDrawerOpen]);
 
   const handleLockPortal = async () => {
@@ -221,11 +312,18 @@ export function BottomNav({
   // Active checks for 4 primary pillars
   const isHomeActive = pathname === "/";
   const isTasksActive = pathname === "/tasks" || pathname.startsWith("/tasks/");
-  const isFocusActive = pathname === "/progress" || pathname.startsWith("/progress");
+  const isFocusActive = pathname === "/progress" || pathname.startsWith("/progress/");
   const isPartnerActive =
     pathname === "/partner" ||
     pathname.startsWith("/partner/") ||
-    pathname === "/relationship";
+    pathname.startsWith("/partner-") ||
+    pathname === "/relationship" ||
+    pathname.startsWith("/relationship/");
+
+  // Check if any drawer app is currently active
+  const isDrawerAppActive = drawerApps.some(
+    (app) => pathname === app.href || pathname.startsWith(app.href + "/")
+  );
 
   return (
     <>
@@ -246,152 +344,183 @@ export function BottomNav({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClickCapture={handleClickCapture}
+        style={{ touchAction: isDrawerOpen ? "auto" : "none" }}
         className={clsx(
-          "fixed bottom-3 left-0 right-0 mx-4 sm:mx-auto max-w-lg z-50 md:hidden bg-zinc-950/90 backdrop-blur-2xl border shadow-2xl pb-safe transition-all duration-300 ease-in-out flex flex-col overflow-hidden select-none",
+          "fixed bottom-3 left-0 right-0 mx-4 sm:mx-auto max-w-lg z-50 md:hidden bg-zinc-950/90 backdrop-blur-2xl border shadow-2xl pb-safe transition-[border-color,box-shadow] duration-300 flex flex-col rounded-3xl overflow-hidden select-none",
           isDrawerOpen
-            ? "rounded-3xl border-brand-red/30 shadow-glow-red-subtle max-h-[85vh]"
-            : "rounded-3xl border-white/10 max-h-28"
+            ? "border-brand-red/30 shadow-glow-red-subtle"
+            : "border-white/10"
         )}
       >
-        {/* Upper Extended Drawer Section */}
+        {/* Upper Extended Drawer Section: Smooth CSS Grid Row Animation */}
         <div
-          ref={drawerContentRef}
           className={clsx(
-            "transition-all duration-300 ease-in-out px-4 flex-1 flex flex-col min-h-0",
+            "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
             isDrawerOpen
-              ? "opacity-100 pt-3 pb-3 max-h-[65vh] overflow-y-auto"
-              : "opacity-0 max-h-0 p-0 pointer-events-none overflow-hidden"
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0 pointer-events-none"
           )}
         >
-          {/* Drag handle to dismiss */}
-          <div
-            role="button"
-            aria-label="Close drawer"
-            onClick={() => {
-              haptics.impactLight();
-              setIsDrawerOpen(false);
-            }}
-            className="w-full flex items-center justify-center pt-1 pb-2 cursor-pointer group"
-          >
-            <div className="w-10 h-1 bg-white/20 group-hover:bg-white/40 rounded-full transition-colors" />
-          </div>
-
-          {/* Header row: Profile Switcher & Actions */}
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-white/10 px-1">
-            <button
-              type="button"
-              onClick={handleOpenProfile}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-colors text-xs font-mono text-zinc-200 hover:text-white"
-              title="Switch Profile"
+          <div className="overflow-hidden min-h-0 flex flex-col">
+            <div
+              ref={drawerContentRef}
+              className="px-4 pt-2 pb-3 max-h-[65vh] overflow-y-auto flex flex-col no-scrollbar touch-pan-y"
             >
-              <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
-              <span className="font-bold uppercase tracking-wider">{currentUserName || "Kunal"}</span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-0.5">Switch</span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              {/* Lock OS Button */}
-              <button
-                type="button"
-                title="Lock OS"
-                aria-label="Lock OS"
-                onClick={() => {
-                  haptics.warning();
-                  handleLockPortal();
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/30 border border-red-500/20 hover:bg-red-950/60 text-red-400 hover:text-red-300 transition-colors text-xs font-medium"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Lock</span>
-              </button>
-
-              {/* Close Button */}
-              <button
-                type="button"
+              {/* Drag handle to dismiss */}
+              <div
+                data-drag-handle="true"
+                role="button"
+                tabIndex={0}
+                aria-label="Close drawer"
                 onClick={() => {
                   haptics.impactLight();
                   setIsDrawerOpen(false);
                 }}
-                className="text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
-                aria-label="Close menu"
+                className="w-full flex items-center justify-center pt-1 pb-2 cursor-pointer group touch-none select-none focus:outline-none"
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                <div className="w-10 h-1 bg-white/20 group-hover:bg-white/40 rounded-full transition-colors" />
+              </div>
 
-          {/* Clear Labeled App Tiles (2 columns for generous touch targets) */}
-          <div className="grid grid-cols-2 gap-2.5 py-1">
-            {drawerApps.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  prefetch={true}
-                  title={item.name}
-                  aria-label={`${item.name} - ${item.desc}`}
-                  onClick={() => {
-                    haptics.selection();
-                    setIsDrawerOpen(false);
-                  }}
-                  className={clsx(
-                    "flex items-center gap-3 p-3 rounded-2xl border transition-all active:scale-95 group",
-                    isActive
-                      ? "bg-brand-red/15 border-brand-red/40 text-white shadow-glow-red-subtle"
-                      : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
-                  )}
+              {/* Header row: Profile Switcher & Actions */}
+              <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-white/10 px-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenProfile}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-colors text-xs font-mono text-zinc-200 hover:text-white focus:outline-none"
+                  title="Switch Profile"
                 >
-                  <div
-                    className={clsx(
-                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                      isActive
-                        ? "bg-brand-red text-white shadow-glow-red"
-                        : "bg-white/5 border border-white/10 text-zinc-300 group-hover:text-white group-hover:bg-white/10"
-                    )}
+                  <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
+                  <span className="font-bold uppercase tracking-wider">{currentUserName || "Kunal"}</span>
+                  <span className="text-[10px] text-zinc-400 font-sans ml-0.5">Switch</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  {/* Lock OS Button */}
+                  <button
+                    type="button"
+                    title="Lock OS"
+                    aria-label="Lock OS"
+                    onClick={() => {
+                      haptics.warning();
+                      handleLockPortal();
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/30 border border-red-500/20 hover:bg-red-950/60 text-red-400 hover:text-red-300 transition-colors text-xs font-medium focus:outline-none"
                   >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className={clsx("text-sm font-semibold tracking-tight truncate", isActive ? "text-white" : "text-zinc-200")}>
-                      {item.name}
-                    </span>
-                    <span className="text-[11px] text-zinc-400 truncate">
-                      {item.desc}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Lock</span>
+                  </button>
+
+                  {/* Close Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.impactLight();
+                      setIsDrawerOpen(false);
+                    }}
+                    className="text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors focus:outline-none"
+                    aria-label="Close menu"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Clear Labeled App Tiles (2 columns for generous touch targets) */}
+              <div className="grid grid-cols-2 gap-2.5 py-1">
+                {drawerApps.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      prefetch={true}
+                      title={item.name}
+                      aria-label={`${item.name} - ${item.desc}`}
+                      onClick={(e) => {
+                        if (wasSwipingRef.current) {
+                          e.preventDefault();
+                          return;
+                        }
+                        haptics.selection();
+                        setIsDrawerOpen(false);
+                      }}
+                      className={clsx(
+                        "flex items-center gap-3 p-3 rounded-2xl border transition-all active:scale-95 group focus:outline-none",
+                        isActive
+                          ? "bg-brand-red/15 border-brand-red/40 text-white shadow-glow-red-subtle"
+                          : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
+                      )}
+                    >
+                      <div
+                        className={clsx(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                          isActive
+                            ? "bg-brand-red text-white shadow-glow-red"
+                            : "bg-white/5 border border-white/10 text-zinc-300 group-hover:text-white group-hover:bg-white/10"
+                        )}
+                      >
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className={clsx("text-sm font-semibold tracking-tight truncate", isActive ? "text-white" : "text-zinc-200")}>
+                          {item.name}
+                        </span>
+                        <span className="text-[11px] text-zinc-400 truncate">
+                          {item.desc}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Elegant Pull-Up Indicator Handle when collapsed */}
         {!isDrawerOpen && (
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             aria-label="Open App Drawer"
             title="Swipe up or tap for all apps"
             onClick={() => {
               haptics.impactLight();
               setIsDrawerOpen(true);
             }}
-            className="w-full pt-1.5 pb-0.5 flex flex-col items-center justify-center cursor-pointer group focus:outline-none"
+            className="w-full pt-2 pb-0.5 flex flex-col items-center justify-center cursor-pointer group focus:outline-none touch-none select-none"
           >
-            <div className="w-8 h-1 rounded-full bg-white/25 group-hover:bg-white/50 group-hover:w-10 group-active:scale-95 transition-all" />
-          </button>
+            <div
+              className={clsx(
+                "h-1 rounded-full transition-all duration-300",
+                isDrawerAppActive
+                  ? "w-10 bg-brand-red/70 shadow-glow-red-subtle"
+                  : "w-8 bg-white/25 group-hover:bg-white/50 group-hover:w-10 group-active:scale-95"
+              )}
+            />
+          </div>
         )}
 
         {/* Lower Primary 4-Pillar Bar (25% wider touch targets, comfortable single-handed reach) */}
-        <div className={clsx("h-14 px-2 flex items-center justify-around shrink-0", isDrawerOpen && "border-t border-white/10")}>
+        <div
+          className={clsx(
+            "h-14 px-2 flex items-center justify-around shrink-0 touch-none",
+            isDrawerOpen && "border-t border-white/10"
+          )}
+        >
           {/* 1. Home */}
           <Link
             href="/"
             prefetch={true}
             aria-label="Home"
             title="Home"
-            onClick={() => {
+            onClick={(e) => {
+              if (wasSwipingRef.current) {
+                e.preventDefault();
+                return;
+              }
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
@@ -420,7 +549,11 @@ export function BottomNav({
             prefetch={true}
             aria-label="Tasks"
             title="Tasks"
-            onClick={() => {
+            onClick={(e) => {
+              if (wasSwipingRef.current) {
+                e.preventDefault();
+                return;
+              }
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
@@ -449,7 +582,11 @@ export function BottomNav({
             prefetch={true}
             aria-label="Focus"
             title="Focus"
-            onClick={() => {
+            onClick={(e) => {
+              if (wasSwipingRef.current) {
+                e.preventDefault();
+                return;
+              }
               haptics.selection();
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
@@ -480,7 +617,7 @@ export function BottomNav({
             onPointerDown={handleLovePointerDown}
             onPointerUp={handleLovePointerUp}
             onPointerCancel={handleLovePointerCancel}
-            onContextMenu={(e) => e.preventDefault()}
+            onContextMenu={handleLoveContextMenu}
             onClick={(e) => e.preventDefault()}
             className={clsx(
               "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none focus:outline-none",

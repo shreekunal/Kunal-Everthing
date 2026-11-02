@@ -42,6 +42,7 @@ import { offlineCache } from "@/lib/offlineCache";
 import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
 import { Capacitor } from "@capacitor/core";
 import { fetchHealthConnectSteps } from "@/lib/healthSync";
+import { PartnerFocusBroadcast } from "@/components/progress/PartnerFocusBroadcast";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -431,6 +432,9 @@ export default function DashboardPage() {
             <span>{format(new Date(), "EEE, dd MMM")}</span>
           </div>
         </div>
+
+        {/* 💖 Partner Focus Broadcast Beacon */}
+        <PartnerFocusBroadcast />
 
         {/* 4 Hero KPI Metric Cards - Unified Brand Red Theme */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
+import { format } from "date-fns";
 
 export async function GET(request: Request) {
   try {
@@ -40,7 +41,19 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "asc" },
     });
 
-    // Compute progress stats for each aim
+    // Compute progress stats for each aim & track decaying topics for spaced repetition
+    const decayingTopicsList: Array<{
+      aimId: string;
+      aimTitle: string;
+      milestoneId: string;
+      milestoneTitle: string;
+      topicId: string;
+      topicTitle: string;
+      mastery: string;
+      lastStudiedDate: string | null;
+      daysSinceLastStudied: number;
+    }> = [];
+
     const enrichedAims = aims.map((aim: any) => {
       let totalTopics = 0;
       let masteredTopics = 0;
@@ -73,10 +86,41 @@ export async function GET(request: Request) {
           totalStudyMinutes += topicMins;
           mStudyMins += topicMins;
 
+          // Spaced Repetition Knowledge Decay calculation
+          const sortedSessionDates = sessions
+            .map((s: any) => s.date)
+            .filter(Boolean)
+            .sort()
+            .reverse();
+          const lastStudiedDate = sortedSessionDates[0] || (t.updatedAt ? format(new Date(t.updatedAt), "yyyy-MM-dd") : null);
+          const daysSinceLastStudied = lastStudiedDate
+            ? Math.max(0, Math.floor((Date.now() - new Date(lastStudiedDate).getTime()) / 86400000))
+            : null;
+          
+          // Topic is decaying if it was started/in progress/mastered but has not been touched in 7+ days
+          const isDecaying = (t.mastery !== "NOT_STARTED") && (daysSinceLastStudied === null || daysSinceLastStudied >= 7);
+
+          if (isDecaying) {
+            decayingTopicsList.push({
+              aimId: aim.id,
+              aimTitle: aim.title,
+              milestoneId: m.id,
+              milestoneTitle: m.title,
+              topicId: t.id,
+              topicTitle: t.title,
+              mastery: t.mastery,
+              lastStudiedDate,
+              daysSinceLastStudied: daysSinceLastStudied ?? 14,
+            });
+          }
+
           return {
             ...t,
             totalStudyMinutes: topicMins,
             sessionCount: sessions.length,
+            lastStudiedDate,
+            daysSinceLastStudied,
+            isDecaying,
           };
         });
 
@@ -116,7 +160,7 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ aims: enrichedAims });
+    return NextResponse.json({ aims: enrichedAims, decayingTopics: decayingTopicsList });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

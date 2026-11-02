@@ -71,6 +71,10 @@ import { Share } from "@capacitor/share";
 import { format, parseISO, subDays, isToday, isYesterday } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import clsx from "clsx";
+import { CoStudyCompanion } from "@/components/progress/CoStudyCompanion";
+import { KnowledgeDecayRadar, type DecayingTopic } from "@/components/progress/KnowledgeDecayRadar";
+import { ConsistencyHeatmap60d, type HeatmapDay, type HeatmapStats } from "@/components/progress/ConsistencyHeatmap60d";
+import { PartnerFocusBroadcast } from "@/components/progress/PartnerFocusBroadcast";
 
 // Helper for elapsed minutes calculation
 function computeElapsed(start?: string, end?: string): number | null {
@@ -196,6 +200,16 @@ function ProgressContent() {
   const [swModalStartTime, setSwModalStartTime] = useState<string>("");
   const [swModalEndTime, setSwModalEndTime] = useState<string>("");
   const [isSavingSwSession, setIsSavingSwSession] = useState<boolean>(false);
+
+  // 🐾 Co-Study Companion Mode State
+  const [isCompanionMode, setIsCompanionMode] = useState<boolean>(true);
+
+  // 📡 Spaced Repetition Knowledge Decay State
+  const [decayingTopics, setDecayingTopics] = useState<DecayingTopic[]>([]);
+
+  // 🟩 60-Day Consistency Heatmap State
+  const [heatmapDays, setHeatmapDays] = useState<HeatmapDay[]>([]);
+  const [heatmapStats, setHeatmapStats] = useState<HeatmapStats | null>(null);
 
   // Study Goal State (Weekdays vs Weekends)
   const [weekdayTargetHours, setWeekdayTargetHours] = useState<number>(3);
@@ -599,6 +613,38 @@ function ProgressContent() {
     }
   };
 
+  // 💖 Live Broadcast to Partner
+  const broadcastFocus = (
+    status: "RUNNING" | "PAUSED" | "COMPLETED" | "IDLE",
+    remSecs?: number,
+    totSecs?: number
+  ) => {
+    try {
+      fetch("/api/progress/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          project: manualProject || (aimsData && aimsData.length > 0 ? aimsData[0].title : "Focus Flow"),
+          topicTitle: selectedTopicId
+            ? aimsData.flatMap((a: any) => a.milestones?.flatMap((m: any) => m.topics || []) || []).find((t: any) => t.id === selectedTopicId)?.title || null
+            : null,
+          mode: focusMode,
+          remainingSeconds: remSecs !== undefined ? remSecs : timerRemainingSeconds,
+          totalSeconds: totSecs !== undefined ? totSecs : timerTotalSeconds,
+        }),
+      }).catch(() => {});
+    } catch {}
+  };
+
+  // ⚡ 1-Tap Spaced Repetition Review
+  const handleReviewDecayingTopic = (t: DecayingTopic) => {
+    setSelectedTopicId(t.topicId);
+    setManualProject(`${t.aimTitle} - ${t.topicTitle}`);
+    setActiveTab("LOG");
+    haptics.selection();
+  };
+
   // Timer Run Controls
   const handleStartTimer = () => {
     haptics.impactMedium();
@@ -614,6 +660,7 @@ function ProgressContent() {
     setSwStartClock(nowClock);
     setTimerRemainingSeconds(totalSecs);
     setTimerTargetEndTimeMs(targetEnd);
+    broadcastFocus("RUNNING", totalSecs, totalSecs);
     saveUnifiedState({
       mode: "TIMER",
       status: "RUNNING",
@@ -639,6 +686,7 @@ function ProgressContent() {
     setSwAccumulatedSecs(elapsed);
     setTimerTargetEndTimeMs(null);
     setSwLastResumeTimeMs(null);
+    broadcastFocus("PAUSED", rem, timerTotalSeconds);
     saveUnifiedState({
       mode: "TIMER",
       status: "PAUSED",
@@ -660,6 +708,7 @@ function ProgressContent() {
     setSwStatus("RUNNING");
     setSwLastResumeTimeMs(now);
     setTimerTargetEndTimeMs(targetEnd);
+    broadcastFocus("RUNNING", timerRemainingSeconds, timerTotalSeconds);
     saveUnifiedState({
       mode: "TIMER",
       status: "RUNNING",
@@ -683,6 +732,7 @@ function ProgressContent() {
     setSwLastResumeTimeMs(null);
     setTimerTargetEndTimeMs(null);
     setSwStartClock("");
+    broadcastFocus("IDLE", timerTotalSeconds, timerTotalSeconds);
     saveUnifiedState({
       mode: "TIMER",
       status: "IDLE",
@@ -830,6 +880,7 @@ function ProgressContent() {
           topicId: swModalTopicId || null,
           type: "STUDY",
           date: format(new Date(), "yyyy-MM-dd"),
+          isCompanionMode,
         }),
       });
 
@@ -837,6 +888,7 @@ function ProgressContent() {
         throw new Error("Failed to record study session");
       }
 
+      broadcastFocus("COMPLETED", 0, timerTotalSeconds);
       haptics.success();
 
       // Reset focus session to IDLE
@@ -909,10 +961,13 @@ function ProgressContent() {
       if (progressRes.ok) {
         const json = await progressRes.json();
         setData(json);
+        if (json.last60Days) setHeatmapDays(json.last60Days);
+        if (json.heatmapStats) setHeatmapStats(json.heatmapStats);
       }
       if (aimsRes.ok) {
         const aimsJson = await aimsRes.json();
         setAimsData(aimsJson.aims || []);
+        if (aimsJson.decayingTopics) setDecayingTopics(aimsJson.decayingTopics);
         if (aimsJson.aims?.length > 0) {
           setExpandedAims((prev) => {
             if (Object.keys(prev).length === 0) {
@@ -1043,6 +1098,7 @@ function ProgressContent() {
           topicId: selectedTopicId || null,
           type: "STUDY",
           date: format(new Date(), "yyyy-MM-dd"),
+          isCompanionMode,
         }),
       });
 
@@ -1631,6 +1687,9 @@ function ProgressContent() {
         </div>
       )}
 
+      {/* 💖 Partner Live Focus Broadcast Beacon */}
+      <PartnerFocusBroadcast />
+
       {/* Mobile-First Segmented Tabs */}
       <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-950 border border-white/10 text-xs font-mono">
         <button
@@ -1688,6 +1747,14 @@ function ProgressContent() {
       {/* TAB 1: Live Stopwatch + Minimalist Study Logger */}
       {activeTab === "LOG" && (
         <div className="space-y-4 animate-in fade-in duration-150">
+          {/* 🐾 Co-Study Monk Companion Card */}
+          <CoStudyCompanion
+            status={swStatus}
+            isCompanionMode={isCompanionMode}
+            onToggleCompanionMode={() => setIsCompanionMode(!isCompanionMode)}
+            activeSeconds={swActiveSeconds}
+            userName={partnerLabel === "Golu" ? "Kunal" : "Mradul"}
+          />
           {/* PHONE-LOCK RESILIENT LIVE FOCUS STOPWATCH & TIMER */}
           <div className="p-4 rounded-2xl bg-gradient-to-b from-zinc-900/90 via-zinc-950 to-black border border-brand-red/30 shadow-2xl relative overflow-hidden">
             {/* Status Top Bar */}
@@ -2426,6 +2493,12 @@ function ProgressContent() {
       {/* TAB 2: Minimalist Aims & Syllabus Matrix */}
       {activeTab === "AIMS" && (
         <div className="space-y-3 animate-in fade-in duration-150">
+          {/* 📡 Spaced Repetition Knowledge Decay Radar */}
+          <KnowledgeDecayRadar
+            decayingTopics={decayingTopics}
+            onReviewTopic={handleReviewDecayingTopic}
+          />
+
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold text-zinc-300 uppercase">
               High-Stakes Aims
@@ -3146,6 +3219,27 @@ function ProgressContent() {
       {/* TAB 3: Minimalist Analytics & Peak Windows */}
       {activeTab === "ANALYTICS" && (
         <div className="space-y-4 animate-in fade-in duration-150">
+          {/* 🟩 60-Day Study Consistency Matrix */}
+          <ConsistencyHeatmap60d
+            days={heatmapDays}
+            stats={
+              heatmapStats || {
+                totalStudyMinutes60d: 0,
+                totalStudyHours60d: 0,
+                activeDays60d: 0,
+                currentStreak: 0,
+                longestStreak60d: 0,
+                consistencyPercent: 0,
+              }
+            }
+          />
+
+          {/* 📡 Spaced Repetition Knowledge Decay Radar */}
+          <KnowledgeDecayRadar
+            decayingTopics={decayingTopics}
+            onReviewTopic={handleReviewDecayingTopic}
+          />
+
           {/* 7-Day Bar Chart */}
           <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
             <div className="flex items-center justify-between">

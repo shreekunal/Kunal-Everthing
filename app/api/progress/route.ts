@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ensureDualProfiles } from "@/lib/auth";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { awardPoints } from "@/lib/rewards";
@@ -57,12 +57,12 @@ export async function GET(request: Request) {
     const monthStart = format(startOfMonth(today), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(today), "yyyy-MM-dd");
 
-    // All sessions this month + last 30 days for cognitive window intelligence
-    const past30DaysStart = format(subDays(today, 30), "yyyy-MM-dd");
+    // All sessions this month + last 60 days for heatmap & cognitive intelligence
+    const past60DaysStart = format(subDays(today, 60), "yyyy-MM-dd");
     const allRecentSessions = await prisma.workSession.findMany({
       where: {
         userId: user.id,
-        date: { gte: past30DaysStart },
+        date: { gte: past60DaysStart },
       },
       include: {
         topic: {
@@ -131,6 +131,74 @@ export async function GET(request: Request) {
       };
     });
 
+    // 60-Day Study Consistency Heatmap & Streak Stats
+    const studySessionsAll = allRecentSessions.filter((s) => s.type === "STUDY");
+    let activeDays60d = 0;
+    let totalStudyMinutes60d = 0;
+
+    const last60Days = Array.from({ length: 60 }, (_, i) => {
+      const dStr = format(subDays(today, 59 - i), "yyyy-MM-dd");
+      const dayLabel = format(subDays(today, 59 - i), "EEE");
+      const dStudySessions = studySessionsAll.filter((s) => s.date === dStr);
+      const studyMins = dStudySessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+
+      if (studyMins > 0) {
+        activeDays60d++;
+        totalStudyMinutes60d += studyMins;
+      }
+
+      // Level: 0 = 0m, 1 = 1-30m, 2 = 31-60m, 3 = 61-120m, 4 = 120m+
+      let level: 0 | 1 | 2 | 3 | 4 = 0;
+      if (studyMins > 120) level = 4;
+      else if (studyMins > 60) level = 3;
+      else if (studyMins > 30) level = 2;
+      else if (studyMins > 0) level = 1;
+
+      return {
+        date: dStr,
+        day: dayLabel,
+        studyMinutes: studyMins,
+        studyHours: Number((studyMins / 60).toFixed(1)),
+        sessionCount: dStudySessions.length,
+        level,
+      };
+    });
+
+    // Calculate current streak and longest streak in 60d
+    let currentStreak = 0;
+    let longestStreak60d = 0;
+    let tempStreak = 0;
+
+    for (let i = 0; i < last60Days.length; i++) {
+      if (last60Days[i].studyMinutes > 0) {
+        tempStreak++;
+        if (tempStreak > longestStreak60d) longestStreak60d = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    // Current unbroken streak checking backwards from today / yesterday
+    for (let i = last60Days.length - 1; i >= 0; i--) {
+      if (last60Days[i].studyMinutes > 0) {
+        currentStreak++;
+      } else if (i === last60Days.length - 1) {
+        // Today has 0 mins yet, check if yesterday had streak
+        continue;
+      } else {
+        break;
+      }
+    }
+
+    const heatmapStats = {
+      totalStudyMinutes60d,
+      totalStudyHours60d: Number((totalStudyMinutes60d / 60).toFixed(1)),
+      activeDays60d,
+      currentStreak,
+      longestStreak60d,
+      consistencyPercent: Math.round((activeDays60d / 60) * 100),
+    };
+
     // Peak Cognitive Window Discovery Calculation (ranked by study hours and focus efficiency)
     const studySessionsForCognitive = allRecentSessions.filter((s) => s.type === "STUDY");
     const windowDefinitions = [
@@ -188,6 +256,8 @@ export async function GET(request: Request) {
         totalMinutes: weekWorkMins + weekStudyMins + weekPersonalMins,
       },
       last7Days,
+      last60Days,
+      heatmapStats,
       cognitiveWindows: {
         windows: windowStats,
         primeWindow,
@@ -288,7 +358,56 @@ export async function POST(request: Request) {
       referenceId: session.id,
     });
 
-    return NextResponse.json({ session, earnedXP, elapsedMinutes: elapsedMins, efficiencyPercent: efficiencyPct }, { status: 201 });
+    // 🐾 Co-Study Companion Mode Bonus (+15% XP)
+    const isCompanionMode = Boolean(body.isCompanionMode);
+    let companionBonusXP = 0;
+    if (isCompanionMode) {
+      companionBonusXP = Math.max(1, Math.round(earnedXP * 0.15));
+      await awardPoints({
+        userId: user.id,
+        points: companionBonusXP,
+        type: "COMPANION_STUDY_BONUS",
+        title: `🐾 Co-Study Monk Bonus: ${project}`,
+        reason: `Cyber Sprout co-study focus multiplier (+15% XP)`,
+        category: "PRODUCTIVITY",
+        referenceId: `${session.id}_companion`,
+      });
+    }
+
+    // Touch topic updatedAt to refresh spaced repetition retention
+    if (validTopicId) {
+      await prisma.studyTopic.update({
+        where: { id: validTopicId },
+        data: { updatedAt: new Date() },
+      }).catch(() => {});
+    }
+
+    // 💖 Broadcast / Notify Partner of completed session
+    try {
+      const { kunal, mradul } = await ensureDualProfiles();
+      const partnerUser = user.id === kunal.id ? mradul : kunal;
+      if (partnerUser) {
+        await prisma.notification.create({
+          data: {
+            userId: partnerUser.id,
+            title: `🎉 Focus Completed: ${user.name || "Partner"}`,
+            message: `${user.name || "Your partner"} completed ${mins}m focus on "${project}"${isCompanionMode ? " with Cyber Sprout! 🐾" : "!"}`,
+            category: "RELATIONSHIP",
+            priority: "NORMAL",
+            actionUrl: "/partner",
+          },
+        });
+      }
+    } catch {}
+
+    return NextResponse.json({
+      session,
+      earnedXP,
+      companionBonusXP,
+      totalEarnedXP: earnedXP + companionBonusXP,
+      elapsedMinutes: elapsedMins,
+      efficiencyPercent: efficiencyPct,
+    }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

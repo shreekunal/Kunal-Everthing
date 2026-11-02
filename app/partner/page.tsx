@@ -45,6 +45,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { formatDuration } from "@/lib/formatters";
 import { haptics } from "@/lib/haptics";
 import { offlineCache } from "@/lib/offlineCache";
+import { PartnerFocusBroadcast } from "@/components/progress/PartnerFocusBroadcast";
 import clsx from "clsx";
 
 export default function UnifiedPartnerHubPage() {
@@ -447,6 +448,9 @@ export default function UnifiedPartnerHubPage() {
             </div>
           )}
         </Card>
+
+        {/* 💖 Partner Focus Broadcast Beacon */}
+        <PartnerFocusBroadcast />
 
         {/* 1-Tap Quick WhatsApp Dispatch Bar */}
         <Card className="p-3 sm:p-4 bg-zinc-950/80 border-white/10">
