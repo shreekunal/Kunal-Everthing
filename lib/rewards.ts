@@ -253,17 +253,19 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
           name: item.name,
           currentStreak: 1,
           bestStreak: 1,
-          lastResetDate: now,
+          lastResetDate: subDays(now, 1),
         },
       });
     } else {
       const resetDate = streak.lastResetDate || streak.createdAt;
       const daysSinceReset = Math.max(0, differenceInDays(now, resetDate));
-      const updatedBest = Math.max(streak.bestStreak, daysSinceReset);
+      // Active streak without an explicit penalty today starts at least at 1
+      const current = streak.currentStreak === 0 && daysSinceReset === 0 ? 0 : Math.max(1, daysSinceReset);
+      const updatedBest = Math.max(streak.bestStreak, current);
 
       streak = {
         ...streak,
-        currentStreak: daysSinceReset,
+        currentStreak: current,
         bestStreak: updatedBest,
       };
     }
@@ -377,44 +379,40 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
   const currentMonthEnd = endOfMonth(now);
   const daysLeftInMonth = Math.max(0, differenceInDays(currentMonthEnd, now));
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayStr = format(now, "yyyy-MM-dd");
 
   const queries: Promise<any>[] = [
     getOrCreateDisciplineStreaks(userId),
-    // Net spendable karma balance (earned minus redeemed)
-    prisma.rewardLog.aggregate({
-      where: { userId },
-      _sum: { points: true },
-    }),
-    // Lifetime Karma XP (earned minus actual discipline infractions only - NEVER decreased by perk purchases)
-    prisma.rewardLog.aggregate({
-      where: {
-        userId,
-        type: { not: "REWARD_REDEMPTION" },
-      },
-      _sum: { points: true },
-    }),
-    prisma.rewardLog.aggregate({
-      where: {
-        userId,
-        createdAt: { gte: currentMonthStart },
-      },
-      _sum: { points: true },
-    }),
-    prisma.rewardLog.findMany({
-      where: {
-        userId,
-        createdAt: { gte: todayStart },
-      },
-    }),
-    prisma.rewardLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    }),
+    // Consolidated ultra-fast SQL aggregation in a single query with check-in evaluation
+    prisma.$queryRaw<Array<{
+      net_balance: number;
+      lifetime_karma: number;
+      monthly_xp: number;
+      today_earned: number;
+      today_deducted: number;
+      has_purity_checked_in: boolean | null;
+      has_diet_checked_in: boolean | null;
+    }>>`
+      SELECT 
+        COALESCE(SUM(points), 0)::int as net_balance,
+        COALESCE(SUM(CASE WHEN type != 'REWARD_REDEMPTION' THEN points ELSE 0 END), 0)::int as lifetime_karma,
+        COALESCE(SUM(CASE WHEN "createdAt" >= ${currentMonthStart} THEN points ELSE 0 END), 0)::int as monthly_xp,
+        COALESCE(SUM(CASE WHEN "createdAt" >= ${todayStart} AND points > 0 THEN points ELSE 0 END), 0)::int as today_earned,
+        COALESCE(SUM(CASE WHEN "createdAt" >= ${todayStart} AND points < 0 THEN ABS(points) ELSE 0 END), 0)::int as today_deducted,
+        BOOL_OR("createdAt" >= ${todayStart} AND (type = 'CHECKIN_PURITY' OR type = 'REWARD_DAILY_CHECKIN' OR "referenceId" = ${`purity_${todayStr}`})) as has_purity_checked_in,
+        BOOL_OR("createdAt" >= ${todayStart} AND (type = 'CHECKIN_DIET' OR type = 'REWARD_DAILY_CHECKIN' OR "referenceId" = ${`diet_${todayStr}`})) as has_diet_checked_in
+      FROM "RewardLog"
+      WHERE "userId" = ${userId}
+    `,
   ];
 
   if (includeItems) {
     queries.push(
+      prisma.rewardLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
       prisma.rewardItem.findMany({
         where: { userId, isArchived: false },
         orderBy: { cost: "asc" },
@@ -422,20 +420,27 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     );
   }
 
-  const [streaks, lifetimeAgg, lifetimeKarmaAgg, monthAgg, todayLogs, recentLogs, rewardItems] =
-    await Promise.all(queries);
+  const results = await Promise.all(queries);
+  const streaks = results[0];
+  const rawAggList = results[1];
+  const recentLogs = includeItems ? results[2] || [] : [];
+  const rewardItems = includeItems ? results[3] || [] : [];
 
-  const netBalance = lifetimeAgg._sum.points || 0;
-  const lifetimeKarmaXP = lifetimeKarmaAgg._sum.points || 0;
-  const monthlyXP = monthAgg._sum.points || 0;
+  const agg = rawAggList?.[0] || {
+    net_balance: 0,
+    lifetime_karma: 0,
+    monthly_xp: 0,
+    today_earned: 0,
+    today_deducted: 0,
+    has_purity_checked_in: false,
+    has_diet_checked_in: false,
+  };
 
-  const todayEarned = todayLogs
-    .filter((l: any) => l.points > 0)
-    .reduce((sum: number, l: any) => sum + l.points, 0);
-
-  const todayDeducted = Math.abs(
-    todayLogs.filter((l: any) => l.points < 0).reduce((sum: number, l: any) => sum + l.points, 0)
-  );
+  const netBalance = agg.net_balance || 0;
+  const lifetimeKarmaXP = agg.lifetime_karma || 0;
+  const monthlyXP = agg.monthly_xp || 0;
+  const todayEarned = agg.today_earned || 0;
+  const todayDeducted = agg.today_deducted || 0;
 
   const purityStreak = streaks.find((s: any) => s.type === "PURITY_NOFAP") || {
     currentStreak: 0,
@@ -452,25 +457,16 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
     bestStreak: 0,
   };
 
-  // Rule: On breaking purity or diet streak (streak at 0), the pet dies
-  const isStreakBroken = (purityStreak.currentStreak || 0) === 0 || (dietStreak.currentStreak || 0) === 0;
+  const hasPurityCheckedIn = Boolean(agg.has_purity_checked_in);
+  const hasDietCheckedIn = Boolean(agg.has_diet_checked_in);
+
+  // Rule: On breaking purity or diet streak (streak at 0 without checkin today), the pet dies
+  const isStreakBroken =
+    ((purityStreak.currentStreak || 0) === 0 && !hasPurityCheckedIn) ||
+    ((dietStreak.currentStreak || 0) === 0 && !hasDietCheckedIn);
 
   // Character level and Pet evolution derive from genuine Karma XP and intact discipline streaks
   const levelInfo = calculateLevel(lifetimeKarmaXP, { isStreakBroken });
-
-  const todayStr = format(now, "yyyy-MM-dd");
-  const hasPurityCheckedIn = todayLogs.some(
-    (l: any) =>
-      l.type === "CHECKIN_PURITY" ||
-      l.type === "REWARD_DAILY_CHECKIN" ||
-      l.referenceId === `purity_${todayStr}`
-  );
-  const hasDietCheckedIn = todayLogs.some(
-    (l: any) =>
-      l.type === "CHECKIN_DIET" ||
-      l.type === "REWARD_DAILY_CHECKIN" ||
-      l.referenceId === `diet_${todayStr}`
-  );
 
   return {
     totalXP: Math.max(0, netBalance),

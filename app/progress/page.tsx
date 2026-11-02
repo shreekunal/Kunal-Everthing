@@ -40,8 +40,10 @@ import {
   Square,
   Timer,
   Radio,
+  Calendar,
+  BarChart2,
+  Award,
 } from "lucide-react";
-import { ZenModeOverlay } from "@/components/progress/ZenModeOverlay";
 
 function getCurrentWindowId(): string {
   const hour = new Date().getHours();
@@ -66,7 +68,7 @@ import { toPng } from "html-to-image";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { format } from "date-fns";
+import { format, parseISO, subDays, isToday, isYesterday } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import clsx from "clsx";
 
@@ -118,23 +120,17 @@ function ProgressContent() {
 
   // Active View Tab on Mobile
   const [activeTab, setActiveTab] = useState<"LOG" | "AIMS" | "ANALYTICS">("LOG");
-  const [isZenModeOpen, setIsZenModeOpen] = useState(false);
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "AIMS" || tabParam === "LOG" || tabParam === "ANALYTICS") {
-      setActiveTab(tabParam as any);
-    }
-    if (searchParams.get("zen") === "1" || searchParams.get("zen") === "true") {
-      setIsZenModeOpen(true);
+    const tabParam = searchParams.get("tab")?.toUpperCase();
+    if (tabParam === "AIMS" || tabParam === "AIM" || tabParam === "STUDY") {
+      setActiveTab("AIMS");
+    } else if (tabParam === "LOG" || tabParam === "FOCUS") {
+      setActiveTab("LOG");
+    } else if (tabParam === "ANALYTICS") {
+      setActiveTab("ANALYTICS");
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const handleOpenZen = () => setIsZenModeOpen(true);
-    window.addEventListener("kunal-os-open-zen", handleOpenZen);
-    return () => window.removeEventListener("kunal-os-open-zen", handleOpenZen);
-  }, []);
 
   // Study session entry (always logs for today)
   const [manualProject, setManualProject] = useState("");
@@ -164,7 +160,33 @@ function ProgressContent() {
   const [timerRemainingSeconds, setTimerRemainingSeconds] = useState<number>(25 * 60);
   const [timerTargetEndTimeMs, setTimerTargetEndTimeMs] = useState<number | null>(null);
   const [isCustomTimer, setIsCustomTimer] = useState<boolean>(false);
-  const [customTimerMins, setCustomTimerMins] = useState<string>("");
+  const [customTimerHours, setCustomTimerHours] = useState<string>("0");
+  const [customTimerMins, setCustomTimerMins] = useState<string>("25");
+
+  // Batch Range State for Aims (Lecture / Chapter fill)
+  const [batchRangeMilestoneId, setBatchRangeMilestoneId] = useState<string | null>(null);
+  const [rangePrefix, setRangePrefix] = useState<string>("Lecture");
+  const [rangeStart, setRangeStart] = useState<number>(1);
+  const [rangeEnd, setRangeEnd] = useState<number>(20);
+  const [isSavingBatchRange, setIsSavingBatchRange] = useState<boolean>(false);
+
+  // Aim-Level Module Range Creator State
+  const [batchRangeAimId, setBatchRangeAimId] = useState<string | null>(null);
+  const [aimModuleTitle, setAimModuleTitle] = useState<string>("Lectures");
+  const [aimModulePrefix, setAimModulePrefix] = useState<string>("Lecture");
+  const [aimModuleStart, setAimModuleStart] = useState<number>(1);
+  const [aimModuleEnd, setAimModuleEnd] = useState<number>(25);
+  const [isSavingAimModuleRange, setIsSavingAimModuleRange] = useState<boolean>(false);
+
+  // Range generator state in Aim creation
+  const [showAimRangeGen, setShowAimRangeGen] = useState<boolean>(false);
+  const [aimRangePrefix, setAimRangePrefix] = useState<string>("Lecture");
+  const [aimRangeStart, setAimRangeStart] = useState<number>(1);
+  const [aimRangeEnd, setAimRangeEnd] = useState<number>(20);
+  const [aimRangeMilestoneTitle, setAimRangeMilestoneTitle] = useState<string>("Lectures");
+  const [aimRangeMode, setAimRangeMode] = useState<"TOPICS" | "MILESTONES">("TOPICS");
+  const [generatedAimMilestones, setGeneratedAimMilestones] = useState<any[] | null>(null);
+  const [aimRangeAppliedCount, setAimRangeAppliedCount] = useState<number>(0);
 
   // Stopwatch Completion & Direct Save Modal State
   const [showStopwatchModal, setShowStopwatchModal] = useState<boolean>(false);
@@ -415,7 +437,8 @@ function ProgressContent() {
     const secs = mins * 60;
     setTimerPreset(mins);
     setIsCustomTimer(false);
-    setCustomTimerMins("");
+    setCustomTimerHours(String(Math.floor(mins / 60)));
+    setCustomTimerMins(String(mins % 60));
     setTimerTotalSeconds(secs);
     setTimerRemainingSeconds(secs);
     saveUnifiedState({
@@ -427,12 +450,15 @@ function ProgressContent() {
     });
   };
 
-  const handleSetCustomTimer = (minsStr: string) => {
+  const handleUpdateCustomTimer = (hoursStr: string, minsStr: string) => {
+    setCustomTimerHours(hoursStr);
     setCustomTimerMins(minsStr);
-    const parsed = parseInt(minsStr, 10);
-    if (!isNaN(parsed) && parsed > 0 && parsed <= 360) {
-      const secs = parsed * 60;
-      setTimerPreset(parsed);
+    const h = Math.max(0, parseInt(hoursStr, 10) || 0);
+    const m = Math.max(0, parseInt(minsStr, 10) || 0);
+    const totalMinutes = h * 60 + m;
+    if (totalMinutes > 0 && totalMinutes <= 720) {
+      const secs = totalMinutes * 60;
+      setTimerPreset(totalMinutes);
       setTimerTotalSeconds(secs);
       setTimerRemainingSeconds(secs);
       saveUnifiedState({
@@ -442,6 +468,134 @@ function ProgressContent() {
         timerRemainingSeconds: secs,
         targetEndTimeMs: null,
       });
+    }
+  };
+
+  const handleAdjustCustomTimer = (deltaMinutes: number) => {
+    const currentH = Math.max(0, parseInt(customTimerHours, 10) || 0);
+    const currentM = Math.max(0, parseInt(customTimerMins, 10) || 0);
+    const currentTotal = currentH * 60 + currentM;
+    const nextTotal = Math.max(5, Math.min(720, currentTotal + deltaMinutes));
+    const nextH = Math.floor(nextTotal / 60);
+    const nextM = nextTotal % 60;
+    handleUpdateCustomTimer(String(nextH), String(nextM));
+  };
+
+  // Batch Range Handlers for Aims (fill lectures / chapters)
+  const handleApplyAimRange = () => {
+    const start = Math.min(Number(aimRangeStart) || 1, Number(aimRangeEnd) || 1);
+    const end = Math.max(Number(aimRangeStart) || 1, Number(aimRangeEnd) || 1);
+    if (end - start > 100) {
+      alert("Maximum range limit is 100 at a time.");
+      return;
+    }
+    const prefix = aimRangePrefix.trim() || "Lecture";
+    const items: string[] = [];
+    for (let i = start; i <= end; i++) {
+      items.push(`${prefix} ${i}`);
+    }
+
+    if (aimRangeMode === "TOPICS") {
+      const mTitle = aimRangeMilestoneTitle.trim() || `${prefix}s (${start}–${end})`;
+      setGeneratedAimMilestones([
+        {
+          title: mTitle,
+          topics: items.map((t) => ({ title: t })),
+        },
+      ]);
+      setNewAimMilestonesInput(`${items.length} ${prefix.toLowerCase()}s ready under "${mTitle}"`);
+    } else {
+      setGeneratedAimMilestones(
+        items.map((title) => ({
+          title,
+          topics: [{ title: `${title} Overview` }],
+        }))
+      );
+      setNewAimMilestonesInput(items.join(", "));
+    }
+
+    setAimRangeAppliedCount(items.length);
+    setShowAimRangeGen(false);
+    haptics.success();
+  };
+
+  // Create full module range under an existing Aim
+  const handleCreateAimRange = async (aimId: string) => {
+    const start = Math.min(Number(aimModuleStart) || 1, Number(aimModuleEnd) || 1);
+    const end = Math.max(Number(aimModuleStart) || 1, Number(aimModuleEnd) || 1);
+    if (end - start > 100) {
+      alert("Maximum range limit is 100 items at a time.");
+      return;
+    }
+    const prefix = aimModulePrefix.trim() || "Lecture";
+    const titles: string[] = [];
+    for (let i = start; i <= end; i++) {
+      titles.push(`${prefix} ${i}`);
+    }
+    if (titles.length === 0 || isSavingAimModuleRange) return;
+
+    setIsSavingAimModuleRange(true);
+    haptics.impactMedium();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_MILESTONE_WITH_RANGE",
+          aimId,
+          milestoneTitle: aimModuleTitle.trim() || `${prefix}s (${start}–${end})`,
+          titles,
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setBatchRangeAimId(null);
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to create aim module range:", err);
+      haptics.error();
+    } finally {
+      setIsSavingAimModuleRange(false);
+    }
+  };
+
+  const handleCreateTopicsBatch = async (milestoneId: string) => {
+    const start = Math.min(Number(rangeStart) || 1, Number(rangeEnd) || 1);
+    const end = Math.max(Number(rangeStart) || 1, Number(rangeEnd) || 1);
+    if (end - start > 100) {
+      alert("Maximum range limit is 100 at a time.");
+      return;
+    }
+    const prefix = rangePrefix.trim() || "Lecture";
+    const titles: string[] = [];
+    for (let i = start; i <= end; i++) {
+      titles.push(`${prefix} ${i}`);
+    }
+    if (titles.length === 0 || isSavingBatchRange) return;
+
+    setIsSavingBatchRange(true);
+    haptics.impactMedium();
+    try {
+      const res = await fetch("/api/aims", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TOPICS_BATCH",
+          milestoneId,
+          titles,
+        }),
+      });
+      if (res.ok) {
+        haptics.success();
+        setBatchRangeMilestoneId(null);
+        fetchProgress();
+      }
+    } catch (err) {
+      console.error("Failed to batch create topics:", err);
+      haptics.error();
+    } finally {
+      setIsSavingBatchRange(false);
     }
   };
 
@@ -1009,14 +1163,20 @@ function ProgressContent() {
     setIsSavingAim(true);
     haptics.impactMedium();
     try {
-      const milestones = newAimMilestonesInput
-        .split(/[\n,]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((title) => ({
-          title,
-          topics: [{ title: `${title} Fundamentals` }],
-        }));
+      let milestones: any[] | undefined = undefined;
+
+      if (generatedAimMilestones && generatedAimMilestones.length > 0) {
+        milestones = generatedAimMilestones;
+      } else if (newAimMilestonesInput.trim()) {
+        milestones = newAimMilestonesInput
+          .split(/[\n,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((title) => ({
+            title,
+            topics: [{ title: `${title} Overview` }],
+          }));
+      }
 
       const res = await fetch("/api/aims", {
         method: "POST",
@@ -1024,7 +1184,7 @@ function ProgressContent() {
         body: JSON.stringify({
           title: newAimTitle.trim(),
           targetDate: newAimTargetDate || null,
-          milestones: milestones.length > 0 ? milestones : undefined,
+          milestones: milestones && milestones.length > 0 ? milestones : undefined,
         }),
       });
       if (res.ok) {
@@ -1032,6 +1192,9 @@ function ProgressContent() {
         setNewAimTitle("");
         setNewAimTargetDate("");
         setNewAimMilestonesInput("");
+        setGeneratedAimMilestones(null);
+        setAimRangeAppliedCount(0);
+        setShowAimRangeGen(false);
         setIsAddingAim(false);
         fetchProgress();
       }
@@ -1501,7 +1664,7 @@ function ProgressContent() {
           )}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Study ({aimsData.length})</span>
+          <span>Aim ({aimsData.length})</span>
         </button>
 
         <button
@@ -1559,21 +1722,8 @@ function ProgressContent() {
                 </button>
               </div>
 
-              {/* Status Badges & Zen Mode Button */}
+              {/* Status Badges */}
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.impactLight();
-                    setIsZenModeOpen(true);
-                  }}
-                  className="px-2.5 py-1 rounded-md bg-brand-red/15 hover:bg-brand-red/25 border border-brand-red/30 text-red-300 hover:text-white font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-glow-red-subtle active:scale-95"
-                  title="Enter Fullscreen Zen Focus Mode"
-                >
-                  <Radio className="w-3 h-3 text-brand-red animate-pulse" />
-                  <span>Zen Mode</span>
-                </button>
-
                 {swStatus === "RUNNING" && (
                   <span className="flex items-center gap-1 text-[10px] font-mono text-red-300 font-bold bg-brand-red/15 px-2 py-0.5 rounded-full border border-brand-red/30">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping inline-block" />
@@ -1622,7 +1772,8 @@ function ProgressContent() {
                     type="button"
                     onClick={() => {
                       setIsCustomTimer(true);
-                      setCustomTimerMins(String(timerPreset));
+                      setCustomTimerHours(String(Math.floor(timerPreset / 60)));
+                      setCustomTimerMins(String(timerPreset % 60));
                     }}
                     className={clsx(
                       "px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border active:scale-95",
@@ -1636,18 +1787,66 @@ function ProgressContent() {
                 </div>
 
                 {isCustomTimer && (
-                  <div className="flex items-center justify-center gap-2 pt-1 animate-in fade-in duration-150">
-                    <span className="text-[10px] font-mono text-zinc-400">Duration:</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="360"
-                      value={customTimerMins}
-                      onChange={(e) => handleSetCustomTimer(e.target.value)}
-                      className="w-16 px-2 py-0.5 bg-black/60 border border-white/15 rounded-md text-center text-xs font-mono text-white focus:outline-none focus:border-brand-red"
-                      placeholder="Mins"
-                    />
-                    <span className="text-[10px] font-mono text-zinc-400">minutes</span>
+                  <div className="pt-2 pb-1 space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center gap-1.5 bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/10">
+                        <input
+                          type="number"
+                          min="0"
+                          max="12"
+                          value={customTimerHours}
+                          onChange={(e) => handleUpdateCustomTimer(e.target.value, customTimerMins)}
+                          className="w-10 px-1 py-0.5 bg-white/[0.05] border border-white/10 rounded text-center text-sm font-mono font-bold text-white focus:outline-none focus:border-brand-red"
+                          placeholder="0"
+                        />
+                        <span className="text-[11px] font-mono text-zinc-400 font-semibold">hr</span>
+                      </div>
+                      <span className="text-zinc-600 font-bold">:</span>
+                      <div className="flex items-center gap-1.5 bg-black/60 px-2.5 py-1.5 rounded-xl border border-white/10">
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={customTimerMins}
+                          onChange={(e) => handleUpdateCustomTimer(customTimerHours, e.target.value)}
+                          className="w-10 px-1 py-0.5 bg-white/[0.05] border border-white/10 rounded text-center text-sm font-mono font-bold text-white focus:outline-none focus:border-brand-red"
+                          placeholder="25"
+                        />
+                        <span className="text-[11px] font-mono text-zinc-400 font-semibold">min</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Steppers & Adjustment Chips */}
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustCustomTimer(15)}
+                        className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[9px] font-mono text-zinc-300 hover:text-white transition-colors active:scale-95"
+                      >
+                        +15m
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustCustomTimer(30)}
+                        className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[9px] font-mono text-zinc-300 hover:text-white transition-colors active:scale-95"
+                      >
+                        +30m
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustCustomTimer(60)}
+                        className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-[9px] font-mono text-zinc-300 hover:text-white transition-colors active:scale-95"
+                      >
+                        +1h
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCustomTimer("0", "25")}
+                        className="px-2 py-0.5 rounded-md bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-[9px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors active:scale-95"
+                      >
+                        Reset (25m)
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2149,7 +2348,7 @@ function ProgressContent() {
 
             {!recentSessions || recentSessions.length === 0 ? (
               <div className="py-4 text-center text-xs text-zinc-500 font-mono">
-                No study sessions logged yet today.
+                No study sessions logged yet.
               </div>
             ) : (
               <div className="divide-y divide-white/5">
@@ -2164,12 +2363,39 @@ function ProgressContent() {
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5">
+                      <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5 flex-wrap">
+                        {s.date && (() => {
+                          const todayStr = format(new Date(), "yyyy-MM-dd");
+                          const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+                          const isToday = s.date === todayStr;
+                          const isYesterday = s.date === yesterdayStr;
+                          const label = isToday
+                            ? "Today"
+                            : isYesterday
+                            ? "Yesterday"
+                            : formatDate(s.date);
+
+                          return (
+                            <span
+                              className={clsx(
+                                "inline-flex items-center gap-1 font-mono text-[9px] px-1.5 py-0.5 rounded border",
+                                isToday
+                                  ? "bg-brand-red/15 border-brand-red/30 text-red-200 font-bold shadow-glow-red-subtle"
+                                  : isYesterday
+                                  ? "bg-white/[0.06] border-white/10 text-zinc-300 font-medium"
+                                  : "bg-white/[0.03] border-white/5 text-zinc-400 font-medium"
+                              )}
+                            >
+                              <Calendar className="w-2.5 h-2.5 opacity-70" />
+                              <span>{label}</span>
+                            </span>
+                          );
+                        })()}
                         {s.startTime && s.endTime && (
                           <span>{s.startTime} → {s.endTime}</span>
                         )}
                         <span>•</span>
-                        <span>{formatDuration(s.durationMinutes)}</span>
+                        <span className="text-zinc-300 font-semibold">{formatDuration(s.durationMinutes)}</span>
                       </div>
                     </div>
 
@@ -2224,7 +2450,7 @@ function ProgressContent() {
               <input
                 type="text"
                 required
-                placeholder="Aim Title (e.g. FAANG System Design)"
+                placeholder="Aim Title (e.g. FAANG System Design / GATE CSE)"
                 value={newAimTitle}
                 onChange={(e) => setNewAimTitle(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
@@ -2235,9 +2461,116 @@ function ProgressContent() {
                 onChange={(e) => setNewAimTargetDate(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
               />
+
+              {/* Range Generator Toggle */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] font-mono text-zinc-400">Milestones / Modules:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAimRangeGen(!showAimRangeGen)}
+                  className="text-[10px] font-mono font-bold text-brand-red hover:underline flex items-center gap-1"
+                >
+                  <Zap className="w-3 h-3" />
+                  <span>{showAimRangeGen ? "Close Range Tool" : "⚡ Fill Lecture / Chapter Range"}</span>
+                </button>
+              </div>
+
+              {showAimRangeGen && (
+                <div className="p-3 rounded-xl bg-black/70 border border-brand-red/40 space-y-2.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
+                    <span className="flex items-center gap-1.5 text-red-300">
+                      <Zap className="w-3.5 h-3.5 text-brand-red" />
+                      Sequential Range Tool
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-normal">
+                      {Math.max(0, Math.max(Number(aimRangeStart) || 1, Number(aimRangeEnd) || 1) - Math.min(Number(aimRangeStart) || 1, Number(aimRangeEnd) || 1) + 1)} items
+                    </span>
+                  </div>
+
+                  {/* Mode Selector */}
+                  <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-white/[0.04] border border-white/10 text-[10px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setAimRangeMode("TOPICS")}
+                      className={clsx(
+                        "py-1 rounded font-bold transition-all",
+                        aimRangeMode === "TOPICS" ? "bg-brand-red text-white" : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      Single Module (Topics)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAimRangeMode("MILESTONES")}
+                      className={clsx(
+                        "py-1 rounded font-bold transition-all",
+                        aimRangeMode === "MILESTONES" ? "bg-brand-red text-white" : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      Separate Milestones
+                    </button>
+                  </div>
+
+                  {aimRangeMode === "TOPICS" && (
+                    <div>
+                      <span className="text-[9px] font-mono text-zinc-400 block mb-0.5">Parent Module Name</span>
+                      <input
+                        type="text"
+                        value={aimRangeMilestoneTitle}
+                        onChange={(e) => setAimRangeMilestoneTitle(e.target.value)}
+                        placeholder="e.g. Video Lectures / Core Syllabus"
+                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Prefix</span>
+                      <input
+                        type="text"
+                        value={aimRangePrefix}
+                        onChange={(e) => setAimRangePrefix(e.target.value)}
+                        placeholder="Lecture"
+                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">Start #</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={aimRangeStart}
+                        onChange={(e) => setAimRangeStart(Number(e.target.value))}
+                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-mono text-zinc-500 block mb-0.5">End #</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={aimRangeEnd}
+                        onChange={(e) => setAimRangeEnd(Number(e.target.value))}
+                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyAimRange}
+                    className="w-full py-1.5 rounded-lg bg-brand-red hover:bg-brand-redDark text-white text-[10px] font-mono font-bold flex items-center justify-center gap-1.5 transition-colors shadow-glow-red-subtle active:scale-95"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Apply Range to Aim</span>
+                  </button>
+                </div>
+              )}
+
               <textarea
                 rows={2}
-                placeholder="Milestones (comma separated)"
+                placeholder="Milestones (e.g. Lecture 1, Lecture 2, ... or Chapter 1, Chapter 2)"
                 value={newAimMilestonesInput}
                 onChange={(e) => setNewAimMilestonesInput(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-brand-red font-mono"
@@ -2566,18 +2899,97 @@ function ProgressContent() {
                                     <X className="w-3 h-3" />
                                   </button>
                                 </div>
+                              ) : batchRangeMilestoneId === m.id ? (
+                                <div className="p-2.5 rounded-xl bg-black/70 border border-brand-red/40 space-y-2 pt-2 my-1 animate-in fade-in duration-150">
+                                  <div className="flex items-center justify-between text-[10px] font-mono font-bold text-zinc-300">
+                                    <span className="flex items-center gap-1 text-red-300">
+                                      <Zap className="w-3 h-3 text-brand-red" />
+                                      Fill Range (Lectures / Chapters)
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setBatchRangeMilestoneId(null)}
+                                      className="text-zinc-500 hover:text-white p-0.5"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-1.5">
+                                    <div>
+                                      <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">Prefix</span>
+                                      <input
+                                        type="text"
+                                        value={rangePrefix}
+                                        onChange={(e) => setRangePrefix(e.target.value)}
+                                        placeholder="Lecture"
+                                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                      />
+                                    </div>
+                                    <div>
+                                      <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">Start #</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={rangeStart}
+                                        onChange={(e) => setRangeStart(Number(e.target.value))}
+                                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                      />
+                                    </div>
+                                    <div>
+                                      <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">End #</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={rangeEnd}
+                                        onChange={(e) => setRangeEnd(Number(e.target.value))}
+                                        className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-1">
+                                    <span className="text-[9px] font-mono text-zinc-500">
+                                      {Math.max(0, (Math.max(Number(rangeStart), Number(rangeEnd)) - Math.min(Number(rangeStart), Number(rangeEnd)) + 1))} items to add
+                                    </span>
+                                    <Button
+                                      variant="red"
+                                      size="sm"
+                                      onClick={() => handleCreateTopicsBatch(m.id)}
+                                      isLoading={isSavingBatchRange}
+                                      className="h-6 px-2.5 text-[9px]"
+                                    >
+                                      Add Range
+                                    </Button>
+                                  </div>
+                                </div>
                               ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAddingTopicMilestoneId(m.id);
-                                    setNewTopicTitle("");
-                                  }}
-                                  className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1 pt-0.5"
-                                >
-                                  <Plus className="w-2.5 h-2.5" />
-                                  <span>Add Topic</span>
-                                </button>
+                                <div className="flex items-center gap-3 pt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddingTopicMilestoneId(m.id);
+                                      setNewTopicTitle("");
+                                      setBatchRangeMilestoneId(null);
+                                    }}
+                                    className="text-[9px] font-mono text-zinc-500 hover:text-brand-red flex items-center gap-1"
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                    <span>Add Topic</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBatchRangeMilestoneId(m.id);
+                                      setAddingTopicMilestoneId(null);
+                                      setRangePrefix("Lecture");
+                                      setRangeStart(1);
+                                      setRangeEnd(20);
+                                    }}
+                                    className="text-[9px] font-mono text-brand-red hover:underline flex items-center gap-1 font-bold"
+                                  >
+                                    <Zap className="w-2.5 h-2.5" />
+                                    <span>Fill Range (Start-End)</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
                           );
@@ -2618,18 +3030,108 @@ function ProgressContent() {
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
+                        ) : batchRangeAimId === aim.id ? (
+                          <div className="p-3 rounded-xl bg-black/70 border border-brand-red/40 space-y-2.5 mt-2 animate-in fade-in duration-150">
+                            <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300 font-bold">
+                              <span className="flex items-center gap-1.5 text-red-300">
+                                <Zap className="w-3.5 h-3.5 text-brand-red" />
+                                Add Lecture / Chapter Range Module
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setBatchRangeAimId(null)}
+                                className="text-zinc-500 hover:text-white p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-mono text-zinc-400 block mb-0.5">Module / Milestone Name</span>
+                              <input
+                                type="text"
+                                value={aimModuleTitle}
+                                onChange={(e) => setAimModuleTitle(e.target.value)}
+                                placeholder="e.g. Lectures 1–25"
+                                className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div>
+                                <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">Prefix</span>
+                                <input
+                                  type="text"
+                                  value={aimModulePrefix}
+                                  onChange={(e) => setAimModulePrefix(e.target.value)}
+                                  placeholder="Lecture"
+                                  className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">Start #</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={aimModuleStart}
+                                  onChange={(e) => setAimModuleStart(Number(e.target.value))}
+                                  className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-[8px] font-mono text-zinc-400 block mb-0.5">End #</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={aimModuleEnd}
+                                  onChange={(e) => setAimModuleEnd(Number(e.target.value))}
+                                  className="w-full px-2 py-1 rounded-md bg-white/[0.04] border border-white/15 text-xs text-white font-mono focus:outline-none focus:border-brand-red"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[9px] font-mono text-zinc-500">
+                                {Math.max(0, Math.max(Number(aimModuleStart) || 1, Number(aimModuleEnd) || 1) - Math.min(Number(aimModuleStart) || 1, Number(aimModuleEnd) || 1) + 1)} lectures will be added
+                              </span>
+                              <Button
+                                variant="red"
+                                size="sm"
+                                onClick={() => handleCreateAimRange(aim.id)}
+                                isLoading={isSavingAimModuleRange}
+                                className="h-6 px-2.5 text-[9px]"
+                              >
+                                Create Module Range
+                              </Button>
+                            </div>
+                          </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddingMilestoneAimId(aim.id);
-                              setNewMilestoneTitle("");
-                            }}
-                            className="w-full py-2 rounded-xl border border-dashed border-white/10 hover:border-brand-red/40 text-[10px] font-mono text-zinc-400 hover:text-brand-red transition-all flex items-center justify-center gap-1.5 mt-1"
-                          >
-                            <Plus className="w-3 h-3" />
-                            <span>Add Milestone to {aim.title}</span>
-                          </button>
+                          <div className="grid grid-cols-2 gap-1.5 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddingMilestoneAimId(aim.id);
+                                setNewMilestoneTitle("");
+                                setBatchRangeAimId(null);
+                              }}
+                              className="py-1.5 px-2 rounded-xl border border-dashed border-white/10 hover:border-brand-red/40 text-[10px] font-mono text-zinc-400 hover:text-brand-red transition-all flex items-center justify-center gap-1 active:scale-95"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add Milestone</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBatchRangeAimId(aim.id);
+                                setAimModuleTitle("Lectures");
+                                setAimModulePrefix("Lecture");
+                                setAimModuleStart(1);
+                                setAimModuleEnd(25);
+                                setAddingMilestoneAimId(null);
+                              }}
+                              className="py-1.5 px-2 rounded-xl border border-dashed border-brand-red/25 hover:border-brand-red/60 text-[10px] font-mono text-red-300 hover:text-white bg-brand-red/[0.03] transition-all flex items-center justify-center gap-1 font-bold active:scale-95 shadow-glow-red-subtle"
+                            >
+                              <Zap className="w-3 h-3 text-brand-red" />
+                              <span>Fill Lecture Range</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -2800,6 +3302,287 @@ function ProgressContent() {
               </div>
             </div>
           </div>
+
+          {/* 3. FOCUS DEPTH & INTENSITY METRICS */}
+          {(() => {
+            const totalSess = recentSessions?.length || 0;
+            const deepSess = (recentSessions || []).filter((s: any) => (s.durationMinutes || 0) >= 45).length;
+            const deepRatio = totalSess > 0 ? Math.round((deepSess / totalSess) * 100) : 0;
+            const longest = (recentSessions || []).reduce((max: number, s: any) => Math.max(max, s.durationMinutes || 0), 0);
+            const totalMins = (recentSessions || []).reduce((acc: number, s: any) => acc + (s.durationMinutes || 0), 0);
+            const avgSess = totalSess > 0 ? Math.round(totalMins / totalSess) : 0;
+
+            // Aim Subject Allocation
+            const aimMap: Record<string, number> = {};
+            (recentSessions || []).forEach((s: any) => {
+              const p = s.project?.trim() || "Core Study";
+              aimMap[p] = (aimMap[p] || 0) + (s.durationMinutes || 0);
+            });
+            const aimList = Object.entries(aimMap)
+              .map(([name, mins]) => ({ name, mins }))
+              .sort((a, b) => b.mins - a.mins)
+              .slice(0, 5);
+
+            // Aims Mastery Summary
+            let totalTopicsMastered = 0;
+            let totalTopicsTracked = 0;
+            (aimsData || []).forEach((a: any) => {
+              totalTopicsMastered += a.stats?.masteredTopics || 0;
+              totalTopicsTracked += a.stats?.totalTopics || 0;
+            });
+
+            // 14-Day Consistency Calculation
+            const past14Days = Array.from({ length: 14 }).map((_, i) => {
+              const d = subDays(new Date(), 13 - i);
+              const dStr = format(d, "yyyy-MM-dd");
+              const dayLabel = format(d, "EEE");
+              const dayNum = format(d, "d");
+              const dayMins = (recentSessions || [])
+                .filter((s: any) => s.date === dStr)
+                .reduce((acc: number, s: any) => acc + (s.durationMinutes || 0), 0);
+              return { dStr, dayLabel, dayNum, dayMins, isToday: i === 13 };
+            });
+
+            const consistencyDays = past14Days.filter((d) => d.dayMins > 0).length;
+            const consistencyScore = Math.min(40, Math.round((consistencyDays / 14) * 40));
+            const deepScore = Math.min(30, Math.round((deepRatio / 100) * 30));
+            const durationScore = Math.min(30, Math.round((avgSess / 60) * 30));
+            const flowScore = Math.min(100, consistencyScore + deepScore + durationScore);
+
+            let flowBadge = "Disciplined Seeker";
+            let flowTier = "TIER II • PRACTITIONER";
+            if (flowScore >= 85) {
+              flowBadge = "Diamond Monk Flow 💎";
+              flowTier = "TIER IV • GRANDMASTER";
+            } else if (flowScore >= 70) {
+              flowBadge = "Apex Focus Flow ⚔️";
+              flowTier = "TIER III • WARRIOR";
+            } else if (flowScore >= 50) {
+              flowBadge = "Momentum Builder 🥈";
+              flowTier = "TIER II • PRACTITIONER";
+            }
+
+            // Circadian Focus Distribution
+            let morningMins = 0;
+            let afternoonMins = 0;
+            let nightMins = 0;
+
+            (cognitiveWindows?.windows || []).forEach((w: any) => {
+              const mins = w.totalStudyMins ?? Math.round((w.studyHours || 0) * 60);
+              if (w.id === "EARLY_MORNING" || w.id === "MORNING") morningMins += mins;
+              else if (w.id === "AFTERNOON") afternoonMins += mins;
+              else nightMins += mins;
+            });
+            const totalCircadianMins = Math.max(1, morningMins + afternoonMins + nightMins);
+            const morningPct = Math.round((morningMins / totalCircadianMins) * 100);
+            const afternoonPct = Math.round((afternoonMins / totalCircadianMins) * 100);
+            const nightPct = Math.max(0, 100 - morningPct - afternoonPct);
+
+            return (
+              <div className="space-y-4">
+                {/* 1. FLOW STATE INDEX COCKPIT */}
+                <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 shadow-xl space-y-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-brand-red/15 border border-brand-red/30 text-brand-red">
+                        <Award className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-mono uppercase font-bold text-white tracking-wider">
+                          Flow State Rating
+                        </h4>
+                        <span className="text-[10px] font-mono text-zinc-500">{flowTier}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-lg font-mono font-black text-white">{flowScore}</span>
+                      <span className="text-xs font-mono font-bold text-brand-red">/100</span>
+                      <span className="block text-[9px] font-mono text-red-300 font-bold">{flowBadge}</span>
+                    </div>
+                  </div>
+
+                  {/* Flow Progress Bar */}
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-redDark via-brand-red to-brand-redLight rounded-full shadow-glow-red transition-all duration-700"
+                      style={{ width: `${Math.max(5, flowScore)}%` }}
+                    />
+                  </div>
+
+                  {/* 14-Day Consistency Momentum Strip */}
+                  <div className="pt-2 border-t border-white/5 space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-zinc-400 font-medium">14-Day Study Consistency</span>
+                      <span className="text-brand-red font-bold">
+                        {consistencyDays}/14 Active Days ({Math.round((consistencyDays / 14) * 100)}%)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-7 sm:grid-cols-[repeat(14,minmax(0,1fr))] gap-1 pt-0.5">
+                      {past14Days.map((day) => {
+                        const hasStudy = day.dayMins > 0;
+                        const isDeep = day.dayMins >= 60;
+                        return (
+                          <div key={day.dStr} className="flex flex-col items-center gap-1 group">
+                            <span className="text-[8px] font-mono text-zinc-500 scale-90">{day.dayNum}</span>
+                            <div
+                              title={`${day.dStr}: ${formatDuration(day.dayMins)}`}
+                              className={clsx(
+                                "w-full h-5 rounded-md transition-all border",
+                                isDeep
+                                  ? "bg-brand-red border-brand-red shadow-glow-red-subtle"
+                                  : hasStudy
+                                  ? "bg-brand-red/40 border-brand-red/60"
+                                  : "bg-white/[0.03] border-white/5 hover:border-white/15",
+                                day.isToday && "ring-1 ring-white/60"
+                              )}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. CIRCADIAN ENERGY & DAY-PART BALANCE */}
+                <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-white/5">
+                    <span className="text-xs font-mono uppercase font-bold text-zinc-300 flex items-center gap-1.5">
+                      <Sun className="w-3.5 h-3.5 text-brand-red" />
+                      Day-Part Study Balance
+                    </span>
+                    <span className="text-[10px] font-mono text-zinc-500">Circadian Allocation</span>
+                  </div>
+
+                  {/* Multi-segmented Progress Bar */}
+                  <div className="w-full h-2.5 rounded-full overflow-hidden bg-white/5 flex gap-0.5">
+                    <div
+                      style={{ width: `${morningPct}%` }}
+                      className="h-full bg-amber-500 transition-all duration-500 rounded-l-full"
+                      title={`Morning: ${morningPct}% (${formatDuration(morningMins)})`}
+                    />
+                    <div
+                      style={{ width: `${afternoonPct}%` }}
+                      className="h-full bg-brand-red transition-all duration-500"
+                      title={`Afternoon: ${afternoonPct}% (${formatDuration(afternoonMins)})`}
+                    />
+                    <div
+                      style={{ width: `${nightPct}%` }}
+                      className="h-full bg-indigo-500 transition-all duration-500 rounded-r-full"
+                      title={`Evening/Night: ${nightPct}% (${formatDuration(nightMins)})`}
+                    />
+                  </div>
+
+                  {/* Legend Row */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-[10px] font-mono">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <div className="truncate">
+                        <span className="text-zinc-400 block text-[9px]">Morning</span>
+                        <span className="text-white font-bold">{morningPct}%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-brand-red shrink-0" />
+                      <div className="truncate">
+                        <span className="text-zinc-400 block text-[9px]">Afternoon</span>
+                        <span className="text-white font-bold">{afternoonPct}%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                      <div className="truncate">
+                        <span className="text-zinc-400 block text-[9px]">Night</span>
+                        <span className="text-white font-bold">{nightPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. 4 MINI KPI CARDS */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-zinc-950 border border-white/10 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono uppercase text-zinc-500">Deep Focus Ratio</span>
+                    <div className="text-xl font-bold font-mono text-white mt-1">
+                      {deepRatio}<span className="text-xs text-brand-red font-bold">%</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-500 mt-1">
+                      {deepSess}/{totalSess} sessions &ge; 45m
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-zinc-950 border border-white/10 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono uppercase text-zinc-500">Peak Session</span>
+                    <div className="text-xl font-bold font-mono text-white mt-1">
+                      {formatDuration(longest)}
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-500 mt-1">
+                      Longest flow stretch
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-zinc-950 border border-white/10 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono uppercase text-zinc-500">Avg Duration</span>
+                    <div className="text-xl font-bold font-mono text-white mt-1">
+                      {formatDuration(avgSess)}
+                    </div>
+                    <span className="text-[9px] font-mono text-zinc-500 mt-1">
+                      Per logged session
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-zinc-950 border border-white/10 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono uppercase text-zinc-500">Mastery Count</span>
+                    <div className="text-xl font-bold font-mono text-white mt-1">
+                      {totalTopicsMastered} <span className="text-xs text-zinc-500">/ {totalTopicsTracked}</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-red-300 font-bold mt-1">
+                      {totalTopicsTracked > 0 ? Math.round((totalTopicsMastered / totalTopicsTracked) * 100) : 0}% Checkpoints
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. AIM SUBJECT ALLOCATION PROGRESS BARS */}
+                {aimList.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-zinc-950 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between pb-1 border-b border-white/5">
+                      <span className="text-xs font-mono uppercase font-bold text-zinc-300 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-brand-red" />
+                        Aim Focus Distribution
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-500">
+                        {formatDuration(totalMins)} logged
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {aimList.map((item) => {
+                        const pct = totalMins > 0 ? Math.round((item.mins / totalMins) * 100) : 0;
+                        return (
+                          <div key={item.name} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs font-mono">
+                              <span className="text-zinc-300 font-medium truncate max-w-[200px]">{item.name}</span>
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="text-white font-bold">{formatDuration(item.mins)}</span>
+                                <span className="text-zinc-500">({pct}%)</span>
+                              </div>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-brand-red rounded-full shadow-glow-red-subtle transition-all duration-500"
+                                style={{ width: `${Math.max(3, pct)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -3154,31 +3937,6 @@ function ProgressContent() {
         confirmText="Delete Milestone"
         confirmVariant="red"
         iconType="danger"
-      />
-
-      {/* FULLSCREEN OLED ZEN FOCUS MODE OVERLAY */}
-      <ZenModeOverlay
-        isOpen={isZenModeOpen}
-        onClose={() => setIsZenModeOpen(false)}
-        focusMode={focusMode}
-        status={swStatus}
-        displayTime={
-          focusMode === "TIMER"
-            ? formatStopwatchTime(timerRemainingSeconds)
-            : formatStopwatchTime(swActiveSeconds)
-        }
-        totalSeconds={timerTotalSeconds}
-        remainingSeconds={timerRemainingSeconds}
-        activeSeconds={swActiveSeconds}
-        onStart={focusMode === "TIMER" ? handleStartTimer : handleStartStopwatch}
-        onPause={focusMode === "TIMER" ? handlePauseTimer : handlePauseStopwatch}
-        onResume={focusMode === "TIMER" ? handleResumeTimer : handleResumeStopwatch}
-        onReset={focusMode === "TIMER" ? handleResetTimer : handleResetStopwatch}
-        onFinishSave={
-          focusMode === "TIMER" ? handleOpenTimerSaveModal : handleOpenStopwatchSaveModal
-        }
-        onAddMinutes={handleAddTimerMinutes}
-        projectOrTopic={manualProject || (selectedTopicId ? "Study Session" : "")}
       />
     </div>
   );

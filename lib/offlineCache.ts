@@ -7,7 +7,7 @@ interface CacheEnvelope<T> {
 }
 
 const CACHE_PREFIX = "kunal_os_swr_";
-const DEFAULT_VERSION = "1.0";
+const DEFAULT_VERSION = "2.0";
 
 export const offlineCache = {
   getScopedKey(key: string, userId?: string): string {
@@ -26,6 +26,10 @@ export const offlineCache = {
       const item = localStorage.getItem(fullKey);
       if (!item) return null;
       const envelope: CacheEnvelope<T> = JSON.parse(item);
+      if (envelope.version !== DEFAULT_VERSION) {
+        localStorage.removeItem(fullKey);
+        return null;
+      }
       return envelope.data;
     } catch {
       return null;

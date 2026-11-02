@@ -115,11 +115,22 @@ export default function DashboardPage() {
     setWaterTarget(target !== null ? parseInt(target, 10) || 8 : 8);
   };
 
-  const fetchDashboardData = async () => {
+  const isFetchingRef = React.useRef(false);
+  const lastFetchTimeRef = React.useRef(0);
+
+  const fetchDashboardData = async (force: boolean = false) => {
+    const now = Date.now();
+    if (!force && isFetchingRef.current) return;
+    if (!force && now - lastFetchTimeRef.current < 2000) return;
+    isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
+
+    // Run Health Connect sync in background without blocking dashboard render
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+      fetchHealthConnectSteps(true).catch(() => {});
+    }
+
     try {
-      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
-        await fetchHealthConnectSteps(true).catch(() => {});
-      }
       await offlineCache.swr(
         "dashboard",
         async () => {
@@ -141,6 +152,7 @@ export default function DashboardPage() {
       setIsOffline(true);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -159,32 +171,25 @@ export default function DashboardPage() {
   useEffect(() => {
     // 1. Instant Cache Hydration: Render Pet, XP, and stats immediately (0ms)
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("everything_dashboard_cache");
+      const cached = offlineCache.get<any>("dashboard");
       if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (parsed?.data) {
-            setData(parsed.data);
-            setCacheTime(parsed.timestamp);
-            setLoading(false);
-          }
-        } catch (e) {
-          console.warn("Failed to parse cached dashboard data:", e);
-        }
+        setData(cached);
+        setLoading(false);
       }
     }
 
-    fetchDashboardData();
+    fetchDashboardData(true);
     loadWaterStats();
     loadStudyGoal();
-    const handleOnline = () => fetchDashboardData();
+    const handleRefresh = () => fetchDashboardData(true);
+    const handleOnline = () => fetchDashboardData(true);
     const handleOffline = () => setIsOffline(true);
     const handleVisibilitySync = () => {
       if (document.visibilityState === "visible") {
         fetchDashboardData();
       }
     };
-    window.addEventListener("kunal-os-refresh", fetchDashboardData);
+    window.addEventListener("kunal-os-refresh", handleRefresh);
     window.addEventListener("kunal-os-refresh", loadWaterStats);
     window.addEventListener("kunal-os-refresh", loadStudyGoal);
     window.addEventListener("storage", loadWaterStats);
@@ -194,7 +199,7 @@ export default function DashboardPage() {
     window.addEventListener("visibilitychange", handleVisibilitySync);
     window.addEventListener("focus", handleVisibilitySync);
     return () => {
-      window.removeEventListener("kunal-os-refresh", fetchDashboardData);
+      window.removeEventListener("kunal-os-refresh", handleRefresh);
       window.removeEventListener("kunal-os-refresh", loadWaterStats);
       window.removeEventListener("kunal-os-refresh", loadStudyGoal);
       window.removeEventListener("storage", loadWaterStats);

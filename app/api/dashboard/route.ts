@@ -28,7 +28,6 @@ export async function GET() {
       importantDates,
       partner,
       todayStepLog,
-      userSettings,
     ] = await Promise.all([
       getDisciplineSummary(user.id, false),
       prisma.task.findMany({
@@ -36,22 +35,49 @@ export async function GET() {
           userId: user.id,
           isArchived: false,
         },
+        select: {
+          id: true,
+          title: true,
+          priority: true,
+          status: true,
+          dueDate: true,
+          dueTime: true,
+          category: true,
+          createdAt: true,
+        },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
       }),
       prisma.creditCard.findMany({
         where: { userId: user.id, isArchived: false },
+        select: {
+          id: true,
+          name: true,
+          bank: true,
+          cardNumber: true,
+          creditLimit: true,
+          dueDate: true,
+        },
       }),
       prisma.financialAccount.findMany({
         where: { userId: user.id, isArchived: false },
+        select: {
+          type: true,
+          balance: true,
+        },
       }),
       prisma.workSession.findMany({
         where: {
           userId: user.id,
           date: { gte: weekStart, lte: weekEnd },
         },
+        select: {
+          type: true,
+          durationMinutes: true,
+          date: true,
+        },
       }),
       prisma.importantDate.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, date: { gte: todayStr } },
         take: 3,
         orderBy: { date: "asc" },
       }),
@@ -65,10 +91,6 @@ export async function GET() {
             date: todayStr,
           },
         },
-      }),
-      prisma.userSettings.findUnique({
-        where: { userId: user.id },
-        select: { defaultStepGoal: true },
       }),
     ]);
 
@@ -152,7 +174,7 @@ export async function GET() {
       partner,
       steps: {
         todayCount: todayStepLog?.stepCount || 0,
-        targetSteps: userSettings?.defaultStepGoal || 10000,
+        targetSteps: user.settings?.defaultStepGoal || 10000,
         syncSource: todayStepLog?.syncSource || "MANUAL",
         distanceKm: todayStepLog?.distanceKm || 0,
         calories: todayStepLog?.calories || 0,

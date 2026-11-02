@@ -188,6 +188,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ topic }, { status: 201 });
     }
 
+    if (action === "CREATE_TOPICS_BATCH") {
+      const { milestoneId, titles } = body;
+      if (!milestoneId || !Array.isArray(titles) || titles.length === 0) {
+        return NextResponse.json({ error: "Milestone ID and titles array required" }, { status: 400 });
+      }
+
+      const milestone = await prisma.milestone.findFirst({
+        where: { id: milestoneId, aim: { userId: user.id } },
+      });
+      if (!milestone) {
+        return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
+      }
+
+      const startCount = await prisma.studyTopic.count({ where: { milestoneId } });
+      const created = await prisma.studyTopic.createMany({
+        data: titles.map((t: string, idx: number) => ({
+          milestoneId,
+          title: String(t).trim(),
+          mastery: "NOT_STARTED",
+          order: startCount + idx,
+        })),
+      });
+
+      return NextResponse.json({ success: true, count: created.count }, { status: 201 });
+    }
+
+    if (action === "CREATE_MILESTONE_WITH_RANGE") {
+      const { aimId, milestoneTitle, titles } = body;
+      if (!aimId || !Array.isArray(titles) || titles.length === 0) {
+        return NextResponse.json({ error: "Aim ID and titles array required" }, { status: 400 });
+      }
+
+      const aim = await prisma.aim.findFirst({
+        where: { id: aimId, userId: user.id },
+      });
+      if (!aim) {
+        return NextResponse.json({ error: "Aim not found" }, { status: 404 });
+      }
+
+      const mCount = await prisma.milestone.count({ where: { aimId } });
+      const milestone = await prisma.milestone.create({
+        data: {
+          aimId,
+          title: (milestoneTitle || "Lectures").trim(),
+          order: mCount,
+          topics: {
+            create: titles.map((t: string, idx: number) => ({
+              title: String(t).trim(),
+              mastery: "NOT_STARTED",
+              order: idx,
+            })),
+          },
+        },
+        include: {
+          topics: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, milestone }, { status: 201 });
+    }
+
     // Default action: Create whole Aim (with optional nested milestones & topics)
     const { title, description, targetDate, milestones } = body;
     if (!title?.trim()) {

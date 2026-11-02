@@ -21,6 +21,8 @@ import {
   BookOpen,
   Target,
   Activity,
+  Layers,
+  BarChart2,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { BrandLogo } from "../ui/BrandLogo";
@@ -67,7 +69,8 @@ export function Navbar({
     { name: "Health", href: "/health", icon: Activity },
     { name: "Karma", href: "/rewards", icon: Trophy },
     { name: "Focus", href: "/progress?tab=LOG", icon: Target },
-    { name: "Study", href: "/progress?tab=AIMS", icon: GraduationCap },
+    { name: "Aim", href: "/progress?tab=AIMS", icon: Layers },
+    { name: "Analytics", href: "/progress?tab=ANALYTICS", icon: BarChart2 },
     { name: "Partner", href: "/partner", icon: Heart },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },

@@ -121,10 +121,7 @@ export function MiniFocusIsland() {
       type="button"
       onClick={() => {
         haptics.impactMedium();
-        router.push("/progress?tab=LOG&zen=1");
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("kunal-os-open-zen"));
-        }
+        router.push("/progress?tab=LOG");
       }}
       className={clsx(
         "flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-mono font-bold transition-all active:scale-95 select-none",
