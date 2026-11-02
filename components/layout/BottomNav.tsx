@@ -377,7 +377,7 @@ export function BottomNav({
                   haptics.impactLight();
                   setIsDrawerOpen(false);
                 }}
-                className="w-full flex items-center justify-center pt-1 pb-2 cursor-pointer group touch-none select-none focus:outline-none"
+                className="w-full flex items-center justify-center pt-1 pb-2 cursor-pointer group touch-none select-none focus:outline-none focus-visible:outline-none outline-none"
               >
                 <div className="w-10 h-1 bg-white/20 group-hover:bg-white/40 rounded-full transition-colors" />
               </div>
@@ -387,7 +387,7 @@ export function BottomNav({
                 <button
                   type="button"
                   onClick={handleOpenProfile}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-colors text-xs font-mono text-zinc-200 hover:text-white focus:outline-none"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 transition-colors text-xs font-mono text-zinc-200 hover:text-white focus:outline-none focus-visible:outline-none outline-none select-none"
                   title="Switch Profile"
                 >
                   <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse" />
@@ -405,7 +405,7 @@ export function BottomNav({
                       haptics.warning();
                       handleLockPortal();
                     }}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/30 border border-red-500/20 hover:bg-red-950/60 text-red-400 hover:text-red-300 transition-colors text-xs font-medium focus:outline-none"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/30 border border-red-500/20 hover:bg-red-950/60 text-red-400 hover:text-red-300 transition-colors text-xs font-medium focus:outline-none focus-visible:outline-none outline-none select-none"
                   >
                     <Lock className="w-3.5 h-3.5" />
                     <span>Lock</span>
@@ -418,7 +418,7 @@ export function BottomNav({
                       haptics.impactLight();
                       setIsDrawerOpen(false);
                     }}
-                    className="text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors focus:outline-none"
+                    className="text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors focus:outline-none focus-visible:outline-none outline-none select-none"
                     aria-label="Close menu"
                   >
                     <X className="w-4 h-4" />
@@ -447,7 +447,7 @@ export function BottomNav({
                         setIsDrawerOpen(false);
                       }}
                       className={clsx(
-                        "flex items-center gap-3 p-3 rounded-2xl border transition-all active:scale-95 group focus:outline-none",
+                        "flex items-center gap-3 p-3 rounded-2xl border transition-all active:scale-95 group focus:outline-none focus-visible:outline-none outline-none select-none",
                         isActive
                           ? "bg-brand-red/15 border-brand-red/40 text-white shadow-glow-red-subtle"
                           : "bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-zinc-300 hover:text-white"
@@ -490,7 +490,7 @@ export function BottomNav({
               haptics.impactLight();
               setIsDrawerOpen(true);
             }}
-            className="w-full pt-2 pb-0.5 flex flex-col items-center justify-center cursor-pointer group focus:outline-none touch-none select-none"
+            className="w-full pt-2 pb-0.5 flex flex-col items-center justify-center cursor-pointer group focus:outline-none focus-visible:outline-none outline-none touch-none select-none"
           >
             <div
               className={clsx(
@@ -525,14 +525,14 @@ export function BottomNav({
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none focus-visible:outline-none outline-none select-none",
               isHomeActive ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <div className={clsx("p-1.5 rounded-xl transition-all", isHomeActive ? "bg-brand-red/15" : "group-hover:bg-white/5")}>
+            <div className={clsx("p-1.5 rounded-xl transition-all", isHomeActive ? "bg-brand-red/15" : "md:group-hover:bg-white/5")}>
               <LayoutDashboard className="w-5 h-5" />
             </div>
-            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isHomeActive ? "text-brand-red font-semibold" : "text-zinc-400 group-hover:text-zinc-200")}>
+            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isHomeActive ? "text-brand-red font-semibold" : "text-zinc-400 md:group-hover:text-zinc-200")}>
               Home
             </span>
             <span
@@ -558,14 +558,14 @@ export function BottomNav({
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none focus-visible:outline-none outline-none select-none",
               isTasksActive ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <div className={clsx("p-1.5 rounded-xl transition-all", isTasksActive ? "bg-brand-red/15" : "group-hover:bg-white/5")}>
+            <div className={clsx("p-1.5 rounded-xl transition-all", isTasksActive ? "bg-brand-red/15" : "md:group-hover:bg-white/5")}>
               <CheckSquare className="w-5 h-5" />
             </div>
-            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isTasksActive ? "text-brand-red font-semibold" : "text-zinc-400 group-hover:text-zinc-200")}>
+            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isTasksActive ? "text-brand-red font-semibold" : "text-zinc-400 md:group-hover:text-zinc-200")}>
               Tasks
             </span>
             <span
@@ -591,14 +591,14 @@ export function BottomNav({
               if (isDrawerOpen) setIsDrawerOpen(false);
             }}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group focus:outline-none focus-visible:outline-none outline-none select-none",
               isFocusActive ? "text-brand-red" : "text-zinc-400 hover:text-white"
             )}
           >
-            <div className={clsx("p-1.5 rounded-xl transition-all", isFocusActive ? "bg-brand-red/15" : "group-hover:bg-white/5")}>
+            <div className={clsx("p-1.5 rounded-xl transition-all", isFocusActive ? "bg-brand-red/15" : "md:group-hover:bg-white/5")}>
               <Target className="w-5 h-5" />
             </div>
-            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isFocusActive ? "text-brand-red font-semibold" : "text-zinc-400 group-hover:text-zinc-200")}>
+            <span className={clsx("text-[10px] font-medium tracking-tight mt-0.5 transition-colors", isFocusActive ? "text-brand-red font-semibold" : "text-zinc-400 md:group-hover:text-zinc-200")}>
               Focus
             </span>
             <span
@@ -620,7 +620,7 @@ export function BottomNav({
             onContextMenu={handleLoveContextMenu}
             onClick={(e) => e.preventDefault()}
             className={clsx(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none focus:outline-none",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 transition-all active:scale-95 group touch-none select-none focus:outline-none focus-visible:outline-none outline-none",
               isPartnerActive ? "text-rose-400" : "text-zinc-400 hover:text-white"
             )}
           >
@@ -629,7 +629,7 @@ export function BottomNav({
                 "p-1.5 rounded-xl transition-all",
                 isPartnerActive
                   ? "bg-rose-500/15 text-rose-400"
-                  : "group-hover:bg-rose-500/10 group-hover:text-rose-400"
+                  : "md:group-hover:bg-rose-500/10 md:group-hover:text-rose-400"
               )}
             >
               <Heart className={clsx("w-5 h-5 transition-transform group-active:scale-110", isPartnerActive && "fill-rose-500/20")} />
@@ -637,7 +637,7 @@ export function BottomNav({
             <span
               className={clsx(
                 "text-[10px] font-medium tracking-tight mt-0.5 transition-colors",
-                isPartnerActive ? "text-rose-400 font-semibold" : "text-zinc-400 group-hover:text-rose-300"
+                isPartnerActive ? "text-rose-400 font-semibold" : "text-zinc-400 md:group-hover:text-rose-300"
               )}
             >
               Partner

@@ -124,7 +124,7 @@ export function MiniFocusIsland() {
         router.push("/progress?tab=LOG");
       }}
       className={clsx(
-        "flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-mono font-bold transition-all active:scale-95 select-none",
+        "flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-mono font-bold transition-all active:scale-95 select-none outline-none focus:outline-none focus-visible:outline-none",
         isCompleted
           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse"
           : isRunning

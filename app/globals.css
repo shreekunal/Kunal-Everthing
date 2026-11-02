@@ -18,7 +18,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Mobile Touch Responsiveness & Elimination of 300ms Tap Delay */
+/* Eliminate mobile tap highlight box & 300ms tap delay across ALL elements */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none;
+}
+
 html,
 body,
 button,
@@ -27,7 +34,27 @@ input,
 select,
 textarea {
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+}
+
+/* Suppress default browser focus outline/box on mouse/touch clicks */
+:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Navigation items, buttons and links clean interaction reset */
+nav a,
+nav button,
+nav [role="button"],
+header a,
+header button,
+header [role="button"],
+footer a,
+footer button {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Prevent accidental text selection on UI controls & navigation */

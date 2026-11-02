@@ -112,7 +112,7 @@ export function Navbar({
     <header className="sticky top-3 z-40 w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="bg-black/85 backdrop-blur-2xl border border-white/10 rounded-2xl px-4 py-2.5 shadow-glass-panel flex items-center justify-between gap-3">
         {/* Left: Minimalist Branding */}
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
+        <Link href="/" className="flex items-center gap-2 flex-shrink-0 group outline-none focus:outline-none focus-visible:outline-none select-none">
           <BrandLogo className="w-5 h-5" />
           <span className="font-bold text-xs tracking-[0.25em] text-white font-mono uppercase group-hover:text-brand-red transition-colors">
             EVERYTHING
@@ -181,7 +181,7 @@ export function Navbar({
                     }
                   }}
                   className={clsx(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap select-none touch-none",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap select-none touch-none outline-none focus:outline-none focus-visible:outline-none",
                     isActive
                       ? "bg-rose-500/20 text-rose-300 border border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)] font-semibold"
                       : "text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10"
@@ -199,7 +199,7 @@ export function Navbar({
                 key={item.name}
                 href={item.href}
                 className={clsx(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap outline-none focus:outline-none focus-visible:outline-none select-none",
                   isActive
                     ? "bg-brand-red text-white shadow-glow-red-subtle font-semibold"
                     : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
@@ -222,7 +222,7 @@ export function Navbar({
             <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="relative p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/10 transition-colors"
+                  className="relative p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/10 transition-colors outline-none focus:outline-none focus-visible:outline-none select-none"
                   aria-label="Notifications"
                 >
                   <Bell className="w-4 h-4" />
@@ -295,7 +295,7 @@ export function Navbar({
           ) : (
             <button
               type="button"
-              className="relative p-2 rounded-xl bg-white/[0.04] text-zinc-300 border border-white/10"
+              className="relative p-2 rounded-xl bg-white/[0.04] text-zinc-300 border border-white/10 outline-none focus:outline-none focus-visible:outline-none select-none"
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -305,7 +305,7 @@ export function Navbar({
           {/* Lock OS Portal CTA */}
           <button
             onClick={handleLockPortal}
-            className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-colors"
+            className="p-2 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-zinc-300 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-colors outline-none focus:outline-none focus-visible:outline-none select-none"
             title="Lock Everything Portal"
             aria-label="Lock Portal"
           >

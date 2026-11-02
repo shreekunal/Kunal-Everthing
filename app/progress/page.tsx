@@ -1699,7 +1699,7 @@ function ProgressContent() {
             setActiveTab("LOG");
           }}
           className={clsx(
-            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 outline-none focus:outline-none focus-visible:outline-none select-none",
             activeTab === "LOG"
               ? "bg-brand-red text-white shadow-glow-red"
               : "text-zinc-400 hover:text-white"
@@ -1716,7 +1716,7 @@ function ProgressContent() {
             setActiveTab("AIMS");
           }}
           className={clsx(
-            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 outline-none focus:outline-none focus-visible:outline-none select-none",
             activeTab === "AIMS"
               ? "bg-brand-red text-white shadow-glow-red"
               : "text-zinc-400 hover:text-white"
@@ -1733,7 +1733,7 @@ function ProgressContent() {
             setActiveTab("ANALYTICS");
           }}
           className={clsx(
-            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 outline-none focus:outline-none focus-visible:outline-none select-none",
             activeTab === "ANALYTICS"
               ? "bg-brand-red text-white shadow-glow-red"
               : "text-zinc-400 hover:text-white"
