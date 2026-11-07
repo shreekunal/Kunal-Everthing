@@ -64,6 +64,7 @@ import {
   getLiveNotificationDiagnostics,
   LiveNotificationDiagnostic,
 } from "@/lib/notifications";
+import { saveNativeWidgetToken, clearNativeWidgetToken } from "@/lib/widgetBridge";
 
 export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
@@ -133,8 +134,75 @@ export default function SettingsPage() {
   const [restoreMessage, setRestoreMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Widget Token Security States
+  const [widgetTokenStatus, setWidgetTokenStatus] = useState<{
+    hasActiveToken: boolean;
+    token: { id: string; label: string; createdAt: string; lastUsedAt: string | null } | null;
+  } | null>(null);
+  const [widgetLoading, setWidgetLoading] = useState(false);
+  const [widgetMessage, setWidgetMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [isConfirmRevokeWidgetOpen, setIsConfirmRevokeWidgetOpen] = useState(false);
+
+  const loadWidgetTokenStatus = async () => {
+    try {
+      const res = await fetch("/api/widget/token");
+      if (res.ok) {
+        const json = await res.json();
+        setWidgetTokenStatus(json);
+      }
+    } catch {
+      // Safe fallback
+    }
+  };
+
+  const handleGenerateWidgetToken = async () => {
+    setWidgetLoading(true);
+    setWidgetMessage(null);
+    haptics.impactMedium();
+    try {
+      const res = await fetch("/api/widget/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "Android Home Screen Widget" }),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to generate widget key");
+      }
+      const data = await res.json();
+      if (data.token) {
+        await saveNativeWidgetToken(data.token);
+      }
+      setWidgetMessage({ text: "Widget key generated and secured in Android Keystore." });
+      haptics.success();
+      loadWidgetTokenStatus();
+    } catch (err: any) {
+      setWidgetMessage({ text: err.message || "Failed to enable widgets", error: true });
+      haptics.warning();
+    } finally {
+      setWidgetLoading(false);
+    }
+  };
+
+  const handleRevokeWidgetToken = async () => {
+    setWidgetLoading(true);
+    setWidgetMessage(null);
+    haptics.warning();
+    try {
+      await fetch("/api/widget/token", { method: "DELETE" });
+      await clearNativeWidgetToken();
+      setWidgetMessage({ text: "Widget key revoked. Widgets reverted to prompt mode." });
+      haptics.success();
+      setIsConfirmRevokeWidgetOpen(false);
+      loadWidgetTokenStatus();
+    } catch (err: any) {
+      setWidgetMessage({ text: err.message || "Failed to revoke key", error: true });
+    } finally {
+      setWidgetLoading(false);
+    }
+  };
+
   // Active Category Filter Tab
-  type SettingsTab = "all" | "security" | "alarms" | "vault" | "danger";
+  type SettingsTab = "all" | "security" | "alarms" | "widgets" | "vault" | "danger";
   const [activeTab, setActiveTab] = useState<SettingsTab>("all");
 
   // Fetch initial security status
@@ -166,6 +234,7 @@ export default function SettingsPage() {
         setWaterRemindersEnabled(isWaterActive);
         const exactOk = await checkExactAlarmPermission();
         setHasExactAlarms(exactOk);
+        await loadWidgetTokenStatus();
       } catch {
         // Silently handle
       }
@@ -667,6 +736,7 @@ export default function SettingsPage() {
               <SelectItem value="all">📑 All Settings &amp; Modules</SelectItem>
               <SelectItem value="security">🛡️ Master PIN &amp; Biometrics</SelectItem>
               <SelectItem value="alarms">🔔 Hardware Alarms &amp; Notifications</SelectItem>
+              <SelectItem value="widgets">📱 Home Screen Widgets</SelectItem>
               <SelectItem value="vault">💾 Data Vault &amp; Backups</SelectItem>
               <SelectItem value="danger">⚠️ Danger Zone (Wipe &amp; Reset)</SelectItem>
             </SelectContent>
@@ -1027,6 +1097,113 @@ export default function SettingsPage() {
           </div>
         </Card>
       )}
+
+      {/* 3. Android Home Screen Widgets */}
+      {(activeTab === "all" || activeTab === "widgets") && (
+        <Card glow="red" className="transition-all">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-brand-red">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <CardTitle>Android Home Screen Widgets</CardTitle>
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  Hardware WorkManager background refresh &amp; 1-tap interactive actions
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+
+          <div className="p-6 pt-0 space-y-5">
+            {/* Security Explanation */}
+            <div className="p-4 rounded-xl bg-zinc-950/70 border border-white/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-white uppercase tracking-wider">
+                  Widget Token Status
+                </span>
+                <Badge
+                  variant={widgetTokenStatus?.hasActiveToken ? "emerald" : "zinc"}
+                  className="text-[10px] font-mono"
+                >
+                  {widgetTokenStatus?.hasActiveToken ? "AUTONOMOUS & ACTIVE" : "NOT CONFIGURED"}
+                </Badge>
+              </div>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Widgets run offline via Android Keystore-backed <code className="text-brand-red">EncryptedSharedPreferences</code>. The widget key is strictly scoped to fetch the safe snapshot and execute 1-tap quick actions (+250ml water, task completion). It has <span className="text-white font-semibold">zero access</span> to financial data, vault cards, or diary entries.
+              </p>
+              {widgetTokenStatus?.token && (
+                <div className="pt-2 border-t border-white/5 text-[11px] font-mono text-zinc-400 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Created: {new Date(widgetTokenStatus.token.createdAt).toLocaleDateString()}</span>
+                  <span>
+                    Last Used:{" "}
+                    {widgetTokenStatus.token.lastUsedAt
+                      ? new Date(widgetTokenStatus.token.lastUsedAt).toLocaleTimeString()
+                      : "Never used"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {widgetMessage && (
+              <div
+                className={`p-3 rounded-xl border text-xs font-mono flex items-center gap-2 ${
+                  widgetMessage.error
+                    ? "bg-red-500/10 border-red-500/30 text-red-300"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                }`}
+              >
+                {widgetMessage.error ? (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                )}
+                <span>{widgetMessage.text}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                variant={widgetTokenStatus?.hasActiveToken ? "secondary" : "primary"}
+                onClick={handleGenerateWidgetToken}
+                isLoading={widgetLoading}
+                className="text-xs"
+              >
+                <Key className="w-3.5 h-3.5 mr-1.5" />
+                <span>
+                  {widgetTokenStatus?.hasActiveToken
+                    ? "Regenerate Widget Key"
+                    : "Enable Widgets & Generate Key"}
+                </span>
+              </Button>
+
+              {widgetTokenStatus?.hasActiveToken && (
+                <Button
+                  variant="danger"
+                  onClick={() => setIsConfirmRevokeWidgetOpen(true)}
+                  disabled={widgetLoading}
+                  className="text-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Revoke Widget Key</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Confirmation Dialog for Revoking Widget Token */}
+      <ConfirmDialog
+        isOpen={isConfirmRevokeWidgetOpen}
+        onClose={() => setIsConfirmRevokeWidgetOpen(false)}
+        onConfirm={handleRevokeWidgetToken}
+        title="Revoke Widget Key?"
+        message="This will instantly invalidate the widget background key. Home screen widgets will stop autonomous sync and prompt you to open the app."
+        confirmText="Revoke Key"
+        confirmVariant="danger"
+      />
 
       {/* 4. Data Vault, Backup & Fast Setup */}
       {(activeTab === "all" || activeTab === "vault") && (
@@ -1393,7 +1570,7 @@ export default function SettingsPage() {
           </div>
 
           <p className="text-zinc-300 text-[11px] leading-relaxed">
-            Directly interrogating Android's native <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">AlarmManager</code> via <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">LocalNotifications.getPending()</code>. These alarms wake the CPU and trigger alerts even when Everything OS is completely closed.
+            Directly interrogating Android&apos;s native <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">AlarmManager</code> via <code className="text-cyan-300 bg-black/40 px-1 py-0.5 rounded">LocalNotifications.getPending()</code>. These alarms wake the CPU and trigger alerts even when Everything OS is completely closed.
           </p>
 
           {/* Quick Metrics */}

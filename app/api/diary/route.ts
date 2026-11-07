@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, ensureDualProfiles } from "@/lib/auth";
 import { format, startOfDay } from "date-fns";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,37 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const dateQuery = searchParams.get("date");
     const limitQuery = searchParams.get("limit");
+    const isPartnerQuery = searchParams.get("partner") === "true";
+
+    // Read-only endpoint for partner's shared entries ONLY
+    if (isPartnerQuery) {
+      const { kunal, mradul } = await ensureDualProfiles();
+      const isCurrentKunal = user.email === kunal.email || user.id === kunal.id;
+      const partnerUser = isCurrentKunal ? mradul : kunal;
+
+      // Security check: cannot read own entries through partner query
+      if (partnerUser.id === user.id) {
+        return NextResponse.json({
+          entries: [],
+          partnerName: isCurrentKunal ? "Mradul" : "Kunal",
+        });
+      }
+
+      // Security check: strictly return partner's entries where isShared is true
+      const entries = await prisma.dailyDiary.findMany({
+        where: {
+          userId: partnerUser.id,
+          isShared: true,
+        },
+        orderBy: { date: "desc" },
+        take: 100,
+      });
+
+      return NextResponse.json({
+        entries,
+        partnerName: partnerUser.name || (isCurrentKunal ? "Mradul" : "Kunal"),
+      });
+    }
 
     if (dateQuery) {
       const entry = await prisma.dailyDiary.findFirst({
@@ -103,11 +134,26 @@ export async function POST(request: Request) {
       gratitude,
       partnerNote,
       telemetry,
+      isShared,
     } = body;
 
     const rawContent = (content || "").trim();
     const words = rawContent ? rawContent.split(/\s+/).filter(Boolean) : [];
     const cleanContent = words.slice(0, 35).join(" ");
+
+    const hasSharedParam = typeof isShared === "boolean";
+    const updateData: any = {
+      mood: mood || "Grateful",
+      rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
+      content: cleanContent,
+      highlights: highlight || null,
+      gratitude: gratitude || null,
+      partnerNote: partnerNote || null,
+    };
+    if (hasSharedParam) {
+      updateData.isShared = isShared;
+      updateData.sharedAt = isShared ? new Date() : null;
+    }
 
     const entry = await prisma.dailyDiary.upsert({
       where: {
@@ -116,14 +162,7 @@ export async function POST(request: Request) {
           date,
         },
       },
-      update: {
-        mood: mood || "Grateful",
-        rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
-        content: cleanContent,
-        highlights: highlight || null,
-        gratitude: gratitude || null,
-        partnerNote: partnerNote || null,
-      },
+      update: updateData,
       create: {
         userId: user.id,
         date,
@@ -133,6 +172,8 @@ export async function POST(request: Request) {
         highlights: highlight || null,
         gratitude: gratitude || null,
         partnerNote: partnerNote || null,
+        isShared: Boolean(isShared),
+        sharedAt: isShared ? new Date() : null,
       },
     });
 

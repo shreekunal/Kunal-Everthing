@@ -32,9 +32,20 @@ export async function authenticateMcpRequest(request: Request) {
     if (!token || token !== configuredApiKey) {
       return { authenticated: false, error: "Invalid or missing MCP API key", user: null };
     }
+    const defaultUser = await getOrCreateDefaultUser();
+    return { authenticated: true, user: defaultUser, error: null };
   }
 
-  // 3. Resolve default primary user (Kunal)
+  // In production, reject unauthenticated access if no API key is configured
+  if (process.env.NODE_ENV === "production") {
+    return {
+      authenticated: false,
+      error: "MCP API key must be configured in production (EVERYTHING_MCP_API_KEY).",
+      user: null,
+    };
+  }
+
+  // 3. Resolve default primary user (Kunal) in local development
   const defaultUser = await getOrCreateDefaultUser();
   return { authenticated: true, user: defaultUser, error: null };
 }

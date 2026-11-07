@@ -23,6 +23,7 @@ import {
   Activity,
   Layers,
   BarChart2,
+  ListTodo,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { BrandLogo } from "../ui/BrandLogo";
@@ -74,6 +75,7 @@ export function Navbar({
     { name: "Partner", href: "/partner", icon: Heart },
     { name: "Diary", href: "/diary", icon: BookOpen },
     { name: "Money", href: "/money", icon: Wallet },
+    { name: "Lists", href: "/lists", icon: ListTodo },
     { name: "Dates", href: "/dates", icon: Calendar },
     { name: "Settings", href: "/settings", icon: Settings },
   ];

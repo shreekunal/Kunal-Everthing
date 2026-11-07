@@ -28,6 +28,7 @@ export async function GET() {
       importantDates,
       partner,
       todayStepLog,
+      activeRoutines,
     ] = await Promise.all([
       getDisciplineSummary(user.id, false),
       prisma.task.findMany({
@@ -92,7 +93,21 @@ export async function GET() {
           },
         },
       }),
+      prisma.routine.findMany({
+        where: { userId: user.id, isArchived: false },
+        select: {
+          id: true,
+          completions: {
+            where: { date: todayStr, completed: true },
+            select: { id: true },
+          },
+        },
+      }),
     ]);
+
+    const routinesLeftCount = activeRoutines.filter(
+      (r) => !r.completions || r.completions.length === 0
+    ).length;
 
     const todayTasks = allTasks.filter((t) => {
       if (t.status === "DONE") return t.dueDate === todayStr;
@@ -155,6 +170,7 @@ export async function GET() {
       },
       discipline,
       todayTasks,
+      routinesLeftCount,
       financials: {
         netWorth,
         totalAssets,

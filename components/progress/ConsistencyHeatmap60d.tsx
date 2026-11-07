@@ -22,6 +22,7 @@ export interface HeatmapStats {
   currentStreak: number;
   longestStreak60d: number;
   consistencyPercent: number;
+  graceUsed?: boolean;
 }
 
 interface ConsistencyHeatmap60dProps {
@@ -105,6 +106,11 @@ export function ConsistencyHeatmap60d({ days, stats }: ConsistencyHeatmap60dProp
           <span className="text-sm font-bold font-mono text-brand-red mt-0.5 flex items-center gap-1">
             <Flame className="w-3 h-3 fill-current" />
             {stats.currentStreak}d
+            {stats.graceUsed && (
+              <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30" title="1 rolling grace day active">
+                🛡️
+              </span>
+            )}
           </span>
           <span className="text-[8px] font-mono text-zinc-500">Active Streak</span>
         </div>

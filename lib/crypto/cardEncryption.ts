@@ -8,7 +8,15 @@ const ENCRYPTED_PREFIX = "enc:v1:";
  * Derives a 32-byte (256-bit) encryption key from the environment JWT_SECRET.
  */
 function getEncryptionKey(): Buffer {
-  const secret = process.env.JWT_SECRET || "default_kunal_os_secret_key_change_me_in_prod";
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "FATAL: JWT_SECRET environment variable is missing for card encryption in production."
+      );
+    }
+    return crypto.createHash("sha256").update("kunal-os-dev-card-secret-do-not-use-in-production").digest();
+  }
   return crypto.createHash("sha256").update(secret).digest();
 }
 

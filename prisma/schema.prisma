@@ -40,6 +40,8 @@ model User {
   fastingSessions   FastingSession[]
   dailyStepLogs     DailyStepLog[]
   activityLogs      ActivityLog[]
+  focusBroadcast    FocusBroadcast?
+  widgetTokens      WidgetToken[]
 }
 
 model UserSettings {
@@ -341,6 +343,7 @@ model DisciplineStreak {
   currentStreak Int       @default(0)
   bestStreak    Int       @default(0)
   lastResetDate DateTime?
+  graceUsedAt   DateTime? // Timestamp when rolling 7-day grace was activated
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -421,4 +424,58 @@ model ActivityLog {
   createdAt       DateTime @default(now())
 
   @@index([userId, date])
+}
+
+model FocusBroadcast {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project          String   @default("Study Focus")
+  topicTitle       String?
+  status           String   @default("IDLE") // RUNNING, PAUSED, COMPLETED, IDLE
+  mode             String   @default("TIMER") // TIMER, STOPWATCH
+  remainingSeconds Int      @default(0)
+  totalSeconds     Int      @default(1500)
+  updatedAt        DateTime @updatedAt @default(now())
+
+  @@index([updatedAt])
+}
+
+model SharedList {
+  id        String           @id @default(cuid())
+  title     String
+  kind      String           @default("CUSTOM") // GROCERY, BUCKET, DATE_IDEAS, CUSTOM
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  items     SharedListItem[]
+
+  @@index([kind])
+}
+
+model SharedListItem {
+  id        String     @id @default(cuid())
+  listId    String
+  list      SharedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean    @default(false)
+  addedBy   String
+  doneBy    String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([listId])
+}
+
+model WidgetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  label      String    @default("Android Home Screen Widget")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([userId])
+  @@index([tokenHash])
 }

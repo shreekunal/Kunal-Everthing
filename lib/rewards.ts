@@ -134,14 +134,19 @@ export async function deductPoints({
 
   const now = new Date();
 
-  // If Unhealthy Food penalty -> reset or update CLEAN_DIET streak
-  if (type === "PENALTY_UNHEALTHY_FOOD") {
+  // Helper to directly reset streak to 0 on explicit penalty/relapse
+  const resetInfractionStreak = async (
+    streakType: string,
+    streakName: string,
+    infractionTitle: string,
+    resetMessage: string
+  ) => {
     await prisma.disciplineStreak.upsert({
-      where: { userId_type: { userId, type: "CLEAN_DIET" } },
+      where: { userId_type: { userId, type: streakType } },
       create: {
         userId,
-        type: "CLEAN_DIET",
-        name: "Clean Diet & Nutrition",
+        type: streakType,
+        name: streakName,
         currentStreak: 0,
         bestStreak: 0,
         lastResetDate: now,
@@ -152,75 +157,45 @@ export async function deductPoints({
       },
     });
 
-    // Create system notification
     await prisma.notification.create({
       data: {
         userId,
-        title: "Discipline Infraction: Junk / Unhealthy Food",
-        message: `${Math.abs(points)} XP deducted. Clean Diet streak reset. Regain your focus!`,
-        category: "SYSTEM",
-        priority: "HIGH",
-      },
-    });
-  }
-
-  // If Relapse penalty -> reset PURITY_NOFAP streak
-  if (type === "PENALTY_FAP" || type === "PENALTY_RELAPSE") {
-    await prisma.disciplineStreak.upsert({
-      where: { userId_type: { userId, type: "PURITY_NOFAP" } },
-      create: {
-        userId,
-        type: "PURITY_NOFAP",
-        name: "Monk Purity & Focus",
-        currentStreak: 0,
-        bestStreak: 0,
-        lastResetDate: now,
-      },
-      update: {
-        currentStreak: 0,
-        lastResetDate: now,
-      },
-    });
-
-    // Create system notification
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: "Monk Protocol Breach: Relapse Logged",
-        message: `${Math.abs(points)} XP deducted. Purity streak reset to Day 0. Deep breath — restart right now!`,
+        title: infractionTitle,
+        message: resetMessage,
         category: "SYSTEM",
         priority: "URGENT",
       },
     });
+  };
+
+  // If Unhealthy Food penalty -> reset CLEAN_DIET streak (active violation, not a missed day)
+  if (type === "PENALTY_UNHEALTHY_FOOD") {
+    await resetInfractionStreak(
+      "CLEAN_DIET",
+      "Clean Diet & Nutrition",
+      "Discipline Infraction: Junk / Unhealthy Food",
+      `${Math.abs(points)} XP deducted. Clean Diet streak reset. Regain your focus!`
+    );
+  }
+
+  // If Relapse penalty -> strictly reset PURITY_NOFAP streak to 0 (no grace on active relapse)
+  if (type === "PENALTY_FAP" || type === "PENALTY_RELAPSE") {
+    await resetInfractionStreak(
+      "PURITY_NOFAP",
+      "Monk Purity & Focus",
+      "Monk Protocol Breach: Relapse Logged",
+      `${Math.abs(points)} XP deducted. Purity streak reset to Day 0. Deep breath — restart right now!`
+    );
   }
 
   // If Sleep penalty -> reset SLEEP_SCHEDULE streak
   if (type === "PENALTY_SLEEP") {
-    await prisma.disciplineStreak.upsert({
-      where: { userId_type: { userId, type: "SLEEP_SCHEDULE" } },
-      create: {
-        userId,
-        type: "SLEEP_SCHEDULE",
-        name: "Sleep & Recovery Protocol",
-        currentStreak: 0,
-        bestStreak: 0,
-        lastResetDate: now,
-      },
-      update: {
-        currentStreak: 0,
-        lastResetDate: now,
-      },
-    });
-
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: "Discipline Infraction: Sleep Protocol Broken",
-        message: `${Math.abs(points)} XP deducted. Sleep Schedule streak reset. Prioritize restorative rest!`,
-        category: "SYSTEM",
-        priority: "NORMAL",
-      },
-    });
+    await resetInfractionStreak(
+      "SLEEP_SCHEDULE",
+      "Sleep & Recovery Protocol",
+      "Discipline Infraction: Sleep Protocol Broken",
+      `${Math.abs(points)} XP deducted. Sleep Schedule streak reset. Prioritize restorative rest!`
+    );
   }
 
   return log;
@@ -262,12 +237,16 @@ export async function getOrCreateDisciplineStreaks(userId: string) {
       // Active streak without an explicit penalty today starts at least at 1
       const current = streak.currentStreak === 0 && daysSinceReset === 0 ? 0 : Math.max(1, daysSinceReset);
       const updatedBest = Math.max(streak.bestStreak, current);
+      const isGraceActive = Boolean(
+        streak.graceUsedAt && differenceInDays(now, streak.graceUsedAt) < 7
+      );
 
       streak = {
         ...streak,
         currentStreak: current,
         bestStreak: updatedBest,
-      };
+        graceUsed: isGraceActive,
+      } as any;
     }
     results.push(streak);
   }
@@ -445,16 +424,19 @@ export async function getDisciplineSummary(userId: string, includeItems = true) 
   const purityStreak = streaks.find((s: any) => s.type === "PURITY_NOFAP") || {
     currentStreak: 0,
     bestStreak: 0,
+    graceUsed: false,
   };
 
   const dietStreak = streaks.find((s: any) => s.type === "CLEAN_DIET") || {
     currentStreak: 0,
     bestStreak: 0,
+    graceUsed: false,
   };
 
   const sleepStreak = streaks.find((s: any) => s.type === "SLEEP_SCHEDULE") || {
     currentStreak: 0,
     bestStreak: 0,
+    graceUsed: false,
   };
 
   const hasPurityCheckedIn = Boolean(agg.has_purity_checked_in);

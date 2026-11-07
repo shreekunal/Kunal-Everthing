@@ -435,9 +435,16 @@ export default function RewardsPage() {
                   <p className="text-[9px] text-zinc-500 font-mono">Diet</p>
                 </div>
               </div>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-red/15 text-red-300 border border-brand-red/30 flex-shrink-0">
-                {streaks.diet?.currentStreak || 0}d
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {streaks.diet?.graceUsed && (
+                  <span className="px-1 py-0.5 rounded text-[8px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30" title="1 rolling grace day active">
+                    🛡️ Grace
+                  </span>
+                )}
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-red/15 text-red-300 border border-brand-red/30 flex-shrink-0">
+                  {streaks.diet?.currentStreak || 0}d
+                </span>
+              </div>
             </div>
 
             <button
@@ -462,9 +469,16 @@ export default function RewardsPage() {
                   <p className="text-[9px] text-zinc-500 font-mono">Purity</p>
                 </div>
               </div>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-red/15 text-red-300 border border-brand-red/30 flex-shrink-0">
-                {streaks.purity?.currentStreak || 0}d
-              </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {streaks.purity?.graceUsed && (
+                  <span className="px-1 py-0.5 rounded text-[8px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30" title="1 rolling grace day active">
+                    🛡️ Grace
+                  </span>
+                )}
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-red/15 text-red-300 border border-brand-red/30 flex-shrink-0">
+                  {streaks.purity?.currentStreak || 0}d
+                </span>
+              </div>
             </div>
 
             <button

@@ -16,6 +16,7 @@ import {
   Settings,
   Lock,
   X,
+  ListTodo,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { haptics } from "@/lib/haptics";
@@ -294,6 +295,12 @@ export function BottomNav({
       desc: "Journal & memory",
       href: "/diary",
       icon: BookOpen,
+    },
+    {
+      name: "Lists",
+      desc: "Shared groceries & ideas",
+      href: "/lists",
+      icon: ListTodo,
     },
     {
       name: "Dates",

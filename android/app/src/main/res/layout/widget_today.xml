@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/today_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- Empty State -->
+    <LinearLayout
+        android:id="@+id/today_widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_widget_task"
+            android:contentDescription="@string/widget_today_label" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="KunalOS Today"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/widget_open_app"
+            android:textColor="#A1A1AA"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Content State -->
+    <LinearLayout
+        android:id="@+id/today_widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TODAY"
+                    android:textColor="#EF4444"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/today_streak_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_surface_red"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="2dp"
+                    android:text="🔥 0d"
+                    android:textColor="#FCA5A5"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/today_updated_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Updated just now"
+                android:textColor="#A1A1AA"
+                android:textSize="10sp" />
+        </RelativeLayout>
+
+        <!-- Tasks List Container (Top 4) -->
+        <LinearLayout
+            android:id="@+id/today_tasks_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Empty Tasks Message -->
+            <TextView
+                android:id="@+id/today_tasks_empty_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:text="All tasks completed today! ✨"
+                android:textColor="#10B981"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <!-- Task Row 1 -->
+            <RelativeLayout
+                android:id="@+id/task_row_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:id="@+id/task_title_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/task_priority_1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Task 1"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/task_priority_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_surface"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1dp"
+                    android:text="HIGH"
+                    android:textColor="#EF4444"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
+
+            <!-- Task Row 2 -->
+            <RelativeLayout
+                android:id="@+id/task_row_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:id="@+id/task_title_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/task_priority_2"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Task 2"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/task_priority_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_surface"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1dp"
+                    android:text="MED"
+                    android:textColor="#A1A1AA"
+                    android:textSize="9sp" />
+            </RelativeLayout>
+
+            <!-- Task Row 3 -->
+            <RelativeLayout
+                android:id="@+id/task_row_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:id="@+id/task_title_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/task_priority_3"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Task 3"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/task_priority_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_surface"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1dp"
+                    android:text="LOW"
+                    android:textColor="#71717A"
+                    android:textSize="9sp" />
+            </RelativeLayout>
+
+            <!-- Task Row 4 -->
+            <RelativeLayout
+                android:id="@+id/task_row_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:id="@+id/task_title_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@+id/task_priority_4"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Task 4"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/task_priority_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/widget_surface"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1dp"
+                    android:text="LOW"
+                    android:textColor="#71717A"
+                    android:textSize="9sp" />
+            </RelativeLayout>
+        </LinearLayout>
+
+        <!-- Bottom Row: Routines Left & Next Date -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/today_routines_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/widget_surface"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="5dp"
+                android:text="Routines: 0 left"
+                android:textColor="#D4D4D8"
+                android:textSize="10sp" />
+
+            <View
+                android:layout_width="6dp"
+                android:layout_height="1dp" />
+
+            <TextView
+                android:id="@+id/today_next_date_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/widget_surface"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="5dp"
+                android:text="No upcoming dates"
+                android:textColor="#D4D4D8"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Stale Dim Overlay (>6 hours old) -->
+    <View
+        android:id="@+id/today_stale_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#77000000"
+        android:visibility="gone" />
+
+</FrameLayout>

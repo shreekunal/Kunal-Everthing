@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/health_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- Empty State -->
+    <LinearLayout
+        android:id="@+id/health_widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_widget_water"
+            android:contentDescription="@string/widget_water_steps_label" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Water &amp; Steps"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/widget_open_app"
+            android:textColor="#A1A1AA"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Content State -->
+    <LinearLayout
+        android:id="@+id/health_widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:text="WATER &amp; STEPS"
+                android:textColor="#EF4444"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/health_updated_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Updated just now"
+                android:textColor="#A1A1AA"
+                android:textSize="10sp" />
+        </RelativeLayout>
+
+        <!-- Metrics Grid (Side-by-side) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <!-- Card 1: Water -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/widget_surface"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_widget_water"
+                            android:contentDescription="Water" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:text="WATER"
+                            android:textColor="#38BDF8"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/water_percent_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:text="0%"
+                        android:textColor="#38BDF8"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/water_amount_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="0 / 2,000 ml"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <!-- Progress Bar -->
+                <ProgressBar
+                    android:id="@+id/water_progress_bar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:max="2000"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/widget_progress_bar_water" />
+
+                <!-- 1-Tap Log Water Button (+250 ml) -->
+                <LinearLayout
+                    android:id="@+id/btn_water_add"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/widget_button_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:paddingVertical="3dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+250 ml"
+                        android:textColor="#38BDF8"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="8dp"
+                android:layout_height="1dp" />
+
+            <!-- Card 2: Steps -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/widget_surface"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_widget_steps"
+                            android:contentDescription="Steps" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:text="STEPS"
+                            android:textColor="#EF4444"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/steps_percent_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:text="0%"
+                        android:textColor="#EF4444"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
+
+                <TextView
+                    android:id="@+id/steps_amount_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="0 / 10,000"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <!-- Progress Bar -->
+                <ProgressBar
+                    android:id="@+id/steps_progress_bar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="6dp"
+                    android:max="10000"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/widget_progress_bar_steps" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Stale Dim Overlay (>6 hours old) -->
+    <View
+        android:id="@+id/health_stale_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#77000000"
+        android:visibility="gone" />
+
+</FrameLayout>

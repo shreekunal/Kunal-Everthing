@@ -57,6 +57,65 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Home Screen Widgets -->
+        <receiver
+            android:name=".TodayWidgetProvider"
+            android:label="@string/widget_today_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".WaterStepsWidgetProvider"
+            android:label="@string/widget_water_steps_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/water_steps_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TogetherWidgetProvider"
+            android:label="@string/widget_together_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/together_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".QuickActionsWidgetProvider"
+            android:label="@string/widget_quick_actions_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_actions_widget_info" />
+        </receiver>
+
+        <!-- Interactive 1-Tap Widget Actions Receiver -->
+        <receiver
+            android:name=".WidgetActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.kunal.os.ACTION_WIDGET_LOG_WATER" />
+                <action android:name="com.kunal.os.ACTION_WIDGET_COMPLETE_TASK" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Permissions -->

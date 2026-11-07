@@ -4,6 +4,7 @@ import { getCurrentUser, ensureDualProfiles } from "@/lib/auth";
 import { authenticateMcpRequest } from "@/lib/mcp/auth";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from "date-fns";
 import { awardPoints } from "@/lib/rewards";
+import { calculateRoutineStreak } from "@/lib/utils";
 
 function calculateElapsedMinutes(startStr?: string | null, endStr?: string | null): number | null {
   if (!startStr || !endStr) return null;
@@ -178,24 +179,19 @@ export async function GET(request: Request) {
       }
     }
 
-    // Current unbroken streak checking backwards from today / yesterday
-    for (let i = last60Days.length - 1; i >= 0; i--) {
-      if (last60Days[i].studyMinutes > 0) {
-        currentStreak++;
-      } else if (i === last60Days.length - 1) {
-        // Today has 0 mins yet, check if yesterday had streak
-        continue;
-      } else {
-        break;
-      }
-    }
+    // Calculate streak with rolling 7-day grace using calculateRoutineStreak
+    const completedStudyDates = new Set(
+      last60Days.filter((d) => d.studyMinutes > 0).map((d) => d.date)
+    );
+    const routineStreakData = calculateRoutineStreak(completedStudyDates, todayStr);
 
     const heatmapStats = {
       totalStudyMinutes60d,
       totalStudyHours60d: Number((totalStudyMinutes60d / 60).toFixed(1)),
       activeDays60d,
-      currentStreak,
-      longestStreak60d,
+      currentStreak: routineStreakData.currentStreak,
+      longestStreak60d: routineStreakData.bestStreak,
+      graceUsed: routineStreakData.graceUsed,
       consistencyPercent: Math.round((activeDays60d / 60) * 100),
     };
 

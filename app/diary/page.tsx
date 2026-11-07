@@ -45,12 +45,15 @@ type DiaryTheme = "parchment" | "midnight" | "minimal";
 
 export default function DailyDiaryPage() {
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  const [activeTab, setActiveTab] = useState<"write" | "history">("write");
+  const [activeTab, setActiveTab] = useState<"write" | "history" | "partner">("write");
   const [selectedDate, setSelectedDate] = useState(todayStr);
 
   // Form State
   const [content, setContent] = useState("");
+  const [isShared, setIsShared] = useState(false);
   const [pastEntries, setPastEntries] = useState<any[]>([]);
+  const [partnerEntries, setPartnerEntries] = useState<any[]>([]);
+  const [partnerName, setPartnerName] = useState<string>("Partner");
   const [partner, setPartner] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,9 +73,10 @@ export default function DailyDiaryPage() {
 
   const fetchDiaryData = useCallback(async (dateToFetch: string) => {
     try {
-      const [diaryRes, partnerRes] = await Promise.all([
+      const [diaryRes, partnerRes, partnerDiaryRes] = await Promise.all([
         fetch("/api/diary"),
         fetch("/api/partner/progress"),
+        fetch("/api/diary?partner=true"),
       ]);
 
       if (diaryRes.ok) {
@@ -85,6 +89,7 @@ export default function DailyDiaryPage() {
           const existingText = match.content || match.highlights || match.partnerNote || "";
           const words = existingText.trim().split(/\s+/).filter(Boolean);
           setContent(words.slice(0, MAX_WORD_LIMIT).join(" "));
+          setIsShared(Boolean(match.isShared));
         } else if (dateToFetch === todayStr) {
           // Restore auto-draft if available
           const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -93,8 +98,18 @@ export default function DailyDiaryPage() {
           } else {
             setContent("");
           }
+          setIsShared(false);
         } else {
           setContent("");
+          setIsShared(false);
+        }
+      }
+
+      if (partnerDiaryRes.ok) {
+        const pdJson = await partnerDiaryRes.json();
+        setPartnerEntries(pdJson.entries || []);
+        if (pdJson.partnerName) {
+          setPartnerName(pdJson.partnerName);
         }
       }
 
@@ -171,6 +186,7 @@ export default function DailyDiaryPage() {
         body: JSON.stringify({
           date: selectedDate,
           content: cleanContent,
+          isShared,
         }),
       });
 
@@ -391,8 +407,8 @@ export default function DailyDiaryPage() {
         </div>
       </div>
 
-      {/* 2-Segment Tab Switcher: Write & History */}
-      <div className="grid grid-cols-2 p-1 rounded-2xl bg-zinc-950/80 border border-white/[0.08] backdrop-blur-xl">
+      {/* 3-Segment Tab Switcher: Write, History, From Partner */}
+      <div className="grid grid-cols-3 p-1 rounded-2xl bg-zinc-950/80 border border-white/[0.08] backdrop-blur-xl">
         <button
           type="button"
           onClick={() => {
@@ -400,7 +416,7 @@ export default function DailyDiaryPage() {
             setActiveTab("write");
           }}
           className={clsx(
-            "py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all active:scale-95 min-h-[40px]",
+            "py-2.5 px-2 sm:px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 min-h-[40px]",
             activeTab === "write"
               ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]"
               : "text-zinc-400 hover:text-white"
@@ -417,14 +433,31 @@ export default function DailyDiaryPage() {
             setActiveTab("history");
           }}
           className={clsx(
-            "py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all active:scale-95 min-h-[40px]",
+            "py-2.5 px-2 sm:px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 min-h-[40px]",
             activeTab === "history"
               ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]"
               : "text-zinc-400 hover:text-white"
           )}
         >
           <History className="w-3.5 h-3.5" />
-          <span>History ({pastEntries.length})</span>
+          <span>Mine ({pastEntries.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setActiveTab("partner");
+          }}
+          className={clsx(
+            "py-2.5 px-2 sm:px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-95 min-h-[40px]",
+            activeTab === "partner"
+              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]"
+              : "text-zinc-400 hover:text-white"
+          )}
+        >
+          <Heart className="w-3.5 h-3.5 fill-rose-500/20" />
+          <span className="truncate">From {partnerNickname} ({partnerEntries.length})</span>
         </button>
       </div>
 
@@ -540,6 +573,44 @@ export default function DailyDiaryPage() {
               </button>
             </div>
 
+            {/* Share with Partner Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={clsx(
+                    "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+                    isShared ? "bg-rose-500/20 text-rose-300" : "bg-white/5 text-zinc-400"
+                  )}
+                >
+                  <Heart className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white">Share with {partnerNickname}</div>
+                  <div className="text-[10px] text-zinc-400">Makes this entry visible in {partnerNickname}&apos;s diary tab</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setIsShared(!isShared);
+                }}
+                className={clsx(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                  isShared ? "bg-rose-500" : "bg-zinc-800"
+                )}
+                aria-checked={isShared}
+                role="switch"
+              >
+                <span
+                  className={clsx(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md",
+                    isShared ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
+
             {/* Primary Save / Update Button with Free-Tier Lock & Loading state */}
             <div className="pt-1">
               <button
@@ -646,6 +717,11 @@ export default function DailyDiaryPage() {
                         <span className="text-[9px] font-mono text-zinc-500 px-1.5 py-0.5 rounded bg-white/5">
                           {words.length} / {MAX_WORD_LIMIT}w
                         </span>
+                        {item.isShared && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                            <Heart className="w-2.5 h-2.5 fill-rose-500/30" /> Shared
+                          </span>
+                        )}
                       </div>
 
                       {entryText && (
@@ -683,6 +759,79 @@ export default function DailyDiaryPage() {
                   </div>
                 );
               })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FROM PARTNER TAB VIEW */}
+      {activeTab === "partner" && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/[0.08] space-y-3.5 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-500/20" />
+              <h2 className="text-xs uppercase font-mono tracking-wider text-zinc-300 font-bold">
+                From {partnerNickname}
+              </h2>
+            </div>
+            <span className="text-[10px] font-mono text-zinc-500">
+              {partnerEntries.length} {partnerEntries.length === 1 ? "entry" : "entries"} shared
+            </span>
+          </div>
+
+          <div className="divide-y divide-white/[0.04]">
+            {partnerEntries.length === 0 ? (
+              <div className="py-12 px-4 text-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-2">
+                  <Heart className="w-6 h-6 stroke-[1.5]" />
+                </div>
+                <p className="text-xs font-mono text-zinc-300 font-bold">
+                  No shared entries yet
+                </p>
+                <p className="text-[11px] text-zinc-500 max-w-xs mx-auto">
+                  When {partnerNickname} shares a daily reflection with you, it will appear here.
+                </p>
+              </div>
+            ) : (
+              partnerEntries.map((item) => (
+                <div
+                  key={item.id}
+                  className="py-4 px-2.5 rounded-2xl flex flex-col gap-2 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-white block">
+                        {format(new Date(item.date), "EEEE, d MMM yyyy")}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                        <Heart className="w-2.5 h-2.5 fill-rose-500/30" /> Shared
+                      </span>
+                    </div>
+                    {item.mood && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-zinc-300 border border-white/10">
+                        {item.mood}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-zinc-200 font-sans leading-relaxed whitespace-pre-wrap pl-1 border-l-2 border-rose-500/30">
+                    {item.content || item.highlights || item.partnerNote || "No reflections logged."}
+                  </p>
+
+                  {item.gratitude && (
+                    <div className="text-[11px] text-amber-300/90 font-sans italic bg-amber-500/5 px-2.5 py-1.5 rounded-xl border border-amber-500/15">
+                      ✨ Grateful: {item.gratitude}
+                    </div>
+                  )}
+
+                  {item.partnerNote && (
+                    <div className="text-[11px] text-rose-300/90 font-sans italic bg-rose-500/5 px-2.5 py-1.5 rounded-xl border border-rose-500/15 flex items-center gap-1.5">
+                      <Heart className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span>Note for you: {item.partnerNote}</span>
+                    </div>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>

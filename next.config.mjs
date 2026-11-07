@@ -15,6 +15,15 @@ const nextConfig = {
     };
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: "/relationship",
+        destination: "/partner",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

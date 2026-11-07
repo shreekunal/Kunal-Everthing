@@ -12,4 +12,15 @@
     <string name="shortcut_money_long">Finances &amp; Expense Tracker</string>
     <string name="shortcut_karma_short">Monk Karma</string>
     <string name="shortcut_karma_long">Discipline &amp; Rewards Hub</string>
+
+    <!-- Home Screen Widgets -->
+    <string name="widget_today_label">Today</string>
+    <string name="widget_today_description">Tasks due today, routines left, and upcoming dates.</string>
+    <string name="widget_water_steps_label">Water &amp; Steps</string>
+    <string name="widget_water_steps_description">Daily hydration and step tracking.</string>
+    <string name="widget_together_label">Together</string>
+    <string name="widget_together_description">Days together, anniversary countdown, and partner status.</string>
+    <string name="widget_quick_actions_label">Quick Actions</string>
+    <string name="widget_quick_actions_description">1-tap shortcuts for task, diary, love message, and rewards.</string>
+    <string name="widget_open_app">Open app to sync</string>
 </resources>

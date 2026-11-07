@@ -43,6 +43,8 @@ import { WaterTrackerCard } from "@/components/dashboard/WaterTrackerCard";
 import { Capacitor } from "@capacitor/core";
 import { fetchHealthConnectSteps } from "@/lib/healthSync";
 import { PartnerFocusBroadcast } from "@/components/progress/PartnerFocusBroadcast";
+import { WeeklyRecapCard } from "@/components/dashboard/WeeklyRecapCard";
+import { syncWidgetsIfChanged } from "@/lib/widgetSync";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -211,6 +213,35 @@ export default function DashboardPage() {
       window.removeEventListener("focus", handleVisibilitySync);
     };
   }, []);
+
+  // Synchronize Android Home Screen Widgets whenever dashboard or hydration data updates
+  useEffect(() => {
+    if (!data) return;
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return;
+
+    let isCancelled = false;
+    Promise.all([
+      fetch("/api/partner/progress", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("/api/progress/broadcast", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([partnerData, broadcastData]) => {
+      if (isCancelled) return;
+      syncWidgetsIfChanged({
+        dashboardData: data,
+        partnerData,
+        broadcastData,
+        waterGlasses,
+        waterTarget,
+      });
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [data, waterGlasses, waterTarget]);
 
   const handleToggleTask = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === "DONE" ? "TODO" : "DONE";
@@ -843,6 +874,9 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : null}
+
+        {/* 🌟 7-Day Shareable Weekly Recap */}
+        <WeeklyRecapCard />
 
         {/* Main Grid: Priorities & Hydration */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

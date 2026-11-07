@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/together_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- Empty State -->
+    <LinearLayout
+        android:id="@+id/together_widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_widget_heart"
+            android:contentDescription="@string/widget_together_label" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Together"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/widget_open_app"
+            android:textColor="#A1A1AA"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Content State -->
+    <LinearLayout
+        android:id="@+id/together_widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Top Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_widget_heart"
+                    android:contentDescription="Heart" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="TOGETHER"
+                    android:textColor="#EF4444"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/together_updated_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:text="Updated just now"
+                android:textColor="#A1A1AA"
+                android:textSize="10sp" />
+        </RelativeLayout>
+
+        <!-- Main Stats Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_surface"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <TextView
+                android:id="@+id/together_days_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="❤️ 0 Days"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/together_anniversary_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Next anniversary countdown"
+                android:textColor="#FCA5A5"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Partner Status Line -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/widget_surface"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="7dp">
+
+            <TextView
+                android:id="@+id/together_partner_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Partner: Resting"
+                android:textColor="#D4D4D8"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/together_partner_tasks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="0 pending"
+                android:textColor="#A1A1AA"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Stale Dim Overlay (>6 hours old) -->
+    <View
+        android:id="@+id/together_stale_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#77000000"
+        android:visibility="gone" />
+
+</FrameLayout>

@@ -1,7 +1,7 @@
 // Everything Production Service Worker - Linear/Slack Remote Shell Architecture
 // Supports instant offline boot (<50ms), static asset caching, and network-first navigation.
 
-const CACHE_VERSION = "v1.3.0";
+const CACHE_VERSION = "v1.3.1";
 const STATIC_CACHE = `kunal-os-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `kunal-os-shell-${CACHE_VERSION}`;
 
@@ -9,10 +9,9 @@ const SHELL_CACHE = `kunal-os-shell-${CACHE_VERSION}`;
 const PRECACHE_ASSETS = [
   "/",
   "/tasks",
-  "/routines",
+  "/lists",
   "/money",
   "/partner",
-  "/relationship",
   "/settings",
   "/login",
   "/manifest.json",

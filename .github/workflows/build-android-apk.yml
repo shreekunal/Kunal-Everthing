@@ -30,8 +30,8 @@ jobs:
 
       - name: Build Web App & Add Android Platform
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://neondb_owner:npg_1qwGudWJAz7y@ep-patient-rain-b48j6u4k-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require' }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'kunal-os-production-master-secret-key-2025' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           NODE_ENV: production
         run: |
           npm run build
